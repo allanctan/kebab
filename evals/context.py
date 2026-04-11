@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from app.config.config import Settings
 from app.core.llm.resolve import resolve_model
-from app.core.llm.presets import list_aliases, resolve_alias
+from app.core.llm.model_registry import list_aliases, resolve_alias
 
 __all__ = ["resolve_eval_model", "list_aliases", "Settings"]
 

@@ -97,6 +97,9 @@ _SYSTEM_PROMPT = """You are an information architect organizing source documents
 
 Constraints:
 - Do not invent sources or content beyond what is in the manifest.
+- **Only include sources that genuinely belong to the domain.** If the domain_hint
+  is "Science", do not include mathematics, literature, or other unrelated subjects.
+  Skip manifest entries that don't fit — it is better to exclude than to force-fit.
 - Prefer 1 domain → 1–3 subdomains → 2–6 topics → 4–10 articles per topic.
 """
 

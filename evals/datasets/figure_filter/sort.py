@@ -39,7 +39,7 @@ from typing import Any
 import yaml
 
 from app.config import env as default_env
-from app.core.images.filters import decide
+from app.core.images.filter_images import decide
 from evals.suites.figure_filter import (
     _build_hash_page_counts_per_doc,
     _entry_to_figure_bytes,

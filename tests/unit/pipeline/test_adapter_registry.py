@@ -68,7 +68,7 @@ class TestAdapterRegistry:
 class TestDefaultRegistry:
     def test_default_registry_has_all_builtin_adapters(self, tmp_path: Path) -> None:
         registry = build_default_registry(_settings(tmp_path))
-        assert set(registry.names()) == {"local_pdf", "local_dataset", "direct_url", "tavily", "wikipedia", "openstax"}
+        assert set(registry.names()) == {"local_pdf", "direct_url", "tavily", "wikipedia", "openstax"}
 
     def test_default_adapters_are_source_adapters(self, tmp_path: Path) -> None:
         registry = build_default_registry(_settings(tmp_path))

@@ -61,7 +61,7 @@ class DirectUrlAdapter:
                 f"direct_url cannot fetch candidate from adapter {candidate.adapter!r}"
             )
         result = web_ingest.ingest(self.settings, candidate.locator)
-        raw_path = result.html_path
+        raw_path = result.raw_path
         content_hash = sha256_file(raw_path)
         source = Source(
             id=0,

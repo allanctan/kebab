@@ -36,7 +36,7 @@ from pathlib import Path
 
 from app.config import env as default_env
 from app.config.config import Settings
-from app.core.images.filters import decide
+from app.core.images.filter_images import decide
 from app.utils.pdf_extractor import extract
 
 

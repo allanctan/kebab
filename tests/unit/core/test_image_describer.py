@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from app.config.config import Settings
-from app.core.llm import multimodal
+from app.core.images import image_describer as multimodal
 from app.core.errors import ConfigError, KebabError
 
 

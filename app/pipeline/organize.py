@@ -110,24 +110,21 @@ def _build_manifest(settings: Settings) -> list[tuple[str, str]]:
             else:
                 label = sub.name
             manifest.append((label, snippet))
-    datasets = Path(settings.RAW_DIR) / "datasets"
-    if datasets.exists():
-        for path in sorted(datasets.iterdir()):
-            if path.is_file():
-                try:
-                    text = path.read_text(encoding="utf-8")
-                except UnicodeDecodeError:
-                    text = "(binary dataset)"
-                stem = path.stem.replace(" ", "_")
-                entry = index.get_by_stem(stem)
-                if entry is not None:
-                    label = f"[{entry.id}] {entry.title}"
-                elif has_index:
-                    logger.debug("organize: skipping dataset %s — not in source index", path.name)
-                    continue
-                else:
-                    label = path.name
-                manifest.append((label, text[:_MANIFEST_SNIPPET_CHARS]))
+    # Also scan processed/web/ for web-ingested sources
+    processed_web = Path(settings.PROCESSED_DIR) / "web"
+    if processed_web.exists():
+        for md_file in sorted(processed_web.glob("*.md")):
+            snippet = md_file.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
+            stem = md_file.stem
+            entry = index.get_by_stem(stem)
+            if entry is not None:
+                label = f"[{entry.id}] {entry.title}"
+            elif has_index:
+                logger.debug("organize: skipping web source %s — not in source index", stem)
+                continue
+            else:
+                label = stem
+            manifest.append((label, snippet))
     return manifest
 
 

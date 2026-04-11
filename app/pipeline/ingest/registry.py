@@ -63,7 +63,6 @@ def build_default_registry(settings: Settings) -> AdapterRegistry:
     pymupdf / httpx transitively.
     """
     from app.pipeline.ingest.adapters.direct_url import DirectUrlAdapter
-    from app.pipeline.ingest.adapters.local_dataset import LocalDatasetAdapter
     from app.pipeline.ingest.adapters.local_pdf import LocalPdfAdapter
     from app.pipeline.ingest.adapters.openstax import OpenStaxAdapter
     from app.pipeline.ingest.adapters.tavily import TavilyAdapter
@@ -71,7 +70,6 @@ def build_default_registry(settings: Settings) -> AdapterRegistry:
 
     registry = AdapterRegistry(settings=settings)
     registry.register(LocalPdfAdapter(settings=settings))
-    registry.register(LocalDatasetAdapter(settings=settings))
     registry.register(DirectUrlAdapter(settings=settings))
     registry.register(TavilyAdapter(settings=settings))
     registry.register(WikipediaAdapter(settings=settings))

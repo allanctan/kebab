@@ -5,7 +5,7 @@ from app.core.images.figures import (
     resolve_figure_markers,
     copy_figures,
 )
-from app.core.images.filters import build_hash_page_counts, decide
+from app.core.images.filter_images import build_hash_page_counts, decide
 
 __all__ = [
     "FigureEntry",

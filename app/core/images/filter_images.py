@@ -96,21 +96,5 @@ def decide(
     return FilterDecision(keep=True, reason="")
 
 
-def partition(
-    figures: list[FigureBytes], settings: Settings
-) -> tuple[list[tuple[FigureBytes, FilterDecision]], list[tuple[FigureBytes, FilterDecision]]]:
-    """Split a list of figures into ``(kept, dropped)`` with per-figure decisions.
 
-    One-pass helper so callers don't have to build ``hash_page_counts``
-    themselves when they just want to know which figures survive.
-    """
-    counts = build_hash_page_counts(figures)
-    kept: list[tuple[FigureBytes, FilterDecision]] = []
-    dropped: list[tuple[FigureBytes, FilterDecision]] = []
-    for fig in figures:
-        decision = decide(fig, counts, settings)
-        if decision.keep:
-            kept.append((fig, decision))
-        else:
-            dropped.append((fig, decision))
-    return kept, dropped
+

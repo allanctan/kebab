@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.core.llm import presets as model_presets
+from app.core.llm import model_registry as model_presets
 from app.core.errors import ConfigError
 
 

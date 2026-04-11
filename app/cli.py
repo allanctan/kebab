@@ -22,7 +22,6 @@ from app.pipeline import gaps as gaps_stage
 from app.pipeline import generate as generate_stage
 from app.pipeline import organize as organize_stage
 from app.pipeline import sync as sync_stage
-from app.pipeline.ingest import csv_json as csv_json_ingest
 from app.pipeline.ingest import pdf as pdf_ingest
 from app.pipeline.ingest import web as web_ingest
 
@@ -104,23 +103,6 @@ def ingest_retry_errors(stem: str) -> None:
         f"recovered {result.recovered}, still failing {result.still_failing}"
     )
 
-
-@ingest.command("csv")
-@click.option(
-    "--input",
-    "input_path",
-    required=True,
-    type=click.Path(exists=True, dir_okay=True, file_okay=True, path_type=Path),
-    help="Path to a single CSV/JSON file, or a folder to recurse into.",
-)
-def ingest_csv(input_path: Path) -> None:
-    """Copy a CSV/JSON dataset (or every one under a folder) into raw/datasets/."""
-    if input_path.is_dir():
-        results = csv_json_ingest.ingest_tree(env, input_path)
-        click.echo(f"ingested {len(results)} dataset(s) from {input_path}")
-    else:
-        result = csv_json_ingest.ingest(env, input_path)
-        click.echo(f"ingested {result.kind.upper()} dataset → {result.target}")
 
 
 @ingest.command("web")
@@ -221,8 +203,9 @@ def agent_qa(once: bool, watch: bool) -> None:
 @agent.command("research")
 @click.argument("article_id", required=False)
 @click.option("--all", "research_all", is_flag=True, help="Research all articles.")
+@click.option("--mode", type=click.Choice(["all", "content", "gaps"]), default="all", show_default=True, help="Research mode: all, content-only, or gaps-only.")
 @click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
-def agent_research(article_id: str | None, research_all: bool, budget: int) -> None:
+def agent_research(article_id: str | None, research_all: bool, mode: str, budget: int) -> None:
     """Enrich and verify an article against external sources."""
     from app.agents.research import agent as research_agent
     from app.core.markdown import read_article as _read_article
@@ -236,13 +219,13 @@ def agent_research(article_id: str | None, research_all: bool, budget: int) -> N
                 fm, _ = _read_article(md)
             except Exception:  # noqa: BLE001
                 continue
-            result = research_agent.run(env, article_id=fm.id, budget=budget)
+            result = research_agent.run(env, article_id=fm.id, mode=mode, budget=budget)
             click.echo(
                 f"  {fm.id}: {result.confirms} confirmed, "
                 f"{result.appends} appended, {result.disputes} disputed"
             )
     elif article_id:
-        result = research_agent.run(env, article_id=article_id, budget=budget)
+        result = research_agent.run(env, article_id=article_id, mode=mode, budget=budget)
         click.echo(
             f"research {article_id}: {result.claims_total} claims, "
             f"{result.confirms} confirmed, {result.appends} appended, "

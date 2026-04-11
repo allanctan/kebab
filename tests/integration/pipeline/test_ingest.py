@@ -11,7 +11,6 @@ import pytest
 
 from app.config.config import Settings
 from app.core.errors import IngestError
-from app.pipeline.ingest import csv_json as csv_json_ingest
 from app.pipeline.ingest import pdf as pdf_ingest
 from app.pipeline.ingest import web as web_ingest
 
@@ -376,93 +375,43 @@ def test_pdf_ingest_rejects_non_pdf(tmp_path: Path, settings: Settings) -> None:
         pdf_ingest.ingest(settings, bad, describer=_no_describer)
 
 
-@pytest.mark.integration
-def test_csv_ingest_copies_file(tmp_path: Path, settings: Settings) -> None:
-    src = tmp_path / "rows.csv"
-    src.write_text("a,b\n1,2\n", encoding="utf-8")
-    result = csv_json_ingest.ingest(settings, src)
-    assert result.target.exists()
-    assert result.kind == "csv"
-
 
 @pytest.mark.integration
-def test_json_ingest_validates_payload(tmp_path: Path, settings: Settings) -> None:
-    good = tmp_path / "good.json"
-    good.write_text(json.dumps({"k": "v"}), encoding="utf-8")
-    result = csv_json_ingest.ingest(settings, good)
-    assert result.target.exists()
-
-
-@pytest.mark.integration
-def test_json_ingest_rejects_invalid_json(tmp_path: Path, settings: Settings) -> None:
-    bad = tmp_path / "bad.json"
-    bad.write_text("{not valid", encoding="utf-8")
-    with pytest.raises(IngestError):
-        csv_json_ingest.ingest(settings, bad)
-
-
-@pytest.mark.integration
-def test_csv_ingest_rejects_unsupported_extension(
-    tmp_path: Path, settings: Settings
-) -> None:
-    bad = tmp_path / "rows.txt"
-    bad.write_text("a,b", encoding="utf-8")
-    with pytest.raises(IngestError):
-        csv_json_ingest.ingest(settings, bad)
-
-
-@pytest.mark.integration
-def test_csv_ingest_tree_mixes_csv_and_json(
-    tmp_path: Path, settings: Settings
-) -> None:
-    root = tmp_path / "datasets"
-    (root / "sub").mkdir(parents=True)
-    (root / "rows.csv").write_text("a,b\n1,2\n", encoding="utf-8")
-    (root / "sub" / "data.json").write_text('{"k": 1}', encoding="utf-8")
-    (root / "ignore.txt").write_text("ignored", encoding="utf-8")
-    results = csv_json_ingest.ingest_tree(settings, root)
-    assert {r.kind for r in results} == {"csv", "json"}
-    assert len(results) == 2
-
-
-@pytest.mark.integration
-def test_web_ingest_writes_html_and_text(
+def test_web_ingest_writes_markdown(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    html = "<html><body><h1>Hi</h1><p>kebab</p></body></html>"
+    md = "# Title\n\nClean markdown content about kebab."
 
-    def _fake_get(self: httpx.Client, url: str) -> httpx.Response:
-        return httpx.Response(200, text=html, request=httpx.Request("GET", url))
+    def _fake_jina(url: str) -> tuple[str, str]:
+        return md, md
 
-    monkeypatch.setattr(httpx.Client, "get", _fake_get)
+    monkeypatch.setattr(web_ingest, "_fetch_jina", _fake_jina)
     result = web_ingest.ingest(settings, "https://example.test/page")
-    assert result.html_path.exists()
+    assert result.raw_path.exists()
     assert result.text_path.exists()
     assert "kebab" in result.text_path.read_text()
 
 
 @pytest.mark.integration
-def test_web_ingest_propagates_http_error(
+def test_web_ingest_raises_on_jina_failure(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def _fake_get(self: httpx.Client, url: str) -> httpx.Response:
-        return httpx.Response(500, text="boom", request=httpx.Request("GET", url))
+    def _fail_jina(url: str) -> tuple[str, str]:
+        raise httpx.ConnectError("jina down")
 
-    monkeypatch.setattr(httpx.Client, "get", _fake_get)
-    with pytest.raises(IngestError):
-        web_ingest.ingest(settings, "https://example.test/fail")
+    monkeypatch.setattr(web_ingest, "_fetch_jina", _fail_jina)
+    with pytest.raises(httpx.ConnectError):
+        web_ingest.ingest(settings, "https://example.test/page")
 
 
 @pytest.mark.integration
 def test_web_ingest_slug_collision_resistance(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    html = "<p>x</p>"
+    def _fake_jina(url: str) -> tuple[str, str]:
+        return "content", "content"
 
-    def _fake_get(self: httpx.Client, url: str) -> httpx.Response:
-        return httpx.Response(200, text=html, request=httpx.Request("GET", url))
-
-    monkeypatch.setattr(httpx.Client, "get", _fake_get)
+    monkeypatch.setattr(web_ingest, "_fetch_jina", _fake_jina)
     a = web_ingest.ingest(settings, "https://example.test/a")
     b = web_ingest.ingest(settings, "https://example.test/b")
-    assert a.html_path != b.html_path
+    assert a.raw_path != b.raw_path

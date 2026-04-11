@@ -25,8 +25,8 @@ from typing import Callable
 
 from app.config.config import Settings
 from app.core.errors import IngestError
-from app.core.images.filters import build_hash_page_counts, decide
-from app.core.llm.multimodal import describe_image
+from app.core.images.filter_images import build_hash_page_counts, decide
+from app.core.images.image_describer import describe_image
 from app.utils.pdf_extractor import FigureBytes, PdfExtraction, extract
 
 logger = logging.getLogger(__name__)
@@ -202,6 +202,22 @@ def _describe_figures(
                 content_hash=fig.content_hash,
             )
         )
+    # Summary logging
+    filter_dropped = sum(1 for r in records if r.skip_reason and r.skip_reason != "describer_error")
+    llm_decorative = sum(1 for r in records if r.description == "DECORATIVE" and not r.skip_reason)
+    llm_errors = sum(1 for r in records if r.skip_reason == "describer_error")
+    useful = sum(1 for r in records if r.description and r.description != "DECORATIVE" and not r.skip_reason and not r.description.startswith("ERROR:"))
+    logger.info(
+        "figures: %d total → %d filter-dropped, %d LLM-decorative, %d errors, %d useful",
+        len(records), filter_dropped, llm_decorative, llm_errors, useful,
+    )
+    by_reason: dict[str, int] = {}
+    for r in records:
+        if r.skip_reason:
+            by_reason[r.skip_reason] = by_reason.get(r.skip_reason, 0) + 1
+    if by_reason:
+        logger.info("  filter breakdown: %s", by_reason)
+
     return descriptions, records, None
 
 

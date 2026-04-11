@@ -129,7 +129,7 @@ def resolve_model(model_string: str) -> Any:
         logger.debug("unknown prefix %r — passing model string through verbatim", prefix)
         return expanded
     # No colon → treat as alias.
-    from app.core.llm.presets import resolve_alias
+    from app.core.llm.model_registry import resolve_alias
 
     return resolve_alias(expanded)
 

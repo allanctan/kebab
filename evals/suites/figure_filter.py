@@ -41,7 +41,7 @@ import yaml
 
 from app.config.config import Settings
 from app.core.errors import KebabError
-from app.core.images.filters import decide
+from app.core.images.filter_images import decide
 from app.utils.pdf_extractor import FigureBytes, _dominant_color_usage
 from evals.evaluators.figure_filter.f1_scorer import (
     F1Report,

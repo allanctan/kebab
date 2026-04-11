@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from app.config.config import Settings
-from app.core.images.filters import (
+from app.core.images.filter_images import (
     build_hash_page_counts,
     decide,
-    partition,
 )
 from app.utils.pdf_extractor import FigureBytes
 
@@ -191,36 +190,6 @@ def test_repeated_takes_precedence_over_ribbon() -> None:
     assert result.reason == "repeated"
 
 
-# ----- partition helper -------------------------------------------------------
-
-
-def test_partition_splits_into_kept_and_dropped() -> None:
-    figures = [
-        _fig(page=1, index=1, rect_w=200, rect_h=150, hash_="content-A"),  # keep
-        _fig(page=1, index=2, rect_w=20, rect_h=20, hash_="tiny-icon"),  # tiny
-        _fig(
-            page=1, index=3, rect_w=200, rect_h=150, hash_="blank-page",
-            dominant_color_usage=0.99,
-        ),  # solid_color
-        _fig(page=2, index=1, rect_w=200, rect_h=150, hash_="seal"),  # repeated
-        _fig(page=3, index=1, rect_w=200, rect_h=150, hash_="seal"),  # repeated
-        _fig(page=4, index=1, rect_w=200, rect_h=150, hash_="seal"),  # repeated
-        _fig(page=2, index=2, rect_w=500, rect_h=35, hash_="ribbon-A"),  # ribbon
-    ]
-    kept, dropped = partition(figures, _settings())
-    assert len(kept) == 1
-    assert kept[0][0].content_hash == "content-A"
-    assert {d[1].reason for d in dropped} == {"tiny", "solid_color", "repeated", "ribbon"}
-
-
-def test_partition_keeps_everything_when_no_filters_match() -> None:
-    figures = [
-        _fig(page=p, index=1, rect_w=200, rect_h=150, hash_=f"h{p}")
-        for p in range(1, 6)
-    ]
-    kept, dropped = partition(figures, _settings())
-    assert len(kept) == 5
-    assert dropped == []
 
 
 def test_figures_without_rect_skip_size_filters() -> None:

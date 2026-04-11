@@ -194,6 +194,7 @@ def run(
     settings: Settings,
     *,
     article_id: str,
+    mode: str = "all",
     planner: PlannerFn = plan_research,
     searcher: SearcherFn = _default_searcher,
     classifier: ClassifierFn = classify_finding,
@@ -239,12 +240,23 @@ def run(
         verification_adapters.discard("tavily")
     available = [n for n in registry.names() if n in verification_adapters]
 
-    research_gaps = extract_research_gaps(body)
+    all_gaps = extract_research_gaps(body)
+    # Filter to unanswered gaps only (answered ones start with **Q:)
+    research_gaps = [g for g in all_gaps if not g.startswith("**Q:")]
 
+    # Mode filtering: content-only skips gaps, gaps-only skips claims
+    if mode == "content":
+        research_gaps = []
+    elif mode == "gaps" and not research_gaps:
+        logger.info("research: no unanswered gaps for %r — skipping", article_id)
+        return ResearchResult(article_id=article_id)
+
+    # In gaps-only mode, pass minimal body so planner focuses on gaps
+    planner_body = body if mode != "gaps" else f"# {article_name}\n\n(gaps-only mode)"
     deps = PlannerDeps(
         settings=settings,
         article_name=article_name,
-        article_body=body,
+        article_body=planner_body,
         available_adapters=available,
         budget_hint=budget,
         research_gaps=research_gaps,
@@ -325,7 +337,7 @@ def run(
     # footnote-style references.
     # ------------------------------------------------------------------
     from app.core.images.figures import FigureEntry
-    from app.core.llm.multimodal import describe_image
+    from app.core.images.image_describer import describe_image
     from app.pipeline.ingest.adapters.wikipedia import fetch_article_images
 
     # Prefilter keywords — loaded from file so the list can grow over time.
@@ -413,11 +425,15 @@ def run(
     if research_gaps and findings:
         for claim, finding, source_title, source_url in findings:
             if finding.outcome == "append" and claim.section == "Research Gaps" and finding.new_sentence:
-                # Replace the gap question with Q&A format in the same section
+                # Replace the gap question with Q&A format in the same section.
+                # Trim the answer to the first 1-2 sentences for cleanliness.
+                answer = finding.new_sentence.strip()
+                # Remove any footnote refs that leaked in from apply_findings
+                answer = re.sub(r"\[\^\d+\]", "", answer).strip()
                 old_line = f"- {claim.text}"
                 answered = (
                     f"- **Q: {claim.text}**\n"
-                    f"  **A:** {finding.new_sentence}"
+                    f"  **A:** {answer} (Source: [{source_title}]({source_url}))"
                 )
                 new_body = new_body.replace(old_line, answered, 1)
 

@@ -34,8 +34,12 @@ _DESCRIBE_PROMPT = (
     "(textbook, curriculum module). Write a 1–3 sentence caption that "
     "states what the figure shows in concrete terms — labels, axes, "
     "objects, relationships, quantities, directions. Do not speculate "
-    "beyond what's visible. If the figure is purely decorative (logo, "
-    "page border, blank space), return exactly: DECORATIVE."
+    "beyond what's visible.\n\n"
+    "Return exactly DECORATIVE (nothing else) if the figure is any of: "
+    "logo, page border, blank space, section divider, activity icon, "
+    "clipart illustration of hands/people not showing educational content, "
+    "navigation marker, bullet icon, page number decoration, or any "
+    "generic illustration that does not convey subject-specific information."
 )
 
 #: Figures smaller than this area are skipped as decorative.
@@ -77,7 +81,7 @@ def describe_image(
     client = _client(settings.GOOGLE_API_KEY)
     # Resolve alias (e.g. "gemini-flash-lite") to actual model name.
     raw = settings.FIGURE_MODEL
-    from app.core.llm.presets import get_entry
+    from app.core.llm.model_registry import get_entry
     entry = get_entry(raw)
     if entry is not None:
         model = entry.model

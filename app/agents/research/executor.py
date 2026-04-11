@@ -209,6 +209,10 @@ def apply_findings_to_article(
         return f"[^{num}]"
 
     for claim, finding, source_title, source_url in findings:
+        # Skip Research Gaps entirely — handled by Step 3c in the orchestrator
+        if claim.section == "Research Gaps":
+            continue
+
         if finding.outcome == "confirm":
             ref = _get_footnote(source_title, source_url)
             escaped = re.escape(claim.text)

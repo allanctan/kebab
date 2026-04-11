@@ -192,13 +192,11 @@ class Settings(BaseSettings):
     # analyze_figures_relative.py). Tuning these lowers the rate at which
     # `describe_image` is called without losing pedagogical content.
     FIGURE_MIN_REL_AREA: float = Field(
-        default=0.005,
+        default=0.015,
         description="Drop figures smaller than this fraction of the page "
-        "area (default 0.5%). Small repeated decorations (bullet markers, "
-        "section icons, page seals) are also caught by the repeated-hash "
-        "rule regardless of size, so this floor only needs to cover small "
-        "*unique* decoration. Tuned from human-reviewed data — real "
-        "pedagogical figures can render as small as 50x50 pt (~0.52%).",
+        "area (default 1.5%). Catches small activity icons (~220x220), "
+        "bullet markers, section icons, and page seals. The repeated-hash "
+        "rule catches duplicates regardless of size.",
     )
     FIGURE_REPEAT_PAGE_THRESHOLD: int = Field(
         default=3,
