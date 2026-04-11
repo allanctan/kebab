@@ -29,7 +29,7 @@ class ClaimEntry(BaseModel):
 
     text: str = Field(..., description="The claim statement.")
     section: str = Field(..., description="Markdown section heading.")
-    paragraph: int = Field(..., ge=1, description="Paragraph number within the section.")
+    paragraph: int = Field(..., ge=0, description="Paragraph number within the section (0 for gap-derived claims).")
 
 
 class SearchQuery(BaseModel):
@@ -60,6 +60,7 @@ class PlannerDeps:
     article_body: str
     available_adapters: list[str]
     budget_hint: int
+    research_gaps: list[str]
 
 
 def _build_planner_agent(settings: Settings) -> Agent[PlannerDeps, ResearchPlan]:
@@ -80,10 +81,13 @@ def plan_research(
 ) -> ResearchPlan:
     """Run the planner agent and return a research plan."""
     agent = agent or _build_planner_agent(settings)
-    user = (
-        f"article_name: {deps.article_name}\n\n"
-        f"available_adapters: {deps.available_adapters}\n"
-        f"budget_hint: {deps.budget_hint}\n\n"
-        f"article_body:\n{deps.article_body}"
-    )
+    parts = [
+        f"article_name: {deps.article_name}",
+        f"available_adapters: {deps.available_adapters}",
+        f"budget_hint: {deps.budget_hint}",
+    ]
+    if deps.research_gaps:
+        parts.append("research_gaps:\n" + "\n".join(f"- {g}" for g in deps.research_gaps))
+    parts.append(f"\narticle_body:\n{deps.article_body}")
+    user = "\n".join(parts)
     return agent.run_sync(user, deps=deps).output

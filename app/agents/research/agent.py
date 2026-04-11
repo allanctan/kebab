@@ -37,7 +37,9 @@ from app.core.sources.fetcher import user_agent
 from app.core.markdown import (
     count_external_footnotes,
     extract_disputes,
+    extract_research_gaps,
     read_article,
+    remove_research_gap,
     write_article,
 )
 from app.pipeline.ingest.inbox import stage_to_inbox
@@ -237,12 +239,15 @@ def run(
         verification_adapters.discard("tavily")
     available = [n for n in registry.names() if n in verification_adapters]
 
+    research_gaps = extract_research_gaps(body)
+
     deps = PlannerDeps(
         settings=settings,
         article_name=article_name,
         article_body=body,
         available_adapters=available,
         budget_hint=budget,
+        research_gaps=research_gaps,
     )
     plan: ResearchPlan = planner(settings, deps)
     logger.info(
@@ -401,6 +406,28 @@ def run(
             rel = f"figures/{path.stem}/{fig.figure_id}{ext}"
             fig_defs.append(f"\n![{fig.description[:150]}]({rel})")
         new_body = new_body.rstrip() + "\n" + "\n".join(fig_defs) + "\n"
+
+    # ------------------------------------------------------------------
+    # Step 3c: Move answered gaps from Research Gaps to Q&A
+    # ------------------------------------------------------------------
+    if research_gaps and findings:
+        for claim, finding, source_title, source_url in findings:
+            if finding.outcome == "append" and claim.section == "Research Gaps":
+                # This finding answered a gap question — add to Q&A
+                qa_block = f"\n**Q: {claim.text}**\n{finding.new_sentence}\n"
+                if "## Q&A" in new_body:
+                    # Find end of Q&A section
+                    qa_start = new_body.index("## Q&A")
+                    next_section = new_body.find("\n## ", qa_start + 6)
+                    if next_section == -1:
+                        insert_pos = len(new_body.rstrip())
+                    else:
+                        insert_pos = next_section
+                    new_body = new_body[:insert_pos] + qa_block + new_body[insert_pos:]
+                else:
+                    new_body = new_body.rstrip() + "\n\n## Q&A\n" + qa_block
+                # Remove from Research Gaps
+                new_body = remove_research_gap(new_body, claim.text)
 
     # ------------------------------------------------------------------
     # Step 4: Update frontmatter extras and write back

@@ -34,3 +34,14 @@ You analyze a curated article and produce a research plan for external verificat
 4. Stay within budget_hint for total query count.
 5. Each claim should be targeted by at least one query.
 6. Wikipedia queries should be 1-3 words matching a likely article title (e.g. "plate tectonics", "convergent boundary", "subduction").
+
+## Research Gaps
+
+If `research_gaps` is provided, include these questions in your search plan.
+For each gap question:
+- Create a targeted search query to find the answer.
+- Add the gap question as a claim with section="Research Gaps" and paragraph=0.
+- Target at least one query per gap question.
+
+Gap questions are high-priority — they represent known knowledge holes
+identified by the QA agent.

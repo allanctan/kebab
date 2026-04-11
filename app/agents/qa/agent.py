@@ -44,6 +44,15 @@ class QaPair(BaseModel):
     )
 
 
+class GapQuestion(BaseModel):
+    """A question relevant to the topic but not answerable from the article."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(..., description="The gap question.")
+    reasoning: str = Field(..., description="Why this gap matters for the topic.")
+
+
 class QaResult(BaseModel):
     """Output of one agent call."""
 
@@ -53,8 +62,11 @@ class QaResult(BaseModel):
     new_questions: list[QaPair] = Field(
         default_factory=list, description="At most 5 new pairs."
     )
+    gap_questions: list[GapQuestion] = Field(
+        default_factory=list, description="Up to 5 questions the article doesn't answer."
+    )
     is_ready_to_commit: bool = Field(
-        ..., description="True once at least one non-duplicate pair is produced."
+        ..., description="True once at least one new grounded pair or gap question is produced."
     )
 
 
@@ -68,6 +80,7 @@ class QaDeps:
     body: str
     existing_questions: list[str]
     cited_sources: list[str]
+    context_metadata: str
 
 
 @dataclass
@@ -102,7 +115,8 @@ def _default_proposer(settings: Settings, deps: QaDeps) -> QaResult:
         f"article_id: {deps.article_id}\n"
         f"article_name: {deps.article_name}\n"
         f"existing_questions: {deps.existing_questions}\n"
-        f"cited_sources: {deps.cited_sources}\n\n"
+        f"cited_sources: {deps.cited_sources}\n"
+        f"context_metadata: {deps.context_metadata}\n\n"
         f"body:\n{deps.body}"
     )
     return agent.run_sync(user, deps=deps).output
@@ -139,6 +153,8 @@ def _process_article(
 ) -> tuple[bool, int, str | None]:
     """Run the agent on a single article. Returns ``(updated, n_added, error)``."""
     fm, body = read_article(path)
+    contexts = fm.model_dump().get("contexts", {})
+    context_str = str(contexts) if contexts else "none"
     deps = QaDeps(
         settings=settings,
         article_id=fm.id,
@@ -146,6 +162,7 @@ def _process_article(
         body=body,
         existing_questions=extract_faq(body),
         cited_sources=[src.title for src in fm.sources],
+        context_metadata=context_str,
     )
     if not deps.cited_sources:
         return (False, 0, "no cited sources — qa requires grounding")
@@ -153,14 +170,24 @@ def _process_article(
         result = proposer(settings, deps)
     except Exception as exc:  # noqa: BLE001
         return (False, 0, str(exc))
-    if not result.is_ready_to_commit or not result.new_questions:
+    if not result.is_ready_to_commit or (not result.new_questions and not result.gap_questions):
         return (False, 0, None)
     # Drop duplicates the agent missed.
     existing = set(deps.existing_questions)
     fresh = [pair for pair in result.new_questions if pair.question not in existing]
-    if not fresh:
+    if fresh:
+        new_body = _append_pairs(body, fresh)
+    else:
+        new_body = body
+
+    if result.gap_questions:
+        from app.core.markdown import append_research_gaps
+        gap_texts = [gq.question for gq in result.gap_questions]
+        new_body = append_research_gaps(new_body, gap_texts)
+
+    if new_body == body:
         return (False, 0, None)
-    new_body = _append_pairs(body, fresh)
+
     write_article(path, fm, new_body)
     logger.info("qa: %s +%d pair(s) (today=%s)", path, len(fresh), today.date())
     return (True, len(fresh), None)

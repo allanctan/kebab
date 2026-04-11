@@ -136,3 +136,56 @@ def next_footnote_number(body: str) -> int:
     """Return the next available footnote number (max existing + 1)."""
     numbers = [int(m.group(1)) for m in _FOOTNOTE_DEF_RE.finditer(body)]
     return max(numbers, default=0) + 1
+
+
+def extract_research_gaps(body: str) -> list[str]:
+    """Extract gap questions from the ``## Research Gaps`` section."""
+    section = extract_section(body, "Research Gaps")
+    if not section:
+        return []
+    gaps: list[str] = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            gaps.append(stripped[2:].strip())
+    return gaps
+
+
+def remove_research_gap(body: str, question: str) -> str:
+    """Remove a specific gap question from ``## Research Gaps``.
+
+    If the last gap is removed, the entire section is dropped.
+    """
+    line_to_remove = f"- {question}"
+    lines = body.splitlines()
+    new_lines = [line for line in lines if line.strip() != line_to_remove]
+    if len(new_lines) == len(lines):
+        return body
+    result = "\n".join(new_lines)
+    remaining_gaps = extract_research_gaps(result)
+    if not remaining_gaps:
+        result = re.sub(
+            r"\n*^##\s+Research Gaps\s*\n*",
+            "\n",
+            result,
+            flags=re.MULTILINE,
+        ).rstrip() + "\n"
+    return result
+
+
+def append_research_gaps(body: str, gaps: list[str]) -> str:
+    """Append gap questions to ``## Research Gaps``, creating section if needed.
+
+    Skips questions already present in the section.
+    """
+    if not gaps:
+        return body
+    existing = set(extract_research_gaps(body))
+    fresh = [g for g in gaps if g not in existing]
+    if not fresh:
+        return body
+    new_lines = "\n".join(f"- {g}" for g in fresh)
+    section = extract_section(body, "Research Gaps")
+    if section:
+        return body.rstrip() + "\n" + new_lines + "\n"
+    return body.rstrip() + "\n\n## Research Gaps\n\n" + new_lines + "\n"
