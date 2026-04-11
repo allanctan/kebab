@@ -19,7 +19,7 @@ from pydantic_ai import Agent
 from app.agents.research.planner import ClaimEntry
 from app.config.config import Settings
 from app.core.llm.resolve import resolve_model
-from app.core.markdown import next_footnote_number
+from app.core.markdown import extract_section, next_footnote_number
 
 # Matches existing footnote defs: [^N]: [Title](URL) or [^N]: [id] [Title](URL)
 _EXISTING_FOOTNOTE_RE = re.compile(r"^\[\^(\d+)\]:\s.*?\((https?://[^)]+)\)", re.MULTILINE)
@@ -241,9 +241,28 @@ def apply_findings_to_article(
     # Ensure body ends cleanly before appending
     body = body.rstrip() + "\n"
 
-    # Add disputes section
+    # Add disputes — append to existing section or create new one.
+    # Dedup: skip disputes whose claim text is already in the section.
     if disputes:
-        body += "\n## Disputes\n\n" + "\n\n".join(disputes) + "\n"
+        existing_disputes = extract_section(body, "Disputes")
+        fresh_disputes = [
+            d for d in disputes
+            if d.split("\n")[0] not in (existing_disputes or "")
+        ]
+        if fresh_disputes:
+            if existing_disputes:
+                # Append to existing section
+                disputes_text = "\n\n".join(fresh_disputes)
+                # Find end of disputes section
+                pattern = re.compile(
+                    r"(^##\s+Disputes\s*\n.*?)(?=^##\s+|\Z)",
+                    re.DOTALL | re.MULTILINE,
+                )
+                match = pattern.search(body)
+                if match:
+                    body = body[:match.end(1)] + "\n\n" + disputes_text + "\n" + body[match.end(1):]
+            else:
+                body += "\n## Disputes\n\n" + "\n\n".join(fresh_disputes) + "\n"
 
     # Add new footnote definitions
     if new_footnote_defs:

@@ -408,26 +408,18 @@ def run(
         new_body = new_body.rstrip() + "\n" + "\n".join(fig_defs) + "\n"
 
     # ------------------------------------------------------------------
-    # Step 3c: Move answered gaps from Research Gaps to Q&A
+    # Step 3c: Answer gaps in-place in Research Gaps section
     # ------------------------------------------------------------------
     if research_gaps and findings:
         for claim, finding, source_title, source_url in findings:
-            if finding.outcome == "append" and claim.section == "Research Gaps":
-                # This finding answered a gap question — add to Q&A
-                qa_block = f"\n**Q: {claim.text}**\n{finding.new_sentence}\n"
-                if "## Q&A" in new_body:
-                    # Find end of Q&A section
-                    qa_start = new_body.index("## Q&A")
-                    next_section = new_body.find("\n## ", qa_start + 6)
-                    if next_section == -1:
-                        insert_pos = len(new_body.rstrip())
-                    else:
-                        insert_pos = next_section
-                    new_body = new_body[:insert_pos] + qa_block + new_body[insert_pos:]
-                else:
-                    new_body = new_body.rstrip() + "\n\n## Q&A\n" + qa_block
-                # Remove from Research Gaps
-                new_body = remove_research_gap(new_body, claim.text)
+            if finding.outcome == "append" and claim.section == "Research Gaps" and finding.new_sentence:
+                # Replace the gap question with Q&A format in the same section
+                old_line = f"- {claim.text}"
+                answered = (
+                    f"- **Q: {claim.text}**\n"
+                    f"  **A:** {finding.new_sentence}"
+                )
+                new_body = new_body.replace(old_line, answered, 1)
 
     # ------------------------------------------------------------------
     # Step 4: Update frontmatter extras and write back
