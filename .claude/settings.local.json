@@ -13,7 +13,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:logfire.pydantic.dev)",
-      "WebFetch(domain:pydantic.dev)"
+      "WebFetch(domain:pydantic.dev)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ]
   }
 }
