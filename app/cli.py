@@ -17,8 +17,6 @@ from app.core.llm.embeddings import embed
 from app.core.store import Store
 from app.agents.lint import agent as lint_agent
 from app.agents.qa import agent as qa_agent
-from app.pipeline import contexts as contexts_stage
-from app.pipeline import gaps as gaps_stage
 from app.pipeline import generate as generate_stage
 from app.pipeline import organize as organize_stage
 from app.pipeline import sync as sync_stage
@@ -138,33 +136,26 @@ def organize(domain: str, force: bool) -> None:
 
 
 @main.command()
-def gaps() -> None:
-    """Stage 2: diff the canonical plan against the Qdrant index."""
-    result = gaps_stage.run(env)
-    new_count = sum(1 for gap in result.report.gaps if gap.reason == "new")
-    stale_count = sum(1 for gap in result.report.gaps if gap.reason == "stale")
-    click.echo(
-        f"gaps: {new_count} new + {stale_count} stale, "
-        f"{len(result.report.existing)} already indexed → {result.output_path}"
-    )
+@click.option("--domain", default=None, help="Domain to generate for. Omit to run all domains.")
+@click.option("--force", is_flag=True, default=False, help="Regenerate all articles, re-run contexts and summaries.")
+def generate(domain: str | None, force: bool) -> None:
+    """Find gaps, generate articles, classify contexts, write summaries."""
+    from app.pipeline.organize import list_domains
 
+    if domain:
+        domains = [domain]
+    else:
+        domains = list_domains(env)
+        if not domains:
+            raise click.ClickException("no plans found — run `kebab organize --domain <name>` first")
 
-@main.command()
-def generate() -> None:
-    """Stage 4: LLM-generate grounded markdown for each gap."""
-    result = generate_stage.run(env)
-    click.echo(
-        f"generate: wrote {len(result.written)} article(s), skipped {len(result.skipped)}"
-    )
-
-
-@main.command()
-def contexts() -> None:
-    """Stage 5: populate vertical-specific context data."""
-    result = contexts_stage.run(env)
-    click.echo(
-        f"contexts: updated {len(result.updated)}, skipped {len(result.skipped)}"
-    )
+    for d in domains:
+        click.echo(f"--- {d} ---")
+        result = generate_stage.run(env, domain=d, force=force)
+        click.echo(
+            f"  {result.contexts_updated} contexts, {result.gaps_found} gaps, "
+            f"{result.articles_written} written, {result.articles_skipped} skipped"
+        )
 
 
 @main.command()

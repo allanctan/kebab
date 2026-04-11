@@ -31,12 +31,12 @@ from app.core.images.figures import (
 )
 from app.core.llm.resolve import resolve_model
 from app.core.markdown import read_article, write_article
-from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
 from app.core.sources.index import SourceEntry, SourceIndex, load_index
 from app.core.llm.tokens import count_tokens
 from app.models.frontmatter import FrontmatterSchema
 from app.models.source import Source
-from app.pipeline.gaps import Gap, GapReport, latest_gaps
+from app.pipeline.generate.gaps import Gap, GapReport, latest_gaps
 from app.pipeline.organize import load_plan
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,9 @@ class GenerationResult(BaseModel):
     description: str = Field(..., description="One-sentence article summary.")
     keywords: list[str] = Field(
         default_factory=list, description="3–8 short keywords."
+    )
+    summary: str = Field(
+        ..., description="2-3 sentence scope statement: what the article covers and its boundaries."
     )
     source_ids: list[int] = Field(
         ..., min_length=1, description="Local footnote numbers cited in the body."
@@ -192,10 +195,15 @@ def _load_sources(
         except KeyError:
             logger.warning("generate: source id %d not in index — skipping", source_id)
             continue
-        text_path = processed_docs / entry.stem / "text.md"
-        if text_path.exists():
-            text = text_path.read_text(encoding="utf-8")[:8000]
-            out.append((local_num, entry, text))
+        candidates = [
+            processed_docs / entry.stem / "text.md",
+            Path(settings.PROCESSED_DIR) / "web" / f"{entry.stem}.md",
+        ]
+        for text_path in candidates:
+            if text_path.exists():
+                text = text_path.read_text(encoding="utf-8")[:8000]
+                out.append((local_num, entry, text))
+                break
     return out
 
 
@@ -260,9 +268,10 @@ def _preserve_existing_fields(target_path: Path) -> dict[str, object]:
     return preserved
 
 
-def run(
+def write_articles(
     settings: Settings,
     *,
+    domain: str = "default",
     gaps: GapReport | None = None,
     proposer: GenerateProposer = _default_proposer,
     plan: HierarchyPlan | None = None,
@@ -278,7 +287,7 @@ def run(
     if report is None:
         raise KebabError("generate: no gaps report — run `kebab gaps` first")
 
-    plan = plan if plan is not None else load_plan(settings)
+    plan = plan if plan is not None else load_plan(settings, domain)
     index_path = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "sources.json"
     index = load_index(index_path)
     written: list[Path] = []
@@ -341,6 +350,7 @@ def run(
         fm_dump = fm.model_dump()
         fm_dump["description"] = result.description
         fm_dump["keywords"] = result.keywords
+        fm_dump["summary"] = result.summary
         fm_dump["parent_ids"] = parent_ids
         for key, value in preserved.items():
             fm_dump[key] = value

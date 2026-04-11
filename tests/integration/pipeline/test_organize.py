@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.config.config import Settings
-from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
 from app.pipeline import organize as organize_stage
 
 
@@ -158,7 +158,7 @@ def test_organize_does_not_overwrite_existing(settings: Settings) -> None:
 def test_organize_persists_plan_with_paths(settings: Settings) -> None:
     result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
     assert result.plan_path.exists()
-    reloaded = organize_stage.load_plan(settings)
+    reloaded = organize_stage.load_plan(settings, "Science")
     assert reloaded is not None
     article_nodes = [n for n in reloaded.nodes if n.level_type == "article"]
     assert all(n.md_path is not None for n in article_nodes)
@@ -214,7 +214,7 @@ def test_organize_restores_missing_stubs_from_cache(settings: Settings) -> None:
 def test_organize_runs_incremental_when_new_source_appears(settings: Settings) -> None:
     """Add a PDF after the initial plan and confirm incremental proposer runs."""
     # Seed the initial plan.
-    organize_stage.run(settings, proposer=_stub_proposer)
+    organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
 
     # Operator ingests a new PDF — a third folder under processed/documents.
     new_dir = settings.PROCESSED_DIR / "documents" / "new_third_source"
@@ -274,6 +274,7 @@ def test_organize_runs_incremental_when_new_source_appears(settings: Settings) -
 
     result = organize_stage.run(
         settings,
+        domain_hint="Science",
         proposer=_stub_proposer,
         incremental_proposer=_incremental,
     )
@@ -285,7 +286,7 @@ def test_organize_runs_incremental_when_new_source_appears(settings: Settings) -
     assert "SCI-BIO-001" in captured["existing_ids"]  # type: ignore[operator]
 
     # Merged plan persists both extension and addition.
-    reloaded = organize_stage.load_plan(settings)
+    reloaded = organize_stage.load_plan(settings, "Science")
     assert reloaded is not None
     light = next(n for n in reloaded.nodes if n.id == "SCI-BIO-001")
     assert 3 in light.source_files

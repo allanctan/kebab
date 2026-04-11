@@ -18,15 +18,15 @@ from app.agents.lint import agent as lint_agent
 from app.agents.qa import agent as qa_agent
 from app.config.config import Settings
 from app.core.markdown import read_article
-from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
 from app.core.store import EMBEDDING_DIM, Store
 from app.models.source import Source
-from app.pipeline import contexts as contexts_stage
-from app.pipeline import gaps as gaps_stage
-from app.pipeline import generate as generate_stage
+from app.pipeline.generate import contexts as contexts_stage
+from app.pipeline.generate import gaps as gaps_stage
+from app.pipeline.generate import writer as generate_stage
 from app.pipeline import organize as organize_stage
 from app.pipeline import sync as sync_stage
-from app.pipeline.gaps import Gap
+from app.pipeline.generate.gaps import Gap
 from app.pipeline.ingest import pdf as pdf_ingest
 from datetime import date
 
@@ -96,7 +96,7 @@ def _stub_generate(
         body=body,
         description="Light into glucose.",
         keywords=["chloroplast", "calvin"],
-        source_ids=local_nums,
+        summary="Test scope.", source_ids=local_nums,
     )
 
 
@@ -179,12 +179,12 @@ def test_pilot_end_to_end(tmp_path: Path) -> None:
     organize_stage.run(settings, domain_hint="Science", proposer=_stub_organize_proposer)
 
     # Stage 2 — gaps diffs the plan against the (empty) index.
-    gaps_result = gaps_stage.run(settings, store=store)
+    gaps_result = gaps_stage.run(settings, domain="Science", store=store)
     assert len(gaps_result.report.gaps) == 1
     assert gaps_result.report.gaps[0].target_path is not None
 
     # Stage 3 — generate writes directly to the plan-reserved path.
-    generate_result = generate_stage.run(settings, gaps=gaps_result.report, proposer=_stub_generate)
+    generate_result = generate_stage.write_articles(settings, domain="Science", gaps=gaps_result.report, proposer=_stub_generate)
     assert len(generate_result.written) == 1
     # The path matches exactly what organize reserved — no parallel trees.
     assert str(generate_result.written[0]) == gaps_result.report.gaps[0].target_path

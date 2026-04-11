@@ -14,10 +14,13 @@ provided sources — never invent facts beyond them.
 
 ## Output (`GenerationResult`)
 
+- `reasoning`: Brief analysis of which sources cover which claims.
+- `description`: One-sentence summary suitable for the Qdrant payload.
 - `body`: Markdown body (no frontmatter — KEBAB writes that). Must include
   a `# {topic_name}` heading and a brief introduction.
-- `description`: One-sentence summary suitable for the Qdrant payload.
 - `keywords`: 3–8 short keywords.
+- `summary`: 2-3 sentence scope statement. State what the article covers,
+  its key topics, and its boundaries (what it does NOT cover). Be specific.
 - `source_ids`: List of local footnote numbers you actually cited in the body.
   Must include at least one.
 

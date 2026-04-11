@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
 from app.pipeline.organize import (
     _covered_ids,
     _merge_plans,

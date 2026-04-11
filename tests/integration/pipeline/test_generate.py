@@ -11,8 +11,8 @@ from app.config.config import Settings
 from app.core.errors import KebabError
 from app.core.markdown import read_article
 from app.core.sources.index import SourceEntry, SourceIndex, save_index
-from app.pipeline import generate as generate_stage
-from app.pipeline.gaps import Gap, GapReport
+from app.pipeline.generate import writer as generate_stage
+from app.pipeline.generate.gaps import Gap, GapReport
 
 
 def _gap(id: str = "SCI-BIO-001", target_path: str | None = None) -> Gap:
@@ -33,7 +33,7 @@ def _good_proposer(
         body=f"# {gap.name}\n\nGrounded in sources.[^1]\n",
         description="Light into glucose.",
         keywords=["chloroplast", "calvin"],
-        source_ids=[1],
+        summary="Test scope summary.", source_ids=[1],
     )
 
 
@@ -45,7 +45,7 @@ def _huge_body_proposer(
         body="huge " * 80_000,
         description="x",
         keywords=[],
-        source_ids=[1],
+        summary="Test scope summary.", source_ids=[1],
     )
 
 
@@ -104,7 +104,7 @@ def settings(tmp_path: Path) -> Settings:
 def test_generate_writes_article_with_grounded_sources(settings: Settings) -> None:
     target = settings.CURATED_DIR / "Science" / "Biology" / "photosynthesis.md"
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.run(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == [target]
     assert result.skipped == []
     fm, body = read_article(target)
@@ -126,7 +126,7 @@ def test_generate_skips_when_no_source_files_present(settings: Settings) -> None
         target_path=str(settings.CURATED_DIR / "X" / "x.md"),
     )
     report = GapReport(gaps=[gap])
-    result = generate_stage.run(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == []
     assert result.skipped[0][0] == "X-1"
     assert "no source" in result.skipped[0][1]
@@ -136,7 +136,7 @@ def test_generate_skips_when_no_source_files_present(settings: Settings) -> None
 def test_generate_skips_oversized_body(settings: Settings) -> None:
     target = settings.CURATED_DIR / "Science" / "Biology" / "photosynthesis.md"
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.run(settings, gaps=report, proposer=_huge_body_proposer)
+    result = generate_stage.write_articles(settings, gaps=report, proposer=_huge_body_proposer)
     assert result.written == []
     assert "tokens" in result.skipped[0][1]
 
@@ -150,7 +150,7 @@ def test_generation_result_rejects_empty_sources() -> None:
 @pytest.mark.integration
 def test_generate_raises_when_no_gaps_report(settings: Settings) -> None:
     with pytest.raises(KebabError):
-        generate_stage.run(settings, proposer=_good_proposer)
+        generate_stage.write_articles(settings, proposer=_good_proposer)
 
 
 @pytest.mark.integration
@@ -164,7 +164,7 @@ def test_generate_overwrites_stub_at_plan_path(settings: Settings) -> None:
         encoding="utf-8",
     )
     report = GapReport(gaps=[_gap(target_path=str(stub))])
-    result = generate_stage.run(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == [stub]
     assert "Grounded in" in stub.read_text()
 
@@ -172,7 +172,7 @@ def test_generate_overwrites_stub_at_plan_path(settings: Settings) -> None:
 @pytest.mark.integration
 def test_generate_stamps_parent_ids_and_sources_from_index(settings: Settings) -> None:
     """Generated frontmatter carries sources from index and parent_ids chain."""
-    from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+    from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
     from app.core.sources.index import SourceEntry, SourceIndex, save_index
 
     # Add a second source to the index
@@ -244,11 +244,12 @@ def test_generate_stamps_parent_ids_and_sources_from_index(settings: Settings) -
             body=f"# {_gap.name}\n\nGrounded.[^1][^2]\n",
             description="light into glucose.",
             keywords=["chloroplast"],
+            summary="Test scope.",
             source_ids=[1, 2],
         )
 
     report = GapReport(gaps=[gap])
-    result = generate_stage.run(
+    result = generate_stage.write_articles(
         settings, gaps=report, proposer=_two_source_proposer, plan=plan
     )
     assert result.written == [target]
@@ -286,7 +287,7 @@ def test_generate_preserves_verifications_on_regen(settings: Settings) -> None:
         encoding="utf-8",
     )
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.run(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == [target]
     fm, _ = read_article(target)
     dump = fm.model_dump()

@@ -8,7 +8,7 @@ import pytest
 
 from app.config.config import Settings
 from app.core.markdown import read_article
-from app.pipeline import contexts as contexts_stage
+from app.pipeline.generate import contexts as contexts_stage
 
 
 @pytest.fixture

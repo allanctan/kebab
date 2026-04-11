@@ -39,7 +39,6 @@ from app.core.markdown import (
     extract_disputes,
     extract_research_gaps,
     read_article,
-    remove_research_gap,
     write_article,
 )
 from app.pipeline.ingest.inbox import stage_to_inbox

@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.config.config import Settings
 from app.core.errors import KebabError
 from app.core.markdown import read_article
-from app.pipeline.organize_agent import HierarchyNode, HierarchyPlan
+from app.pipeline.organize.agent import HierarchyNode, HierarchyPlan
 from app.core.store import Store
 from app.pipeline.organize import load_plan
 
@@ -123,14 +123,15 @@ def _is_stale(node: HierarchyNode) -> bool:
 def run(
     settings: Settings,
     *,
+    domain: str = "default",
     plan: HierarchyPlan | None = None,
     store: Store | None = None,
     now: Callable[[], datetime] = datetime.now,
 ) -> GapResult:
-    """Execute the gaps stage against the canonical plan."""
-    plan = plan if plan is not None else load_plan(settings)
+    """Execute the gaps stage against the plan for ``domain``."""
+    plan = plan if plan is not None else load_plan(settings, domain)
     if plan is None:
-        raise KebabError("gaps: no canonical plan found — run `kebab organize` first")
+        raise KebabError(f"gaps: no plan found for domain '{domain}' — run `kebab organize --domain {domain}` first")
 
     store = store or Store(settings)
     store.ensure_collection()
