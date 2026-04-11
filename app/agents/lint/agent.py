@@ -131,7 +131,21 @@ def run(
                     )
                 )
 
-        if fm.verifications:
+        # Check research freshness (replaces old verification staleness check).
+        extras = fm.model_dump()
+        researched_at = extras.get("researched_at")
+        if researched_at:
+            research_date = date.fromisoformat(str(researched_at))
+            if research_date < stale_cutoff:
+                issues.append(
+                    LintIssue(
+                        article_id=fm.id,
+                        code="stale_verification",
+                        detail=f"last researched {research_date} < cutoff {stale_cutoff}",
+                    )
+                )
+        elif fm.verifications:
+            # Legacy fallback for pre-research articles
             newest = max(record.date for record in fm.verifications)
             if newest < stale_cutoff:
                 issues.append(
