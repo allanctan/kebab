@@ -26,6 +26,10 @@ logs/
 # Evals results (gitignored per spec — commit only baselines)
 evals/results/
 
+# Session artifacts
+PROGRESS.md
+docs/superpowers/
+
 # OS/IDE
 .DS_Store
 .idea/
