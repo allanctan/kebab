@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/admin/Github/better-ed-ai/**)",
+      "Bash(uv run:*)",
+      "Bash(uv add:*)",
+      "Bash(grep -c \"DECORATIVE\" knowledge/processed/documents/*/text.md)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(xargs cat:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:logfire.pydantic.dev)",
+      "WebFetch(domain:pydantic.dev)"
+    ]
+  }
+}

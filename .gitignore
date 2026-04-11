@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Virtual env
+.venv/
+venv/
+
+# Secrets
+.env
+.env.local
+
+# KEBAB runtime data
+knowledge/*
+
+# Logs
+logs/
+
+# Evals results (gitignored per spec — commit only baselines)
+evals/results/
+
+# OS/IDE
+.DS_Store
+.idea/
+.vscode/

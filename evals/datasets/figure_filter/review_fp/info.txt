@@ -1,0 +1,324 @@
+False positives — filter dropped these but LLM label says they're useful.
+These are RISK cases: the filter may be losing real pedagogical content.
+Filename prefix shows which rule fired (tiny / repeated / ribbon).
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p002.2  rule=tiny  low
+  This is a simple line drawing of an open box, which could be used to illustrate a concept.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p002.3  rule=tiny  medium
+  A pencil writing on lined paper, illustrating the concept of writing.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p004.2  rule=tiny  medium
+  Illustration of hands being washed under a faucet, showing a process.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p004.3  rule=tiny  medium
+  Illustration of hands rubbing together with soap and water, likely demonstrating hygiene or a process.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p004.4  rule=tiny  medium
+  Illustration of hands being washed under a faucet.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p004.5  rule=tiny  medium
+  Illustration of hands under a dispenser, likely demonstrating a process.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p004.6  rule=tiny  high
+  Illustration shows hands being washed under a faucet, depicting a hygiene process.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p005.2  rule=tiny  low
+  A magnifying glass over some documents, useful for illustration.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p006.2  rule=tiny  low
+  Open book illustration, could be used to represent reading or knowledge.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p007.2  rule=tiny  low
+  A simple lightbulb illustration, potentially representing an idea.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p008.2  rule=tiny  low
+  Checklist with a checkmark and lines for text, likely indicating a task or progress.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p008.3  rule=tiny  low
+  A simple ruler with markings, useful for illustrating measurement concepts.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p009.2  rule=tiny  low
+  Illustration of a pencil writing on lined paper, representing a concept.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p010.3  rule=solid_color  low
+  This is a blank crossword puzzle grid with numbered squares.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p011.3  rule=tiny  low
+  Illustration of documents being examined with a magnifying glass.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p014.2  rule=tiny  low
+  Illustration of a lightbulb, a common symbol for ideas.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p014.3  rule=tiny  low
+  Checklist illustration with lines and checkboxes, potentially useful for educational purposes.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p015.2  rule=tiny  low
+  A simple ruler with markings is shown, which can be used for measurements.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p017.2  rule=tiny  low
+  Document with a magnifying glass, likely for illustrative purposes.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p019.3  rule=tiny  low
+  A lightbulb illustration, potentially representing an idea or concept.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p019.4  rule=tiny  low
+  Checklist with a checkmark, representing a to-do list or form.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p020.2  rule=tiny  high
+  The image shows a ruler with marked increments, useful for illustrating measurement concepts.
+
+MATH_GR10_QTR1-MODULE-1edited_FORMATTED_24PAGES_(1)/p021.2  rule=tiny  low
+  Illustration of a pencil writing on lined paper, suggesting a concept like writing or note-taking.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p002.2  rule=tiny  low
+  Simple diagram of an open box.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p004.4  rule=tiny  low
+  The image shows a document with lines and a magnifying glass over it, possibly representing research or analysis.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p008.2  rule=tiny  low
+  Simple illustration of a lightbulb, potentially representing an idea.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p008.3  rule=tiny  low
+  An open book illustration, which could be a decorative element or represent a concept.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p009.2  rule=tiny  low
+  Checklist diagram with lines and checkboxes, potentially illustrating a task or process.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p009.3  rule=tiny  low
+  A simple ruler with markings, likely used for measurements.
+
+MATH_GR10_QTR1-MODULE-2edited_FORMATTED_12PAGES_(1)/p010.2  rule=tiny  low
+  Illustration of a pencil and paper, possibly representing writing or notes.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p002.2  rule=tiny  low
+  This is a simple line drawing of an open box.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p002.3  rule=tiny  low
+  A pencil writing on lined paper, likely illustrating a concept.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p005.2  rule=tiny  low
+  This is a line drawing of a document with a magnifying glass, suggesting analysis or review.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p009.2  rule=tiny  low
+  A hand-drawn illustration of an incandescent light bulb, often used to represent ideas.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p009.3  rule=tiny  low
+  A simple line drawing of an open book.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p010.2  rule=tiny  low
+  Checklist with checkboxes and lines, potentially useful for illustrating tasks.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p011.2  rule=tiny  medium
+  A pencil is shown writing on a sheet of paper, representing the act of writing or taking notes.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p011.3  rule=tiny  low
+  A simple ruler illustration with markings, useful for demonstrating measurement concepts.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p013.3  rule=tiny  low
+  Illustration of a person in a dynamic pose, potentially demonstrating a concept.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p013.4  rule=tiny  low
+  Illustration of a person, potentially for a concept.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p013.5  rule=tiny  low
+  Illustration of a person in athletic attire, potentially useful for demonstrating concepts.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p013.6  rule=tiny  low
+  Illustration of a document with a magnifying glass, suggesting analysis or review.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p016.2  rule=tiny  low
+  An open book illustration that could represent educational content.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p016.3  rule=tiny  low
+  This is a simple line drawing of a lightbulb, a common symbol for ideas.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p017.2  rule=tiny  low
+  Clipboard with a checklist and a checkmark, could be illustrative.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p018.2  rule=tiny  low
+  A simple ruler with tick marks for measurement.
+
+MATH_GR10_QTR1-MODULE-3edited_FORMATTED_24PAGES_(1)/p023.2  rule=tiny  low
+  A simple line drawing of three stacked books.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p002.2  rule=tiny  low
+  This is a simple line drawing of an open box.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p002.3  rule=tiny  low
+  A simple drawing of a pencil writing on lined paper.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p004.3  rule=tiny  low
+  Illustration of a document with a magnifying glass, suggesting review or analysis.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p006.3  rule=tiny  high
+  The image displays the text "ARITHMETIC SEQUENCE" which is a mathematical concept.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p009.2  rule=tiny  low
+  Checklist illustration with checkboxes and lines for text.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p010.2  rule=tiny  low
+  A simple ruler with measurement markings, potentially useful for scale or measurement illustrations.
+
+MATH_GR10_QTR1-MODULE-4edited_FORMATTED_12PAGES_(1)/p011.2  rule=tiny  low
+  The image displays a piece of paper with lines and a pencil, which could represent writing or note-taking, making it potentially useful for educational context.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p001.2  rule=tiny  low
+  labeler error: status_code: 503, model_name: gemini-2.5-flash-lite, body: {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. 
+
+NCR_FINAL_Q1-ENG10_M3_Val/p002.2  rule=tiny  low
+  A simple illustration of an open box next to text, likely a section header.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p002.3  rule=tiny  low
+  Illustration of a pencil writing on a lined paper.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p005.2  rule=tiny  low
+  The image displays a magnifying glass over documents and the text "What is It", suggesting an inquiry or search for information.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p009.2  rule=tiny  low
+  The image displays a lightbulb icon next to text, likely serving as a title or heading for a section.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p009.3  rule=tiny  medium
+  The image shows a checklist icon next to the text "What I Can Do". This is a visual aid that could be used to illustrate a list of tasks or capabilities.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p012.2  rule=tiny  medium
+  The image contains a ruler and the word "Assessment", likely representing a concept or section title.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p002.2  rule=tiny  low
+  The image shows a simple, unlabelled diagram of an open box.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p002.4  rule=tiny  medium
+  A pencil writing on a lined paper, illustrating the act of writing or note-taking.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p004.2  rule=tiny  low
+  A magnifying glass is shown over documents, suggesting a search or analysis context.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p006.2  rule=tiny  low
+  An open book illustration, which could be a generic symbol for knowledge or learning.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p010.4  rule=tiny  low
+  Checklist illustration with a checked item and lines for more items.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p012.2  rule=tiny  low
+  A simple ruler with tick marks, useful for illustrating measurement concepts.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p014.3  rule=tiny  low
+  Illustration of three books stacked on top of each other, potentially useful for educational context.
+
+NCR_FINAL_Q1_ENG10_M1-Val/p015.3  rule=tiny  low
+  labeler error: 
+
+NCR_FINAL_Q1_ENG10_M2_Val/p001.1  rule=tiny  low
+  labeler error: status_code: 503, model_name: gemini-2.5-flash-lite, body: {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. 
+
+NCR_FINAL_Q1_ENG10_M2_Val/p005.2  rule=tiny  low
+  The image displays a magnifying glass over papers with the text "What is It", likely an illustration for a section title.
+
+NCR_FINAL_Q1_ENG10_M2_Val/p008.2  rule=solid_color  high
+  Venn diagram comparing Neanderthals and Cro-Magnons, suitable for educational purposes.
+
+NCR_FINAL_Q1_ENG10_M2_Val/p009.3  rule=tiny  low
+  The image contains a lightbulb icon and text, likely a section header for "What I Have Learned".
+
+NCR_FINAL_Q1_ENG10_M2_Val/p011.2  rule=tiny  medium
+  The image contains a ruler and the word "Assessment", likely illustrating a concept related to measurement or evaluation.
+
+NCR_FINAL_Q1_ENG10_M2_Val/p012.2  rule=tiny  high
+  The image displays text and an icon that represent a section header for additional activities.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p002.2  rule=tiny  low
+  A simple line drawing of an open box.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p003.2  rule=tiny  low
+  A simple drawing of a pencil writing on lined paper.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p008.5  rule=tiny  low
+  Open book illustration, could be used to represent knowledge or learning.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p008.7  rule=tiny  low
+  A simple illustration of an incandescent light bulb, likely representing an idea.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p008.9  rule=tiny  low
+  Checklist illustration with a checkmark, likely for tracking progress or tasks.
+
+SCI10_Q1_M1_Plate_Tectonics_and_Geologic_Activities/p009.3  rule=tiny  medium
+  Illustration of a pencil writing on lined paper, representing the concept of writing or note-taking.
+
+SCI10_Q1_M2_Plate_Boundaries/p002.1  rule=tiny  low
+  labeler error: status_code: 503, model_name: gemini-2.5-flash-lite, body: {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. 
+
+SCI10_Q1_M2_Plate_Boundaries/p002.2  rule=tiny  low
+  A simple diagram of an open box, which could illustrate a concept.
+
+SCI10_Q1_M2_Plate_Boundaries/p003.2  rule=tiny  low
+  labeler error: status_code: 503, model_name: gemini-2.5-flash-lite, body: {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. 
+
+SCI10_Q1_M2_Plate_Boundaries/p006.2  rule=tiny  low
+  Simple line drawing of a magnifying glass over a document.
+
+SCI10_Q1_M2_Plate_Boundaries/p007.2  rule=tiny  low
+  Open book illustration, could represent educational content or be decorative.
+
+SCI10_Q1_M2_Plate_Boundaries/p008.4  rule=tiny  medium
+  Checklist illustration with a checked item, indicating a process or list.
+
+SCI10_Q1_M2_Plate_Boundaries/p009.2  rule=tiny  medium
+  A simple ruler with markings, useful for measurements.
+
+SCI10_Q1_M2_Plate_Boundaries/p011.2  rule=tiny  low
+  A magnifying glass over a document, likely representing research or review.
+
+SCI10_Q1_M2_Plate_Boundaries/p013.2  rule=tiny  low
+  A simple lightbulb illustration, potentially representing an idea or concept.
+
+SCI10_Q1_M2_Plate_Boundaries/p013.4  rule=tiny  high
+  Clipboard with a checklist, indicating items to be reviewed or completed.
+
+SCI10_Q1_M2_Plate_Boundaries/p013.6  rule=tiny  low
+  A simple ruler with markings, potentially useful for measurements.
+
+SCI10_Q1_M2_Plate_Boundaries/p014.2  rule=solid_color  high
+  This is a flowchart illustrating different types of plate boundaries and their classifications.
+
+SCI10_Q1_M2_Plate_Boundaries/p014.4  rule=tiny  low
+  Illustration of a pencil writing on lined paper, symbolizing note-taking or writing.
+
+SCI10_Q1_M2_Plate_Boundaries/p016.7  rule=tiny  low
+  A magnifying glass over documents, symbolizing inspection or search.
+
+SCI10_Q1_M2_Plate_Boundaries/p017.7  rule=tiny  low
+  The image contains the text "Continental crust", which is likely a label for a diagram or illustration.
+
+SCI10_Q1_M2_Plate_Boundaries/p019.2  rule=tiny  low
+  A simple drawing of a lightbulb, often used as a metaphor for ideas.
+
+SCI10_Q1_M2_Plate_Boundaries/p019.4  rule=tiny  high
+  Checklist diagram with a checked item and lines for text.
+
+SCI10_Q1_M2_Plate_Boundaries/p020.2  rule=tiny  low
+  A simple ruler with markings, potentially useful for illustrating measurements.
+
+SCI10_Q1_M2_Plate_Boundaries/p022.2  rule=tiny  low
+  The image shows a simple line drawing of an open book.
+
+SCI10_Q1_M2_Plate_Boundaries/p022.6  rule=tiny  low
+  This is a line drawing of documents with a magnifying glass, illustrating a concept.
+
+SCI10_Q1_M2_Plate_Boundaries/p023.2  rule=tiny  low
+  Illustration of a lightbulb, which can symbolize an idea or concept.
+
+SCI10_Q1_M2_Plate_Boundaries/p023.4  rule=tiny  low
+  Clipboard with a checklist, indicating a to-do list or form.
+
+SCI10_Q1_M2_Plate_Boundaries/p024.6  rule=tiny  high
+  The image shows a ruler with markings, useful for illustrating measurement concepts.
+
+SCI10_Q1_M2_Plate_Boundaries/p027.2  rule=tiny  high
+  Diagram with labeled parts A, B, and C.
+
+SCI10_Q1_M2_Plate_Boundaries/p028.4  rule=tiny  high
+  Diagrams illustrating geological stress types with labeled diagrams and directional arrows.
+
+SCI10_Q1_M2_Plate_Boundaries/p029.2  rule=tiny  medium
+  The image shows a stack of books, which can be used to illustrate educational concepts.

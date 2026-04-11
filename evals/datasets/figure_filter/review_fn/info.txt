@@ -1,0 +1,6 @@
+False negatives — filter kept these but LLM label says they're decorative.
+These are WASTE cases: the describer is still being called on decoration.
+No rule fired, which is why they slipped through.
+
+NCR_FINAL_Q1-ENG10_M3_Val/p010.2  medium
+  The image depicts a mythological figure, likely Odin, seated on a throne with a staff. This illustration is not a diagram, chart, or other educational visual aid, but rather a decorative element.

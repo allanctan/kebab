@@ -1,0 +1,7 @@
+{
+  "suite": "verification",
+  "metric_floors": {
+    "eval_detection_rate": 0.5
+  },
+  "notes": "Initial M16 live-run baseline. The fixture dataset has 5 cases, 3 correct (3/5 = 0.6). Floor set to 0.5 deliberately — this gives the verifier stage headroom to improve, and raising the floor is a PR-visible decision. Detection rate is computed deterministically from (injected, verifier_passed) tuples."
+}

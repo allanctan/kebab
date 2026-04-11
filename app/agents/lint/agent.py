@@ -1,0 +1,171 @@
+"""Lint agent — code-only health checks (no LLM).
+
+Spec §11 checks:
+- Orphans: ``parent_ids == []`` for non-root articles.
+- Broken prerequisites: ``prerequisites`` referencing IDs not in the index.
+- Missing sources: articles whose markdown frontmatter has zero sources.
+- Oversized markdown: body token count > ``MAX_TOKENS_PER_ARTICLE``.
+- Stale verifications: newest verification older than 180 days.
+- Confidence below the production gate (≥3).
+
+Output: a structured :class:`LintReport` written as JSON to
+``<KNOWLEDGE_DIR>/.kebab/lint-<ts>.json`` and printed to stdout via the CLI.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from typing import Callable, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.config.config import Settings
+from app.core.markdown import read_article
+from app.core.store import Store
+from app.core.llm.tokens import count_tokens
+
+logger = logging.getLogger(__name__)
+
+
+_STALE_AFTER_DAYS = 180
+
+
+LintCode = Literal[
+    "orphan",
+    "broken_prerequisite",
+    "missing_sources",
+    "oversized",
+    "stale_verification",
+    "below_confidence_gate",
+]
+
+
+class LintIssue(BaseModel):
+    """One health check finding."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    article_id: str = Field(..., description="ID of the offending article.")
+    code: LintCode = Field(..., description="Check that produced this issue.")
+    detail: str = Field(..., description="Human-readable explanation.")
+
+
+class LintReport(BaseModel):
+    """Aggregate output of one lint run."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    issues: list[LintIssue] = Field(..., description="Every issue found.")
+    counts: dict[str, int] = Field(..., description="Issue count by code.")
+    articles_scanned: int = Field(..., description="Number of articles inspected.")
+
+
+@dataclass
+class LintRunResult:
+    report: LintReport
+    output_path: Path
+
+
+@dataclass
+class LintDeps:
+    settings: Settings
+
+
+def _iter_markdown(root: Path):
+    if not root.exists():
+        return
+    for path in sorted(root.rglob("*.md")):
+        yield path
+
+
+def run(
+    settings: Settings,
+    *,
+    store: Store | None = None,
+    today: Callable[[], date] = lambda: datetime.now().date(),
+) -> LintRunResult:
+    """Execute every check and write a JSON report."""
+    store = store or Store(settings)
+    store.ensure_collection()
+
+    indexed_ids = {article.id for article in store.scroll()}
+    issues: list[LintIssue] = []
+    today_value = today()
+    stale_cutoff = today_value - timedelta(days=_STALE_AFTER_DAYS)
+    scanned = 0
+
+    for path in _iter_markdown(Path(settings.CURATED_DIR)):
+        try:
+            fm, body = read_article(path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("lint: skip %s (%s)", path, exc)
+            continue
+        scanned += 1
+
+        if not fm.sources:
+            issues.append(
+                LintIssue(article_id=fm.id, code="missing_sources", detail=str(path))
+            )
+
+        token_count = count_tokens(body)
+        if token_count > settings.MAX_TOKENS_PER_ARTICLE:
+            issues.append(
+                LintIssue(
+                    article_id=fm.id,
+                    code="oversized",
+                    detail=f"{token_count} > {settings.MAX_TOKENS_PER_ARTICLE}",
+                )
+            )
+
+        for prereq in fm.prerequisites:
+            if prereq not in indexed_ids:
+                issues.append(
+                    LintIssue(
+                        article_id=fm.id,
+                        code="broken_prerequisite",
+                        detail=f"missing prerequisite: {prereq}",
+                    )
+                )
+
+        if fm.verifications:
+            newest = max(record.date for record in fm.verifications)
+            if newest < stale_cutoff:
+                issues.append(
+                    LintIssue(
+                        article_id=fm.id,
+                        code="stale_verification",
+                        detail=f"newest verification {newest} < cutoff {stale_cutoff}",
+                    )
+                )
+
+    # Index-derived checks (orphans, gate).
+    for article in store.scroll():
+        if article.level_type == "article" and not article.parent_ids:
+            issues.append(
+                LintIssue(article_id=article.id, code="orphan", detail="no parent_ids")
+            )
+        if article.confidence_level < 3:
+            issues.append(
+                LintIssue(
+                    article_id=article.id,
+                    code="below_confidence_gate",
+                    detail=f"confidence={article.confidence_level}",
+                )
+            )
+
+    counts: dict[str, int] = {}
+    for issue in issues:
+        counts[issue.code] = counts.get(issue.code, 0) + 1
+
+    report = LintReport(issues=issues, counts=counts, articles_scanned=scanned)
+    out_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    out_path = out_dir / f"lint-{timestamp}.json"
+    out_path.write_text(json.dumps(report.model_dump(), indent=2), encoding="utf-8")
+    logger.info("lint: %d issue(s) across %d article(s)", len(issues), scanned)
+    return LintRunResult(report=report, output_path=out_path)

@@ -1,0 +1,22 @@
+# Q&A eval dataset — pairs with sources for grounded_judge + usefulness_judge.
+cases:
+  - id: photo_basic
+    label: known_good
+    question: "What is photosynthesis?"
+    answer: "The process by which plants convert light into glucose, releasing oxygen."
+    sources: ["OpenStax Biology 2e"]
+  - id: photo_where
+    label: known_good
+    question: "Where in the cell does photosynthesis occur?"
+    answer: "In chloroplasts, specifically the thylakoid membranes and the stroma."
+    sources: ["OpenStax Biology 2e"]
+  - id: tautology
+    label: known_bad
+    question: "What is photosynthesis?"
+    answer: "Photosynthesis is photosynthesis."
+    sources: ["OpenStax Biology 2e"]
+  - id: ungrounded
+    label: known_bad
+    question: "Do plants dream at night?"
+    answer: "Yes, plants experience vivid dreams during dark cycles."
+    sources: ["OpenStax Biology 2e"]

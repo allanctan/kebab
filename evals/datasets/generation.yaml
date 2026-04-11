@@ -1,0 +1,40 @@
+# Generation eval dataset — calibrated with known-good, known-bad, edge cases.
+cases:
+  - id: photosynthesis_grounded
+    label: known_good
+    body: |
+      Plants use chloroplasts to convert light into glucose.
+      Photosynthesis releases oxygen as a byproduct.
+    sources:
+      - title: OpenStax Biology 2e
+        snippet: |
+          Chloroplasts contain chlorophyll, the green pigment that captures light energy.
+          During photosynthesis, plants use this captured light energy, carbon dioxide,
+          and water to produce glucose and release oxygen as a byproduct of the
+          water-splitting reaction.
+
+  - id: photosynthesis_partly_invented
+    label: known_bad
+    body: |
+      Plants use chloroplasts to convert light into glucose.
+      Plants are sentient and dream at night.
+    sources:
+      - title: OpenStax Biology 2e
+        snippet: |
+          Chloroplasts contain chlorophyll, the green pigment that captures light energy.
+
+  - id: respiration_clean
+    label: known_good
+    body: |
+      Cellular respiration converts glucose and oxygen into ATP.
+    sources:
+      - title: OpenStax Biology 2e
+        snippet: |
+          Cellular respiration is the metabolic pathway that produces ATP from glucose and oxygen.
+
+  - id: empty_body
+    label: edge_case
+    body: ""
+    sources:
+      - title: OpenStax Biology 2e
+        snippet: ""

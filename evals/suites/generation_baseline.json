@@ -1,0 +1,8 @@
+{
+  "suite": "generation",
+  "metric_floors": {
+    "eval_grounding_score": 0.9,
+    "cases_passed_structural_gate": 3
+  },
+  "notes": "Initial M15 baseline. Run kebab eval generation and update via PR if a regression is intentional."
+}

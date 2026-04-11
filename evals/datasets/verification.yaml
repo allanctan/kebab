@@ -1,0 +1,18 @@
+# Verification eval dataset — articles + injected error flag + verifier outcome.
+# Used by InjectionDetectionJudge to compute eval_detection_rate.
+cases:
+  - article_id: SCI-BIO-001
+    injected: false
+    verifier_passed: true   # clean article, verifier passes → correct
+  - article_id: SCI-BIO-002
+    injected: true
+    verifier_passed: false  # error injected, verifier flags → correct
+  - article_id: SCI-BIO-003
+    injected: true
+    verifier_passed: true   # error injected, verifier missed → wrong
+  - article_id: SCI-BIO-004
+    injected: false
+    verifier_passed: false  # clean, verifier wrongly flagged → wrong
+  - article_id: SCI-BIO-005
+    injected: true
+    verifier_passed: false

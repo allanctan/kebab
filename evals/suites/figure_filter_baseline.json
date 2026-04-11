@@ -1,0 +1,10 @@
+{
+  "suite": "figure_filter",
+  "metric_floors": {
+    "eval_f1": 0.80,
+    "eval_precision": 0.85,
+    "eval_recall": 0.70,
+    "eval_accuracy": 0.80
+  },
+  "notes": "Initial floors. 'decorative' is the positive class — the filter is evaluated by how precisely and completely it identifies figures that should NOT go to the multimodal describer. Precision threshold is intentionally higher than recall because wrongly-dropped pedagogical content is a worse failure mode than wastefully-kept decoration. Raise floors via PR once real human-reviewed labels validate higher thresholds."
+}

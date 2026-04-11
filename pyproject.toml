@@ -1,0 +1,86 @@
+[project]
+name = "kebab"
+version = "0.1.0"
+description = "Knowledge Engine for Building Authoritative Bases — a CLI-first, domain-agnostic knowledge base curator."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pydantic-ai>=0.1",
+    "python-frontmatter>=1.0",
+    "pymupdf>=1.24",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "tiktoken>=0.7",
+    "qdrant-client>=1.10",
+    "gitpython>=3.1",
+    "python-dotenv>=1.0",
+    "logfire>=2.0",
+    "google-genai>=1.70.0",
+    "tavily-python>=0.7.23",
+]
+
+[project.scripts]
+kebab = "app.cli:main"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.33.0",
+    "ruff>=0.12.0",
+    {include-group = "test"},
+]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pydantic-evals>=0.1",
+]
+
+[tool.ruff]
+extend-exclude = ["knowledge", "evals/results"]
+
+[tool.ruff.lint]
+ignore = [
+    "E402",  # module level import not at top of file
+]
+
+[tool.basedpyright]
+include = ["app", "tests"]
+exclude = ["tests/data"]
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "unit: Unit tests (no I/O beyond tmp_path)",
+    "integration: Integration tests (real files, in-memory Qdrant)",
+    "slow: Slow running tests",
+    "ai: Tests that exercise real AI model calls (cost money)",
+    "network: Tests that require outbound network access",
+]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--disable-warnings",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"app/config/models.yaml" = "app/config/models.yaml"
+"app/pipeline/prompts" = "app/pipeline/prompts"
+"app/agents/qa/prompts" = "app/agents/qa/prompts"

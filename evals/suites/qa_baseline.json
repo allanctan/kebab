@@ -1,0 +1,8 @@
+{
+  "suite": "qa",
+  "metric_floors": {
+    "eval_grounded_score": 0.95,
+    "eval_usefulness_score": 3.5
+  },
+  "notes": "Initial M15 baseline. Update via PR if a regression is intentional."
+}
