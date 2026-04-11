@@ -24,7 +24,7 @@ from typing import Callable, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.config.config import Settings
-from app.core.markdown import read_article
+from app.core.markdown import extract_research_gaps, read_article
 from app.core.store import Store
 from app.core.llm.tokens import count_tokens
 
@@ -41,6 +41,7 @@ LintCode = Literal[
     "oversized",
     "stale_verification",
     "below_confidence_gate",
+    "unanswered_gaps",
 ]
 
 
@@ -155,6 +156,19 @@ def run(
                         detail=f"newest verification {newest} < cutoff {stale_cutoff}",
                     )
                 )
+
+        # Check for unanswered research gaps.
+        gaps = extract_research_gaps(body)
+        # Answered gaps have **Q:** prefix, unanswered are plain text
+        unanswered = [g for g in gaps if not g.startswith("**Q:")]
+        if unanswered:
+            issues.append(
+                LintIssue(
+                    article_id=fm.id,
+                    code="unanswered_gaps",
+                    detail=f"{len(unanswered)} unanswered gap(s)",
+                )
+            )
 
     # Index-derived checks (orphans, gate).
     for article in store.scroll():
