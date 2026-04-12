@@ -189,6 +189,24 @@ def _process_article(
         return (False, 0, None)
 
     write_article(path, fm, new_body)
+
+    from app.core.audit import log_event
+    for pair in fresh:
+        log_event(
+            path, stage="qa", action="qa_added",
+            article_id=fm.id,
+            question=pair.question,
+            answer=pair.answer,
+        )
+    if result.gap_questions:
+        for gq in result.gap_questions:
+            log_event(
+                path, stage="qa", action="gap_discovered",
+                article_id=fm.id,
+                question=gq.question,
+                reasoning=gq.reasoning,
+            )
+
     logger.info("qa: %s +%d pair(s) (today=%s)", path, len(fresh), today.date())
     return (True, len(fresh), None)
 
