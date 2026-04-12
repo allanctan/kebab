@@ -271,6 +271,11 @@ class Settings(BaseSettings):
         default="local",
         description="Logfire environment tag (local, dev, prod).",
     )
+    LLM_TRACE_ENABLED: bool = Field(
+        default=False,
+        description="Write LLM call spans to logs/llm-trace-YYYY-MM-DD.jsonl. "
+        "Disabled by default — enable for debugging LLM latency and token usage.",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

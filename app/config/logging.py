@@ -80,16 +80,19 @@ def setup_logging() -> None:
     Runs in local-only mode when ``LOGFIRE_TOKEN`` is unset: no network egress,
     no dashboard, but instrumentation still works for local tracing.
     """
-    from app.core.llm.trace import build_trace_processor
+    processors = []
+    if env.LLM_TRACE_ENABLED:
+        from app.core.llm.trace import build_trace_processor
 
-    trace_processor = build_trace_processor(LOGS_DIR)
+        processors.append(build_trace_processor(LOGS_DIR))
+
     logfire.configure(
         token=env.LOGFIRE_TOKEN,
         environment=env.LOGFIRE_ENVIRONMENT,
         send_to_logfire="if-token-present",
         console=False,
         service_name="kebab",
-        additional_span_processors=[trace_processor],
+        additional_span_processors=processors,
     )
     logfire.instrument_pydantic_ai()
     logfire.instrument_httpx(capture_all=True)
