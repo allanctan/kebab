@@ -431,5 +431,12 @@ def write_articles(
         write_article(path, fm, body)
         written.append(path)
 
+        from app.core.audit import log_event
+        log_event(
+            path, stage="generate", action="article_written",
+            article_id=gap.id,
+            detail=f"Generated from {len(source_triples)} source(s), {len(used_figures)} figure(s)",
+        )
+
     logger.info("generate: wrote %d, skipped %d", len(written), len(skipped))
     return GenerateResult(written=written, skipped=skipped)

@@ -24,6 +24,7 @@ from app.agents.research_gaps.query_planner import (
 )
 from app.agents.research_gaps.writer import GapAnswer, apply_answers_to_gaps
 from app.config.config import Settings
+from app.core.audit import log_event
 from app.core.markdown import (
     extract_research_gaps,
     find_article_by_id,
@@ -136,7 +137,11 @@ def run(
             answered_idx.add(gq.target_gap_idx)
             summary = f"answered gap {gq.target_gap_idx}: {gaps[gq.target_gap_idx][:60]!r} via {src.title!r}"
             finding_summaries.append(summary)
-            logger.info("research-gaps: %s", summary)
+            log_event(
+                path, stage="research-gaps", action="gap_answered",
+                article_id=article_id,
+                detail=f"Q: {gaps[gq.target_gap_idx][:80]} → A: {classification.answer[:80]} (source: {src.title})",
+            )
             break
 
     new_body = apply_answers_to_gaps(body, gaps, answers) if answers else body

@@ -225,5 +225,12 @@ def run(
         updated.append(path)
         logger.info("contexts: %s → %s", fm.id, vertical_key)
 
+        from app.core.audit import log_event
+        log_event(
+            path, stage="contexts", action="context_classified",
+            article_id=fm.id,
+            detail=f"Classified as {vertical_key}: {context.model_dump() if hasattr(context, 'model_dump') else context}",
+        )
+
     logger.info("contexts: updated %d, skipped %d", len(updated), len(skipped))
     return ContextsResult(updated=updated, skipped=skipped)

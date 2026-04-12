@@ -29,6 +29,7 @@ from app.agents.research_images.fetcher import (
 from app.agents.research_images.targets import extract_wikipedia_targets
 from app.agents.research_images.writer import append_figure_refs
 from app.config.config import Settings
+from app.core.audit import log_event
 from app.core.markdown import find_article_by_id, read_article, write_article
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,11 @@ def run(
                 raw_description=c.raw_description,
                 llm_description=desc,
             )
+        )
+        log_event(
+            path, stage="research-images", action="image_added",
+            article_id=article_id,
+            detail=f"Added: {desc[:80]} (from: {c.source_title})",
         )
 
     new_body = append_figure_refs(body, approved, article_slug=article_slug)

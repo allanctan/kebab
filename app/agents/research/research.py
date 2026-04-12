@@ -39,6 +39,7 @@ from app.agents.research.verifier import (
 )
 from app.agents.research.writer import apply_findings_to_article
 from app.config.config import Settings
+from app.core.audit import log_event
 from app.core.markdown import (
     count_external_footnotes,
     extract_disputes,
@@ -143,28 +144,38 @@ def run(
                 if result.outcome == "dispute":
                     judgment = judge_dispute(settings, claim, result, src.content)
                     if not judgment.is_surfaced:
-                        logger.debug(
-                            "research: dispute classified as %r for claim %r — suppressed",
-                            judgment.category,
-                            claim.text,
+                        log_event(
+                            path, stage="research", action="dispute_suppressed",
+                            article_id=article_id,
+                            detail=f"{judgment.category}: {claim.text[:80]} (source: {src.title})",
                         )
                         continue
                     # Stamp the category on the finding so the writer can show it
                     result = result.model_copy(update={"dispute_category": judgment.category})
 
                 findings.append((claim, result, src.title, src.url))
-                summary = (
-                    f"{result.outcome}: {claim.text[:60]!r} via {src.title!r}"
-                )
-                finding_summaries.append(summary)
-                logger.info("research: %s", summary)
 
                 if result.outcome == "confirm":
                     confirmed_claims.add(claim_idx)
+                    log_event(
+                        path, stage="research", action="confirm",
+                        article_id=article_id,
+                        detail=f"Claim confirmed: {claim.text[:80]} (source: {src.title})",
+                    )
                 elif result.outcome == "append":
                     appended_claims.add(claim_idx)
+                    log_event(
+                        path, stage="research", action="append",
+                        article_id=article_id,
+                        detail=f"New info appended: {(result.new_sentence or '')[:80]} (source: {src.title})",
+                    )
                 elif result.outcome == "dispute":
                     disputed_claims.add(claim_idx)
+                    log_event(
+                        path, stage="research", action="dispute",
+                        article_id=article_id,
+                        detail=f"{result.dispute_category}: {claim.text[:80]} (source: {src.title})",
+                    )
 
     # Synthesize multiple appends per section into one cohesive statement.
     # Build a footnote_refs map so the synthesizer knows which [^N] markers
