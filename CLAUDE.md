@@ -1,12 +1,15 @@
 # KEBAB — House Rules
 
-Rules for contributors (human and AI) working on this repo. Organized around the actual stack we use. Adapted from better-ed-ai conventions.
+Rules for contributors (human and AI) working on this repo. Organized around the actual stack we use.
+
+For an end-to-end developer walkthrough of the pipeline (ingest → research),
+see [`docs/pipeline.md`](docs/pipeline.md). This file is the *house rules*;
+that file is the *tour*.
 
 ## 1. Invariants (never break these)
 
 - **17-field universal index.** The Qdrant payload schema in `app/models/article.py` is the same for every vertical. No vertical ever adds fields to the index.
 - **Markdown is the source of truth.** The Qdrant index is derived during `kebab sync` and can always be rebuilt from markdown.
-- **Confidence gate ≥ 3.** Consumers should only use articles at confidence level 3+ (2+ LLMs verified, 2+ sources). Healthcare may require 4 (human verified).
 - **Vertical-agnostic core.** KEBAB never reads vertical-specific frontmatter fields (`bloom_ceiling`, `evidence_grade`, `policy_version`). They pass through via `model_config = ConfigDict(extra="allow")`.
 - **No source, no save.** Content without a traceable source is discarded at ingest, generate, and Q&A stages. Never invent content.
 
@@ -18,7 +21,7 @@ Python 3.11+ · `uv` · `click` · `pydantic` v2 · `pydantic-settings` · `pyda
 
 - Target Python ≥3.11. Use PEP 604 unions (`str | None`), not `Optional[str]`.
 - Type hints on **every** function parameter and return value, including `-> None`.
-- **Add `from __future__ import annotations` to every new module** (matches better-ed-ai `dev`-branch convention so contributors switching repos see one rule).
+- **Add `from __future__ import annotations` to every new module.**
 
 ### 3b. Code simplicity
 
@@ -98,12 +101,10 @@ Python 3.11+ · `uv` · `click` · `pydantic` v2 · `pydantic-settings` · `pyda
 
 ## 9. pydantic-ai (agents)
 
-Conventions here match `better-ed-ai/docs/AGENT_SYSTEM.md` so patterns port cleanly between projects.
-
 - One agent per directory in `app/agents/<name>/`. No mega-agents. Agent directory names are `kebab-case` (e.g. `qa-enrichment`, `lint-checker`). When we introduce skills, they follow `kebab-case-skill` inside `app/agents/<name>/skills/`.
 - Steps, fields, and Python identifiers remain `snake_case`.
 - Always declare `deps_type` and `output_type` — no free-form string agents.
-- Deps are `@dataclass(kw_only=False)` (not Pydantic) — they carry runtime context, not serialized state. Mirror better-ed-ai state-model style.
+- Deps are `@dataclass(kw_only=False)` (not Pydantic) — they carry runtime context, not serialized state.
 - Tools are module-level functions decorated with `@agent.tool`, typed `(ctx: RunContext[Deps], ...) -> T`.
 - Model identifier comes from per-operation settings (e.g. `settings.QA_MODEL`, `settings.RESEARCH_PLANNER_MODEL`) — never hard-coded in agent code. Resolved via `app.core.llm.resolve_model()` which handles aliases and `$VAR` expansion.
 - Prompts live in `app/agents/<name>/prompts/*.md` loaded at module import, not inlined beyond 2–3 lines. The prompt file is the agent's "Instructions section" — detailed, deterministic, with clear Input/Output contracts documented at the top.
@@ -112,7 +113,7 @@ Conventions here match `better-ed-ai/docs/AGENT_SYSTEM.md` so patterns port clea
 
 ### Input / Output contracts
 
-Every agent's prompt includes explicit `## Input` and `## Output` sections documenting each field with a description, matching better-ed-ai's skill format:
+Every agent's prompt includes explicit `## Input` and `## Output` sections documenting each field with a description:
 
 ```markdown
 ## Input
@@ -129,7 +130,7 @@ This documentation is for humans, but we also use it as the prompt the LLM sees.
 
 ### State is read-only
 
-When an agent or pipeline stage needs to update shared state, it **returns a dict of updates** rather than mutating inputs. Mirror better-ed-ai's functional state-update pattern:
+When an agent or pipeline stage needs to update shared state, it **returns a dict of updates** rather than mutating inputs:
 
 ```python
 def update_state(state: QaState, output: QaResult) -> dict:
@@ -231,13 +232,15 @@ Prefer linear stage sequences over conditional branching. Use scripts/conditiona
 from dataclasses import dataclass
 from pydantic_ai import Agent, RunContext
 
+from app.core.llm.resolve import resolve_model
+
 @dataclass
 class QaDeps:
     settings: Settings
     article_id: str
 
 qa_agent = Agent(
-    model=env.LLM_CURATION_MODEL,
+    model=resolve_model(settings.QA_MODEL),
     deps_type=QaDeps,
     output_type=QaResult,
     system_prompt=(PROMPTS_DIR / "qa_system.md").read_text(),
@@ -312,89 +315,37 @@ def lookup_source(ctx: RunContext[QaDeps], source_id: str) -> str:
 - Absolute imports only: `from app.models import Article`. Never `from .models import Article`.
 - **Each agent is a directory** in `app/agents/<name>/` with a **main file named after the folder** (e.g. `organize/organize.py`, `generate/generate.py`) containing the primary `run()` function. Optional: `prompts/`, helper modules.
 - No circular imports. If you need one, you have a layering bug.
-- No `app/pipeline/` — all pipeline stages live under `app/agents/`.
 
-### Package structure
+### Top-level structure
 
 ```
 app/
-  cli.py                    # Click CLI root
-  config/
-    config.py               # Settings (pydantic-settings)
-    logging.py              # Logfire + file logging setup
-    models.yaml             # Model alias registry
-  core/
-    errors.py               # KebabError base + subclasses
-    markdown.py             # Read/write curated articles, extract sections, find_article_by_id
-    store.py                # Qdrant wrapper
-    confidence.py           # Confidence level computation
-    llm/                    # All LLM resolution + tracing
-      resolve.py            # resolve_model()
-      model_registry.py     # models.yaml alias loading
-      trace.py              # JSONL span exporter for LLM call tracing
-      tokens.py             # Token counting via tiktoken
-      embeddings.py         # Embedding via google-genai
-    images/                 # Image processing
-      image_describer.py    # Image description via Gemini (SVG→PNG conversion)
-      filter_images.py      # Deterministic figure pre-LLM filters
-      figures.py            # Figure manifest, marker resolution, file copying
-    sources/                # Source tracking + HTTP fetching
-      adapter.py            # SourceAdapter protocol, Candidate, FetchedArtifact
-      index.py              # Source index (sources.json) CRUD
-      provenance.py         # .meta.json sidecar I/O
-      fetcher.py            # SharedFetcher (robots.txt, rate limit, allowlist)
-    research/               # Shared plumbing for research-* agents
-      searcher.py           # Adapter dispatch + fetch (no LLM)
-  models/                   # Pydantic data models (no I/O)
-    article.py, confidence.py, context.py, frontmatter.py, source.py
-  agents/                   # All pipeline stages + autonomous agents
-    ingest/
-      pdf.py                # PDF ingest with figure extraction
-      web.py                # Web ingest via Jina Reader
-      inbox.py              # raw/inbox/ staging helpers
-      registry.py           # AdapterRegistry
-      adapters/             # SourceAdapter implementations
-        local_pdf.py, direct_url.py
-        tavily.py, wikipedia.py, openstax.py
-    organize/
-      organize.py           # Main: propose hierarchy from sources
-      agent.py              # Pydantic-ai organize agent
-      plan.py, manifest.py, merge.py, stubs.py, models.py
-    generate/
-      generate.py           # Main: contexts → gaps → write (with summary)
-      writer.py             # LLM article generation with figures
-      gaps.py               # Plan vs existing diff
-      contexts/             # Vertical-specific metadata classification
-        education.py, healthcare.py, legal.py, policy.py
-      prompts/
-    research/                # Claim verification only
-      research.py            # Main: load → plan → search → verify → write
-      planner.py             # Extract claims + generate queries (LLM)
-      verifier.py            # classify_finding + judge_dispute (LLM)
-      writer.py              # Apply confirms/appends/disputes to body
-      prompts/{planner.md, verifier.md, dispute_judge.md}
-    research_gaps/           # Standalone gap answering
-      research_gaps.py       # Main: extract gaps → query → search → classify → write
-      query_planner.py       # Gap questions → search queries (LLM)
-      classifier.py          # Does this source answer the question? (LLM)
-      writer.py              # Rewrite gap lines as Q/A blocks
-      prompts/{query_planner.md, classifier.md}
-    research_images/         # Standalone Wikipedia image enrichment
-      research_images.py     # Main: targets → fetch → describe → write
-      targets.py             # Regex over body footnotes for Wikipedia URLs
-      fetcher.py             # Wikipedia API + httpx download + skip-keyword filter
-      describer.py           # Wraps core/images/image_describer
-      writer.py              # Append `![desc](path)` markdown to body
-    qa/
-      agent.py              # Main: Q&A enrichment + gap discovery
-      prompts/
-    lint/
-      agent.py              # Main: health checks (no LLM)
-    sync/
-      sync.py               # Main: embed + upsert to Qdrant
-  utils/
-    pdf_extractor.py, git_ops.py, web_scraper.py
+  cli.py        # Click CLI root
+  config/       # Settings, logging, model aliases
+  core/         # Reusable infrastructure — no agents, no orchestration
+    errors.py, markdown.py, store.py, confidence.py
+    llm/        # Model resolution, embeddings, token counting, tracing
+    images/     # Multimodal describer, deterministic figure filters, figure manifest
+    sources/    # SourceAdapter protocol, source index, fetcher, provenance
+    research/   # Shared plumbing for research-* agents (no LLM)
+  models/       # Pydantic data models — no I/O, no business logic
+  agents/       # All pipeline stages + autonomous agents
+    ingest/         # PDF + web + adapters + registry
+    organize/       # Hierarchy planner; produces plan.json + stubs
+    generate/       # Contexts → gaps → write articles (one orchestrator)
+    research/       # Claim verification (planner + verifier + writer)
+    research_gaps/  # Standalone gap answering
+    research_images/# Standalone Wikipedia image enrichment
+    qa/             # Q&A pair enrichment + gap discovery
+    lint/           # Health checks (no LLM)
+    sync/           # Embed + upsert to Qdrant
+  utils/        # Cross-cutting helpers
 ```
+
+For per-file detail and the data shapes flowing between stages, see
+[`docs/pipeline.md`](docs/pipeline.md). That file is updated when stages
+change; this tree only needs maintenance when a top-level directory is
+added or removed.
 
 Note: Python package directories on disk use `snake_case`
 (e.g. `research_gaps/`) because Python imports cannot contain hyphens.
@@ -412,11 +363,9 @@ name with underscores replaced by hyphens.
 
 ## 19. pytest
 
-Conventions mirror `better-ed-ai/pytest.ini` and `tests/README.md`.
-
 ### Layout
 
-- `tests/unit/` — fast, no I/O beyond `tmp_path`, no network, no LLM calls. Directory structure **mirrors `app/`** (e.g. `tests/unit/models/`, `tests/unit/core/`, `tests/unit/pipeline/`).
+- `tests/unit/` — fast, no I/O beyond `tmp_path`, no network, no LLM calls. Directory structure **mirrors `app/`** (e.g. `tests/unit/models/`, `tests/unit/core/`, `tests/unit/agents/research/`).
 - `tests/integration/` — real file I/O in `tmp_path`, in-memory Qdrant (`QdrantClient(":memory:")`), still no network.
 - `tests/fixtures/` — shared test data (example frontmatter, small PDFs, minimal knowledge trees). Reusable across suites.
 - `tests/conftest.py` — global fixtures: `knowledge_dir`, `mock_env`, `track_latency`.
@@ -471,7 +420,7 @@ markers = [
   - `knowledge_dir` — isolated `tmp_path/knowledge/` with `raw/{documents,datasets}/` pre-created.
   - `mock_env` — monkeypatched `Settings` with stub model names.
   - `track_latency` — context manager that prints operation duration.
-- Add subsystem fixtures in closer `conftest.py` (e.g. `tests/unit/pipeline/conftest.py`).
+- Add subsystem fixtures in closer `conftest.py` (e.g. `tests/unit/agents/research/conftest.py`).
 
 ### Network & LLM failures
 
@@ -546,7 +495,7 @@ Three canonical suites, each invoked by `kebab eval <name>`:
 ### Rules
 
 - **Evals never block CI by default.** They cost money and have variance. Run on demand or on a schedule.
-- **Use `pydantic-evals` Evaluators**, not hand-rolled scoring. Consistency with better-ed-ai's eval approach (when they adopt one) stays cleaner this way.
+- **Use `pydantic-evals` Evaluators**, not hand-rolled scoring.
 - **Datasets are versioned.** `evals/datasets/generation_v1.json`. Bump the version, don't mutate.
 - **Results are timestamped JSON** under `evals/results/<suite>/<YYYY-MM-DD_HH-MM>.json`. Gitignored by default; commit only when bumping a baseline.
 - **Baselines live in `evals/suites/<suite>_baseline.json`** — committed, reviewed via PR.
@@ -586,80 +535,8 @@ Three canonical suites, each invoked by `kebab eval <name>`:
 - Don't log or commit raw source documents that may contain PII.
 - LLM calls must not be sent credentials, user PII, or raw private data beyond the article being processed.
 
-## 24. Check better-ed-ai first (code reuse rule)
-
-**Before writing new code, check `~/Github/better-ed-ai` for an existing pattern, utility, or library usage.** The two projects share maintainers — consistent code lets them switch between repos without re-learning conventions.
-
-### Workflow
-
-1. **Before implementing** any non-trivial module (config, logging, parser, agent, pipeline stage, test fixture, etc.), search better-ed-ai for prior art:
-   ```bash
-   rg -l "<concept>" ~/Github/better-ed-ai/app ~/Github/better-ed-ai/tests
-   ```
-2. **Read the matching file(s)** before designing KEBAB's version.
-3. **Copy the shape** (structure, naming, imports, fixture style, error handling) when it's clean.
-4. **Adapt** names and types to KEBAB's domain — don't leave `assignment_*` or `fastapi` references behind.
-5. **Cite the source** in a module docstring: `"""... Pattern adapted from better-ed-ai/app/<path>."""`.
-
-### What to copy
-
-- **Config pattern**: `Settings(BaseSettings)` + `@lru_cache get_settings()` + module-level `env`.
-- **Logging setup**: `LOGGING_CONFIG` dict, per-module `getLogger(__name__)`, **logfire instrumentation** for pydantic-ai and httpx (same dashboard tool as better-ed-ai; runs local-only without a token).
-- **Pydantic-ai agent template**: `@dataclass` deps, `Agent(deps_type=..., output_type=...)`, `@agent.tool` decorators.
-- **Test fixture style**: `mock_env`, `track_latency`, `monkeypatch`-based env overrides.
-- **Pytest markers and addopts**: `unit`/`integration`/`slow`/`expensive`/`ai`/`network` with `--strict-markers`.
-- **Graceful API-failure skip**: `try/except + pytest.skip(...)` pattern.
-- **Frontmatter parsing approach**: regex-based YAML extraction as fallback (their `app/core/parser.py::parse_yaml_frontmatter`).
-- **PDF extraction**: PyMuPDF open-and-iterate (their `app/api/assessment/images/utils/extractor.py`).
-- **Naming conventions**: `kebab-case` agent/skill directories, `snake_case` fields, `PascalCase` classes.
-- **Typing style**: `str | None` unions, `Field(..., description=...)`, `from dataclasses import dataclass, field`.
-
-### What NOT to copy
-
-- **FastAPI/Celery runtime code** — KEBAB is CLI-first and sync. No routers, no background tasks, no `run_in_loop`, no `asyncio.to_thread` wrappers.
-- **Async where sync works** — better-ed-ai is `async def` throughout for FastAPI. KEBAB stays sync. Convert to sync on copy.
-- **Convoluted event-loop workarounds** — `prevent_celery_loop_conflicts`, `test_safe_run_in_loop`, etc. These exist only because of Celery; KEBAB doesn't need them.
-- **HTTP-client test wrappers** — no `AsyncClientWrapper`, no `TestClient`. KEBAB has no HTTP surface.
-- **Hand-rolled YAML frontmatter parsing as primary** — we use `python-frontmatter` first; the regex approach is a fallback reference only.
-- **Anything that reads or depends on Redis, Celery, Apify, Azure, or Google Voice APIs.**
-- **Anything opaque or hard to read.** If you have to re-read it three times to understand it, find a simpler way. Readability beats cleverness.
-
-### Quality filter
-
-Copy only if the code is:
-- Short and scannable (a maintainer can understand it in under 60 seconds).
-- Well-named (identifiers explain themselves).
-- Free of incidental complexity from better-ed-ai's specific runtime (FastAPI, Celery, Redis).
-- The **best** available pattern for the job — not just the **first** one you find.
-
-When in doubt, write the simpler version and leave a comment: `# see better-ed-ai/app/... for a more elaborate variant`.
-
-## 25. Cross-project consistency (from better-ed-ai)
-
-KEBAB is a sibling of `~/Github/better-ed-ai`. These shared practices keep both projects navigable by the same contributors:
-
-- **Type hints on every parameter and return value.** (from `.cursor/rules/python.mdc`)
-- **Pydantic models for all structured data in and out of functions.** Validate at boundaries, trust internally.
-- **Dependency injection over globals.** `Settings` is passed explicitly to stages and agents.
-- **Feature-based organization.** One concept per module (`app/pipeline/sync.py`, not `app/utils/misc.py`).
-- **Kebab-case directories for agents/skills, snake_case for Python identifiers.** (from `docs/AGENT_SYSTEM.md`)
-- **State is read-only; return update dicts.** Applies inside agents, pipeline stages, and any helper that "updates" a shared structure.
-- **Single Responsibility per skill/agent/stage.** Decompose rather than branch.
-- **Linear workflows by default.** Conditional logic only when essential, and documented.
-- **Clear Input/Output documentation on every agent prompt**, using the same `## Input` / `## Output` format as better-ed-ai `SKILL.md` files.
-- **Module loggers via `logging.getLogger(__name__)`.** Debug with `logging.getLogger("app").setLevel(logging.DEBUG)` — same pattern both projects.
-- **`@dataclass(kw_only=False)` for state/deps carriers.** Pydantic for serialized data, dataclasses for runtime context.
-- **Pytest structure mirrors `app/`.** `tests/unit/<mirror>/test_*.py`, `tests/integration/<mirror>/test_*.py`.
-- **Error handling preserves context.** Stages fail loudly with logged context; state is preserved up to the point of failure.
-- **`basedpyright` (standard mode) + `ruff`** — same toolchain, same thresholds.
-- **`uv` is the only dependency manager.** `uv.lock` committed, `uv run` for every command.
-
 ## References
 
 - `~/Downloads/kebab-knowledge-base-architecture.html` — knowledge base architecture spec.
 - `~/Downloads/kebab-technical-architecture_1.html` — technical architecture spec.
-- `~/Github/better-ed-ai/.cursor/rules/python.mdc` — sibling project FastAPI/Python rules.
-- `~/Github/better-ed-ai/docs/AGENT_SYSTEM.md` — sibling project agent framework best practices.
-- `~/Github/better-ed-ai/docs/AGENT_QUICK_REFERENCE.md` — sibling project naming and state conventions.
-- `~/Github/better-ed-ai/app/config/` — canonical config/logging patterns.
-- `~/Github/better-ed-ai/app/agents/assignment/assignment_checker.py` — canonical pydantic-ai agent pattern.
+- [`docs/pipeline.md`](docs/pipeline.md) — developer walkthrough of the pipeline (ingest → research).
