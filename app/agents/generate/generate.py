@@ -29,11 +29,19 @@ class GenerateStageResult:
     articles_skipped: int = 0
 
 
-def run(settings: Settings, *, domain: str = "default", force: bool = False, **kwargs: Any) -> GenerateStageResult:
-    """Execute the full generate stage: contexts → gaps → write.
+def run(
+    settings: Settings,
+    *,
+    domain: str = "default",
+    article_id: str | None = None,
+    force: bool = False,
+    **kwargs: Any,
+) -> GenerateStageResult:
+    """Execute the full generate stage: gaps → write → contexts.
 
     ``domain`` selects which plan to use (e.g. "science", "legal").
-    ``force`` regenerates all articles in the plan and re-runs contexts.
+    ``article_id`` generates a single article (requires ``--force``).
+    ``force`` regenerates articles even if already written.
     """
     result = GenerateStageResult()
 
@@ -59,13 +67,21 @@ def run(settings: Settings, *, domain: str = "default", force: bool = False, **k
     # Step 1: Find gaps
     if force:
         from app.agents.generate.gaps import Gap, GapReport
+        target_nodes = [
+            n for n in plan.nodes
+            if n.level_type == "article"
+            and (article_id is None or n.id == article_id)
+        ]
+        if article_id and not target_nodes:
+            logger.warning("generate: article %r not found in plan for domain %r", article_id, domain)
+            return result
         forced_gaps = [
             Gap(
                 id=n.id, name=n.name, description=n.description,
                 source_files=list(n.source_files),
                 target_path=n.md_path, reason="new",
             )
-            for n in plan.nodes if n.level_type == "article"
+            for n in target_nodes
         ]
         gap_report = GapReport(gaps=forced_gaps, existing=[])
         result.gaps_found = len(forced_gaps)
@@ -98,6 +114,8 @@ def run(settings: Settings, *, domain: str = "default", force: bool = False, **k
     written_paths: list[Path] = []
     for node in plan.nodes:
         if node.level_type == "article" and node.md_path:
+            if article_id is not None and node.id != article_id:
+                continue
             p = Path(node.md_path)
             if p.exists():
                 written_paths.append(p)

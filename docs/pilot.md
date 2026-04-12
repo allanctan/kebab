@@ -87,10 +87,9 @@ plan filename. Use the same domain name in all subsequent commands.
 ### 3. Generate
 
 ```bash
-uv run kebab generate --domain Knowledge
-
-# Regenerate all articles (even already-written ones)
-uv run kebab generate --domain Knowledge --force
+uv run kebab generate --domain Knowledge          # generate new (gap) articles
+uv run kebab generate --domain Knowledge --force   # regenerate all articles
+uv run kebab generate KNO-SCI-112                  # regenerate a single article
 ```
 
 Runs three steps internally:
@@ -102,9 +101,10 @@ Runs three steps internally:
 ### 4. Research (claim verification)
 
 ```bash
-uv run kebab research SCI-001          # single article
-uv run kebab research --all            # all articles
-uv run kebab research --all --budget 5 # limit queries per article
+uv run kebab research KNO-SCI-112              # single article
+uv run kebab research --all                    # all articles
+uv run kebab research --domain Knowledge       # all articles in a domain
+uv run kebab research --all --budget 5         # limit queries per article
 ```
 
 Verifies article claims against external sources (Wikipedia, Tavily).
@@ -123,8 +123,11 @@ Discovers knowledge gaps → `## Research Gaps` section.
 ### 6. Research gaps + images
 
 ```bash
-uv run kebab research-gaps --all       # answer Research Gaps questions
-uv run kebab research-images --all     # add Wikipedia figures
+uv run kebab research-gaps KNO-SCI-112         # single article
+uv run kebab research-gaps --all               # all articles
+uv run kebab research-gaps --domain Knowledge  # all in domain
+uv run kebab research-images --all             # add Wikipedia figures
+uv run kebab research-images --domain Knowledge
 ```
 
 `research-gaps` answers unanswered questions in `## Research Gaps`.

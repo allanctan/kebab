@@ -320,7 +320,7 @@ skipped, and confidence is at level 1 (has sources, not yet researched).
 ## Stage 4: Research (claim verification)
 
 **Code:** `app/agents/research/`
-**CLI:** `kebab research [<id>] [--all] [--budget 10]`
+**CLI:** `kebab research [<id>] [--all] [--domain <name>] [--budget 10]`
 **Inputs:** a curated article, the source index, search adapters
 **Outputs:** the same article with confirmations / appends / disputes
 applied to the body, plus updated frontmatter metadata
@@ -452,7 +452,7 @@ researched_at: '2026-04-12'
 ## Stage 5: Research-gaps
 
 **Code:** `app/agents/research_gaps/`
-**CLI:** `kebab research-gaps [<id>] [--all] [--budget 5]`
+**CLI:** `kebab research-gaps [<id>] [--all] [--domain <name>] [--budget 5]`
 **Inputs:** a curated article with a `## Research Gaps` section
 **Outputs:** the same article with answered gaps rewritten as Q/A
 blocks; updated frontmatter metadata
@@ -557,7 +557,7 @@ gaps_researched_at: '2026-04-12'
 ## Stage 6: Research-images
 
 **Code:** `app/agents/research_images/`
-**CLI:** `kebab research-images [<id>] [--all]`
+**CLI:** `kebab research-images [<id>] [--all] [--domain <name>]`
 **Inputs:** a curated article with existing Wikipedia footnotes
 **Outputs:** the same article with `![desc](path)` image refs appended;
 downloaded image files under `figures/<slug>/`

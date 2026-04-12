@@ -143,26 +143,45 @@ def organize(domain: str, force: bool) -> None:
 
 
 @main.command()
+@click.argument("article_id", required=False)
 @click.option("--domain", default=None, help="Domain to generate for. Omit to run all domains.")
-@click.option("--force", is_flag=True, default=False, help="Regenerate all articles, re-run contexts and summaries.")
-def generate(domain: str | None, force: bool) -> None:
+@click.option("--all", "generate_all", is_flag=True, help="Generate all articles in the domain.")
+@click.option("--force", is_flag=True, default=False, help="Regenerate even if already written.")
+def generate(article_id: str | None, domain: str | None, generate_all: bool, force: bool) -> None:
     """Find gaps, generate articles, classify contexts, write summaries."""
     from app.agents.organize import list_domains
 
-    if domain:
-        domains = [domain]
-    else:
+    if article_id and not domain:
+        # Single article — need to find which domain it's in
         domains = list_domains(env)
         if not domains:
             raise click.ClickException("no plans found — run `kebab organize --domain <name>` first")
-
-    for d in domains:
-        click.echo(f"--- {d} ---")
-        result = generate_stage.run(env, domain=d, force=force)
-        click.echo(
-            f"  {result.contexts_updated} contexts, {result.gaps_found} gaps, "
-            f"{result.articles_written} written, {result.articles_skipped} skipped"
-        )
+        for d in domains:
+            result = generate_stage.run(env, domain=d, article_id=article_id, force=True)
+            if result.articles_written > 0:
+                click.echo(
+                    f"generate {article_id}: {result.articles_written} written, "
+                    f"{result.contexts_updated} contexts"
+                )
+                return
+        raise click.ClickException(f"article {article_id!r} not found in any plan")
+    elif generate_all or (not article_id):
+        # All articles in domain(s)
+        if domain:
+            domains = [domain]
+        else:
+            domains = list_domains(env)
+            if not domains:
+                raise click.ClickException("no plans found — run `kebab organize --domain <name>` first")
+        for d in domains:
+            click.echo(f"--- {d} ---")
+            result = generate_stage.run(env, domain=d, force=force)
+            click.echo(
+                f"  {result.contexts_updated} contexts, {result.gaps_found} gaps, "
+                f"{result.articles_written} written, {result.articles_skipped} skipped"
+            )
+    else:
+        raise click.ClickException("provide an article ID or use --all")
 
 
 @main.command()
@@ -198,27 +217,43 @@ def agent_qa(once: bool, watch: bool) -> None:
     )
 
 
-@main.command()
-@click.argument("article_id", required=False)
-@click.option("--all", "research_all", is_flag=True, help="Research all articles.")
-@click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
-def research(article_id: str | None, research_all: bool, budget: int) -> None:
-    """Verify an article's claims against external sources."""
-    from app.agents.research import research as research_agent
+def _iter_article_ids(domain: str | None) -> list[str]:
+    """Return article IDs from curated markdown, optionally filtered by domain folder."""
     from app.core.markdown import read_article as _read_article
 
-    if research_all:
-        curated = Path(env.CURATED_DIR)
-        if not curated.exists():
+    curated = Path(env.CURATED_DIR)
+    if not curated.exists():
+        return []
+    root = curated / domain if domain else curated
+    if not root.exists():
+        return []
+    ids: list[str] = []
+    for md in sorted(root.rglob("*.md")):
+        try:
+            fm, _, _ = _read_article(md)
+        except Exception:  # noqa: BLE001
+            continue
+        ids.append(fm.id)
+    return ids
+
+
+@main.command()
+@click.argument("article_id", required=False)
+@click.option("--all", "run_all", is_flag=True, help="Research all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
+@click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
+def research(article_id: str | None, run_all: bool, domain: str | None, budget: int) -> None:
+    """Verify an article's claims against external sources."""
+    from app.agents.research import research as research_agent
+
+    if run_all or domain:
+        ids = _iter_article_ids(domain)
+        if not ids:
             raise click.ClickException("no curated articles found")
-        for md in sorted(curated.rglob("*.md")):
-            try:
-                fm, _, _ = _read_article(md)
-            except Exception:  # noqa: BLE001
-                continue
-            result = research_agent.run(env, article_id=fm.id, budget=budget)
+        for aid in ids:
+            result = research_agent.run(env, article_id=aid, budget=budget)
             click.echo(
-                f"  {fm.id}: {result.confirms} confirmed, "
+                f"  {aid}: {result.confirms} confirmed, "
                 f"{result.appends} appended, {result.disputes} disputed"
             )
     elif article_id:
@@ -229,58 +264,50 @@ def research(article_id: str | None, research_all: bool, budget: int) -> None:
             f"{result.disputes} disputed"
         )
     else:
-        raise click.ClickException("provide an article ID or use --all")
+        raise click.ClickException("provide an article ID, --domain, or --all")
 
 
 @main.command("research-gaps")
 @click.argument("article_id", required=False)
-@click.option("--all", "gaps_all", is_flag=True, help="Run on all articles.")
+@click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
 @click.option("--budget", type=int, default=5, show_default=True, help="Max queries per article.")
-def research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> None:
+def research_gaps(article_id: str | None, run_all: bool, domain: str | None, budget: int) -> None:
     """Answer unanswered questions in the Research Gaps section of an article."""
     from app.agents.research_gaps import research_gaps as gaps_agent
-    from app.core.markdown import read_article as _read_article
 
-    if gaps_all:
-        curated = Path(env.CURATED_DIR)
-        if not curated.exists():
+    if run_all or domain:
+        ids = _iter_article_ids(domain)
+        if not ids:
             raise click.ClickException("no curated articles found")
-        for md in sorted(curated.rglob("*.md")):
-            try:
-                fm, _, _ = _read_article(md)
-            except Exception:  # noqa: BLE001
-                continue
-            result = gaps_agent.run(env, article_id=fm.id, budget=budget)
-            click.echo(f"  {fm.id}: {result.answered}/{result.gaps_total} gaps answered")
+        for aid in ids:
+            result = gaps_agent.run(env, article_id=aid, budget=budget)
+            click.echo(f"  {aid}: {result.answered}/{result.gaps_total} gaps answered")
     elif article_id:
         result = gaps_agent.run(env, article_id=article_id, budget=budget)
         click.echo(
             f"research-gaps {article_id}: {result.answered}/{result.gaps_total} gaps answered"
         )
     else:
-        raise click.ClickException("provide an article ID or use --all")
+        raise click.ClickException("provide an article ID, --domain, or --all")
 
 
 @main.command("research-images")
 @click.argument("article_id", required=False)
-@click.option("--all", "images_all", is_flag=True, help="Run on all articles.")
-def research_images(article_id: str | None, images_all: bool) -> None:
+@click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
+def research_images(article_id: str | None, run_all: bool, domain: str | None) -> None:
     """Enrich an article with figures from its existing Wikipedia footnotes."""
     from app.agents.research_images import research_images as images_agent
-    from app.core.markdown import read_article as _read_article
 
-    if images_all:
-        curated = Path(env.CURATED_DIR)
-        if not curated.exists():
+    if run_all or domain:
+        ids = _iter_article_ids(domain)
+        if not ids:
             raise click.ClickException("no curated articles found")
-        for md in sorted(curated.rglob("*.md")):
-            try:
-                fm, _, _ = _read_article(md)
-            except Exception:  # noqa: BLE001
-                continue
-            result = images_agent.run(env, article_id=fm.id)
+        for aid in ids:
+            result = images_agent.run(env, article_id=aid)
             click.echo(
-                f"  {fm.id}: {result.images_added} added, "
+                f"  {aid}: {result.images_added} added, "
                 f"{result.decoratives_dropped} dropped, {result.targets_found} targets"
             )
     elif article_id:
@@ -290,7 +317,7 @@ def research_images(article_id: str | None, images_all: bool) -> None:
             f"{result.decoratives_dropped} dropped, {result.targets_found} targets"
         )
     else:
-        raise click.ClickException("provide an article ID or use --all")
+        raise click.ClickException("provide an article ID, --domain, or --all")
 
 
 @agent.command("lint")
