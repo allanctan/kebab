@@ -30,6 +30,7 @@ from app.agents.research.planner import (
     ResearchPlan,
     plan_research,
 )
+from app.agents.research.synthesizer import merge_appends
 from app.agents.research.verifier import (
     FindingResult,
     FindingTuple,
@@ -42,6 +43,7 @@ from app.core.markdown import (
     count_external_footnotes,
     extract_disputes,
     find_article_by_id,
+    next_footnote_number,
     read_article,
     write_article,
 )
@@ -158,6 +160,18 @@ def run(
                     appended_claims.add(claim_idx)
                 elif result.outcome == "dispute":
                     disputed_claims.add(claim_idx)
+
+    # Synthesize multiple appends per section into one cohesive statement.
+    # Build a footnote_refs map so the synthesizer knows which [^N] markers
+    # to preserve in the merged text.
+    if findings:
+        footnote_refs: dict[str, str] = {}
+        fn_num = next_footnote_number(body)
+        for _, finding, _title, url in findings:
+            if finding.outcome == "append" and url not in footnote_refs:
+                footnote_refs[url] = f"[^{fn_num}]"
+                fn_num += 1
+        findings = merge_appends(settings, findings, footnote_refs)
 
     new_body = apply_findings_to_article(body, findings) if findings else body
 
