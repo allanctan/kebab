@@ -157,14 +157,8 @@ def apply_findings_to_article(
         num = footnote_num
         url_to_footnote[source_url] = num
         new_footnote_defs.append(
-            FootnoteDef.__new__(FootnoteDef)
+            FootnoteDef.create(number=num, title=source_title, url=source_url)
         )
-        fdef = new_footnote_defs[-1]
-        fdef.number = num
-        fdef.title = source_title
-        fdef.url = source_url
-        fdef.source_id = None
-        fdef.children = []  # type: ignore[assignment]
         footnote_num += 1
         return f"[^{num}]"
 

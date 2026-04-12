@@ -83,6 +83,23 @@ class FootnoteDef(block.BlockElement):
         self.children = []  # type: ignore[assignment]
 
     @classmethod
+    def create(
+        cls,
+        number: int,
+        title: str,
+        url: str,
+        source_id: int | None = None,
+    ) -> FootnoteDef:
+        """Construct a FootnoteDef programmatically (no regex match needed)."""
+        instance = cls.__new__(cls)
+        instance.number = number
+        instance.title = title
+        instance.url = url
+        instance.source_id = source_id
+        instance.children = []  # type: ignore[assignment]
+        return instance
+
+    @classmethod
     def match(cls, source: Source) -> Any:
         return source.expect_re(_DEF_RE)
 

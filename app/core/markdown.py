@@ -72,7 +72,12 @@ def _parse_yaml_frontmatter(text: str) -> tuple[dict, str]:
 
 
 @lru_cache(maxsize=512)
-def _parse_path(path: Path) -> tuple[FrontmatterSchema, str, marko.block.Document]:
+def _parse_frontmatter(path: Path) -> tuple[FrontmatterSchema, str]:
+    """Cache the immutable parts: validated frontmatter + raw body string.
+
+    The AST is NOT cached because it's mutable — writers modify the tree,
+    and a cached mutable object would poison subsequent reads.
+    """
     raw = path.read_text(encoding="utf-8")
     try:
         post = frontmatter.loads(raw)
@@ -84,17 +89,18 @@ def _parse_path(path: Path) -> tuple[FrontmatterSchema, str, marko.block.Documen
         fm = FrontmatterSchema.model_validate(meta)
     except Exception as exc:
         raise MarkdownError(f"invalid frontmatter in {path}: {exc}") from exc
-    tree = parse_body(body)
-    return fm, body, tree
+    return fm, body
 
 
 def read_article(path: Path) -> tuple[FrontmatterSchema, str, marko.block.Document]:
     """Parse a curated markdown file into ``(frontmatter, raw_body, AST)``.
 
     ``raw_body`` is the original string (for embedding, token counting).
-    ``tree`` is the parsed marko AST (for structural reads and mutations).
+    ``tree`` is a fresh parsed marko AST (safe to mutate — not cached).
     """
-    return _parse_path(path)
+    fm, body = _parse_frontmatter(path)
+    tree = parse_body(body)
+    return fm, body, tree
 
 
 def find_article_by_id(curated_dir: Path, article_id: str) -> Path | None:
@@ -118,7 +124,7 @@ def write_article(path: Path, fm: FrontmatterSchema, body: str) -> None:
     post = frontmatter.Post(content=body)
     post.metadata = fm.model_dump(mode="json", exclude_none=False)
     path.write_text(frontmatter.dumps(post, sort_keys=False), encoding="utf-8")
-    _parse_path.cache_clear()
+    _parse_frontmatter.cache_clear()
 
 
 # ---------------------------------------------------------------------------
