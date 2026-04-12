@@ -1,7 +1,8 @@
-# KEBAB Pilot — K-12 Science
+# KEBAB Quick Start
 
-End-to-end walkthrough for setting up and running KEBAB on educational
-content. Uses the K-12 Science vertical as the example.
+Get from raw source documents to a verified, searchable knowledge base
+in 8 commands. Works with PDFs, web pages, and any content vertical
+(education, healthcare, legal, policy).
 
 ## Prerequisites
 
@@ -12,8 +13,8 @@ uv sync
 Create `.env.local` with your API keys:
 
 ```env
-KEBAB_GOOGLE_API_KEY=...          # Google AI Studio (required — Gemini)
-KEBAB_TAVILY_API_KEY=...          # Tavily web search (optional — for research)
+GOOGLE_API_KEY=...          # Google AI Studio (required — Gemini)
+TAVILY_API_KEY=...          # Tavily web search (optional — for research)
 ```
 
 ## Layout
@@ -124,7 +125,10 @@ and flags contradictions in a `## Disputes` section.
 ### 5. Q&A enrichment
 
 ```bash
-uv run kebab qa --once    # single pass over all articles
+uv run kebab qa KNO-SCI-112              # single article
+uv run kebab qa --domain Knowledge       # all in domain
+uv run kebab qa --all                    # everything
+uv run kebab qa --watch                  # continuous loop
 ```
 
 Generates grounded Q&A pairs → `## Q&A` section.
@@ -134,9 +138,7 @@ Discovers knowledge gaps → `## Research Gaps` section.
 
 ```bash
 uv run kebab research-gaps KNO-SCI-112         # single article
-uv run kebab research-gaps --all               # all articles
 uv run kebab research-gaps --domain Knowledge  # all in domain
-uv run kebab research-images --all             # add Wikipedia figures
 uv run kebab research-images --domain Knowledge
 ```
 
@@ -144,35 +146,31 @@ uv run kebab research-images --domain Knowledge
 `research-images` downloads and describes figures from Wikipedia articles
 cited in the footnotes (requires research to have run first).
 
-### 7. Sync to Qdrant
-
-```bash
-uv run kebab sync
-```
-
-Embeds articles and upserts to Qdrant. Computes confidence level per
-article. Idempotent — unchanged articles are skipped.
-
-### 8. Lint
+### 7. Lint
 
 ```bash
 uv run kebab lint
 ```
 
 Health checks (no LLM): missing sources, oversized articles, stale
-verification, orphaned articles, unanswered gaps, below confidence gate.
+verification, orphaned articles, unanswered gaps.
+
+### Sync
+
+Qdrant sync happens automatically after generate and research — no
+manual step needed. Run `uv run kebab sync` only if you need to
+force a re-sync.
 
 ## Typical first-run sequence
 
 ```bash
 uv run kebab ingest pdf --input knowledge/raw/documents/
 uv run kebab organize --domain Knowledge
-uv run kebab generate --domain Knowledge
-uv run kebab research --all
-uv run kebab qa --once
+uv run kebab generate --domain Knowledge    # auto-syncs to Qdrant
+uv run kebab research --all                 # auto-syncs to Qdrant
+uv run kebab qa --all
 uv run kebab research-gaps --all
 uv run kebab research-images --all
-uv run kebab sync
 uv run kebab lint
 ```
 
@@ -185,14 +183,39 @@ uv run kebab generate --domain Knowledge      # writes new articles only
 uv run kebab research --all
 uv run kebab research-gaps --all
 uv run kebab research-images --all
-uv run kebab sync
+```
+
+## Single article workflow
+
+Every command supports targeting a single article by ID:
+
+```bash
+uv run kebab generate KNO-SCI-112
+uv run kebab research KNO-SCI-112 --budget 5
+uv run kebab qa KNO-SCI-112
+uv run kebab research-gaps KNO-SCI-112
+uv run kebab research-images KNO-SCI-112
+```
+
+## Audit trail
+
+Every change to an article is logged to `.kebab/logs/<article>.audit.jsonl`:
+
+```bash
+# What happened to a specific article
+cat knowledge/.kebab/logs/types-of-plate-boundaries.audit.jsonl | jq .
+
+# All disputes across articles
+cat knowledge/.kebab/logs/*.audit.jsonl | jq 'select(.action == "dispute")'
+
+# Unverified claims (overwritten each research run)
+cat knowledge/.kebab/logs/types-of-plate-boundaries.unverified.jsonl
 ```
 
 ## Cost & runtime notes
 
-- A full pilot run (~10 articles) hits the Gemini API ~50-100 times.
+- A full run (~10 articles) hits the Gemini API ~50-100 times.
   With `gemini-2.5-flash` the cost is typically under $0.50.
-- Each eval suite documents its expected cost in its docstring.
 - Set `LLM_MAX_RETRIES=3` in `.env` to keep retries bounded.
 
 ## Per-operation model configuration
