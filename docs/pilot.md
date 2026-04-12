@@ -26,15 +26,25 @@ knowledge/
 │   └── web/
 │       └── *.md
 ├── processed/     ← extracted text + described figures
-│   └── documents/
-│       └── <stem>/
-│           ├── text.md
-│           ├── figures.json
-│           └── figures/
+│   └── documents/<stem>/
+│       ├── text.md
+│       ├── figures.json
+│       └── figures/
 ├── curated/       ← the knowledge base — grounded markdown articles
-│   └── <Domain>/<Subdomain>/<article>.md
-├── .kebab/        ← pipeline state (plan, sources.json, skip keywords)
-└── .qdrant/       ← local vector index (derived, rebuildable)
+│   └── <Domain>/<Subdomain>/
+│       ├── <article>.md
+│       └── figures/<article-slug>/
+│           ├── p007_f08.jpeg     ← from PDF (generate)
+│           └── wiki-<slug>.svg   ← from Wikipedia (research-images)
+├── .kebab/        ← pipeline state + logs
+│   ├── sources.json
+│   ├── plan-<domain>.json
+│   ├── image_skip_keywords.txt
+│   ├── .qdrant/   ← local vector index (derived, rebuildable)
+│   └── logs/
+│       ├── kebab.log
+│       ├── <article>.audit.jsonl
+│       └── <article>.unverified.jsonl
 ```
 
 ## Source path metadata (optional)

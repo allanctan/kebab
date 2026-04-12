@@ -77,14 +77,32 @@ knowledge/
       figures.json    # One record per extracted figure (described or filtered)
       figures/        # Raw image bytes
   curated/
-    <Domain>/<Subdomain>/<Topic>/<article>.md
-    <article>/figures/<slug>/  # Article-local copies of figures used in the body
+    <Domain>/<Subdomain>/<article>.md
+    <Domain>/<Subdomain>/figures/<article-slug>/
+      p007_f08.jpeg       # From PDF ingest (generate stage)
+      wiki-<slug>.svg     # From Wikipedia (research-images stage)
   .kebab/
-    sources.json      # Source index — id ↔ raw_path ↔ checksum mapping
-    plan.json         # Per-domain hierarchy plan from organize
+    sources.json          # Source index — id ↔ raw_path ↔ checksum mapping
+    plan-<domain>.json    # Per-domain hierarchy plan from organize
     image_skip_keywords.txt  # Decorative-image prefilter for research-images
-    .qdrant/          # Local Qdrant data files
+    .qdrant/              # Local Qdrant data files
+    logs/
+      kebab.log           # General pipeline log (rotating, 10MB)
+      <article>.audit.jsonl     # Per-article audit trail (structured, append-only)
+      <article>.unverified.jsonl  # Unverified claims (overwritten each research run)
 ```
+
+Images are stored next to the article markdown under
+`figures/<article-slug>/` and referenced as relative paths in the body:
+
+```markdown
+![Diagram of plate boundaries](figures/types-of-plate-boundaries/p014_f02.png)
+![Transform fault](figures/types-of-plate-boundaries/wiki-conservative-transform.svg)
+```
+
+The `wiki-` prefix distinguishes Wikipedia downloads (research-images)
+from PDF-extracted figures (generate). Both render in Obsidian via
+relative paths.
 
 The naming convention `raw/` → `processed/` → `curated/` is a strict
 ratchet: stages only ever consume from earlier directories and produce
