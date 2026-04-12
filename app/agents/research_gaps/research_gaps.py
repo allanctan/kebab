@@ -140,7 +140,7 @@ def run(
             log_event(
                 path, stage="research-gaps", action="gap_answered",
                 article_id=article_id,
-                detail=f"Q: {gaps[gq.target_gap_idx][:80]} → A: {classification.answer[:80]} (source: {src.title})",
+                detail=f"Q: {gaps[gq.target_gap_idx]} → A: {classification.answer} (source: {src.title})",
             )
             break
 

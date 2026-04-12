@@ -125,7 +125,7 @@ def run(
         log_event(
             path, stage="research-images", action="image_added",
             article_id=article_id,
-            detail=f"Added: {desc[:80]} (from: {c.source_title})",
+            detail=f"Added: {desc} (from: {c.source_title}, file: {c.local_path.name})",
         )
 
     new_body = append_figure_refs(body, approved, article_slug=article_slug)

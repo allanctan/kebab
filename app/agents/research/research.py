@@ -147,7 +147,7 @@ def run(
                         log_event(
                             path, stage="research", action="dispute_suppressed",
                             article_id=article_id,
-                            detail=f"{judgment.category}: {claim.text[:80]} (source: {src.title})",
+                            detail=f"{judgment.category}: {claim.text} (source: {src.title})",
                         )
                         continue
                     # Stamp the category on the finding so the writer can show it
@@ -160,21 +160,21 @@ def run(
                     log_event(
                         path, stage="research", action="confirm",
                         article_id=article_id,
-                        detail=f"Claim confirmed: {claim.text[:80]} (source: {src.title})",
+                        detail=f"Claim confirmed: {claim.text} (source: {src.title})",
                     )
                 elif result.outcome == "append":
                     appended_claims.add(claim_idx)
                     log_event(
                         path, stage="research", action="append",
                         article_id=article_id,
-                        detail=f"New info appended: {(result.new_sentence or '')[:80]} (source: {src.title})",
+                        detail=f"New info appended: {result.new_sentence or ''} (source: {src.title})",
                     )
                 elif result.outcome == "dispute":
                     disputed_claims.add(claim_idx)
                     log_event(
                         path, stage="research", action="dispute",
                         article_id=article_id,
-                        detail=f"{result.dispute_category}: {claim.text[:80]} (source: {src.title})",
+                        detail=f"{result.dispute_category}: {claim.text} — {result.contradiction or ''} (source: {src.title})",
                     )
 
     # Synthesize multiple appends per section into one cohesive statement.
