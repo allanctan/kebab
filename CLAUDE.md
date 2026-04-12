@@ -140,6 +140,89 @@ def update_state(state: QaState, output: QaResult) -> dict:
     }
 ```
 
+### Orchestrator design (lessons from the 2026-04-12 research restructure)
+
+These rules come from refactoring a 469-line `research/agent.py` that
+mixed claim verification, gap answering, and image enrichment with mode
+flags and callable swap-points. Apply them to every new orchestrator:
+
+- **No callable swap-points on `run()` for testability.** Don't take
+  parameters like `planner=plan_research`, `searcher=_default_searcher`,
+  `classifier=classify_finding` on the orchestrator's `run()` so tests
+  can pass stubs. Inject at the per-step layer instead — each LLM step
+  function takes `agent: Agent[...] | None = None` (same pattern as
+  `planner.plan_research`), and pure functions are mocked via
+  `monkeypatch.setattr(orchestrator_module, "search", stub)`. The big
+  callable bag pattern produces awkward gating like
+  `if classifier is classify_finding: do_real_thing()`.
+- **No `mode="all"|"foo"|"bar"` flags branching the orchestrator** when
+  the branches don't share most of their work. Three modes that each
+  hit different code paths means three sibling agents in three sibling
+  directories with three CLI commands. Mode flags are usually three
+  agents fighting in a trench coat.
+- **Cross-agent imports are forbidden between sibling agents.**
+  `agents/research_gaps/` does not import from `agents/research/`. They
+  meet only via shared `core/` modules. This invariant is what lets a
+  future supervisor agent invoke any agent in any order without
+  worrying about hidden coupling.
+- **Pure plumbing → `core/`; semantics → `agents/`.** A function is
+  "pure plumbing" if it has no LLM calls and no business rules — it
+  just dispatches, formats, or transports data. Plumbing reused by 2+
+  agents gets promoted to `app/core/<topic>/`. Functions with prompts
+  or business rules stay agent-local even if they look similar across
+  agents — different prompts mean different code.
+- **One job per file inside an agent.** When `verifier.py` does both
+  classification AND markdown rewriting, split into `verifier.py` and
+  `writer.py`. The signal: a file has multiple top-level functions that
+  don't call each other, or a docstring that uses "and".
+- **Drop vestigial counters and dead state.** When you spot a variable
+  that's set but never read in the rendered output (the
+  `local_num=fig_num` field that no consumer reads), delete it as part
+  of the lift. This is "free cleanup" — out of scope only if you have
+  to add new code to enable the deletion.
+
+### Refactor migration order
+
+When restructuring an existing agent, follow this order so the test
+suite stays green at every step:
+
+1. Add the new shared core module (e.g. `core/research/searcher.py`)
+   alongside the old code. Do not delete anything yet.
+2. Add tests for the new module.
+3. Forward the old code's helpers to the new module (one-line shims) so
+   the existing orchestrator now uses the new core under the hood.
+4. Split file responsibilities (e.g. `executor.py` → `verifier.py` +
+   `writer.py`) by renaming and creating new files. Keep the old
+   orchestrator importing the new locations.
+5. Add the *new* sibling agents (e.g. `research_gaps/`,
+   `research_images/`) by lifting code from the *still-existing* old
+   orchestrator. Don't delete the old one yet — it's the source of truth
+   you're lifting from.
+6. Replace the old orchestrator with its slimmed-down successor and
+   delete the old file. Update the CLI to import the new entry point.
+7. Migrate tests to their new homes.
+
+The principle: never delete the source-of-truth file before its code
+has been lifted into all of its new homes. If you do, you have to fish
+the code back out of git history, which is slow and error-prone.
+
+### Layering exceptions are documented at the import site
+
+If a module *must* break a layering rule (e.g. `core/research/searcher`
+imports from `agents/ingest/registry` to resolve adapter names), the
+exception:
+
+- Gets a TODO comment at the import site explaining why and what would
+  fix it long-term.
+- Gets a note in the design spec listing the tolerated exception
+  explicitly.
+- Is the only exception of its kind. If a second module wants to break
+  the same rule, that's the signal to actually fix the underlying
+  layering instead of growing the exception list.
+
+Pretending exceptions don't exist is a lie that bites the next
+contributor.
+
 ### Linear workflows preferred
 
 Prefer linear stage sequences over conditional branching. Use scripts/conditionals only when necessary. Each agent/stage does one thing well (Single Responsibility).
@@ -242,7 +325,7 @@ app/
     models.yaml             # Model alias registry
   core/
     errors.py               # KebabError base + subclasses
-    markdown.py             # Read/write curated articles, extract sections
+    markdown.py             # Read/write curated articles, extract sections, find_article_by_id
     store.py                # Qdrant wrapper
     confidence.py           # Confidence level computation
     llm/                    # All LLM resolution + tracing
@@ -260,11 +343,12 @@ app/
       index.py              # Source index (sources.json) CRUD
       provenance.py         # .meta.json sidecar I/O
       fetcher.py            # SharedFetcher (robots.txt, rate limit, allowlist)
+    research/               # Shared plumbing for research-* agents
+      searcher.py           # Adapter dispatch + fetch (no LLM)
   models/                   # Pydantic data models (no I/O)
     article.py, confidence.py, context.py, frontmatter.py, source.py
   agents/                   # All pipeline stages + autonomous agents
     ingest/
-      ingest.py             # (reserved for future unified entry point)
       pdf.py                # PDF ingest with figure extraction
       web.py                # Web ingest via Jina Reader
       inbox.py              # raw/inbox/ staging helpers
@@ -283,10 +367,24 @@ app/
       contexts/             # Vertical-specific metadata classification
         education.py, healthcare.py, legal.py, policy.py
       prompts/
-    research/
-      agent.py              # Main: planner → executor → judge
-      planner.py, executor.py
-      prompts/
+    research/                # Claim verification only
+      research.py            # Main: load → plan → search → verify → write
+      planner.py             # Extract claims + generate queries (LLM)
+      verifier.py            # classify_finding + judge_dispute (LLM)
+      writer.py              # Apply confirms/appends/disputes to body
+      prompts/{planner.md, verifier.md, dispute_judge.md}
+    research_gaps/           # Standalone gap answering
+      research_gaps.py       # Main: extract gaps → query → search → classify → write
+      query_planner.py       # Gap questions → search queries (LLM)
+      classifier.py          # Does this source answer the question? (LLM)
+      writer.py              # Rewrite gap lines as Q/A blocks
+      prompts/{query_planner.md, classifier.md}
+    research_images/         # Standalone Wikipedia image enrichment
+      research_images.py     # Main: targets → fetch → describe → write
+      targets.py             # Regex over body footnotes for Wikipedia URLs
+      fetcher.py             # Wikipedia API + httpx download + skip-keyword filter
+      describer.py           # Wraps core/images/image_describer
+      writer.py              # Append `![desc](path)` markdown to body
     qa/
       agent.py              # Main: Q&A enrichment + gap discovery
       prompts/
@@ -297,6 +395,12 @@ app/
   utils/
     pdf_extractor.py, git_ops.py, web_scraper.py
 ```
+
+Note: Python package directories on disk use `snake_case`
+(e.g. `research_gaps/`) because Python imports cannot contain hyphens.
+The CLI command names use `kebab-case` (`kebab agent research-gaps`)
+per rule §4. The two map 1:1 — the CLI command name is the directory
+name with underscores replaced by hyphens.
 
 ## 18. Errors & control flow
 
