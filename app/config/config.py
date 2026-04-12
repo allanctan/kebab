@@ -260,8 +260,8 @@ class Settings(BaseSettings):
 
     # Logging
     LOGS_DIR: str = Field(
-        default="./logs",
-        description="Base directory for log files.",
+        default="knowledge/.kebab/logs",
+        description="Base directory for log files (kebab.log, audit, traces).",
     )
     LOGFIRE_TOKEN: str | None = Field(
         default=None,
