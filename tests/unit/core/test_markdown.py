@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.core.markdown import extract_faq, extract_section, read_article, write_article
+from app.core.markdown import extract_faq, extract_section, parse_body, read_article, write_article
 from app.models.frontmatter import FrontmatterSchema
 from app.models.source import Source
 
@@ -52,16 +52,16 @@ def test_round_trip_preserves_vertical_keys(tmp_path: Path) -> None:
 
 
 def test_extract_faq_returns_questions() -> None:
-    questions = extract_faq(ARTICLE)
+    questions = extract_faq(parse_body(ARTICLE))
     assert questions == ["What is photosynthesis?", "Why is it important?"]
 
 
 def test_extract_faq_empty_when_missing_section() -> None:
-    assert extract_faq("# Just a title\n") == []
+    assert extract_faq(parse_body("# Just a title\n")) == []
 
 
 def test_extract_section_returns_empty_string_when_missing() -> None:
-    assert extract_section("no headings here", "Q&A") == ""
+    assert extract_section(parse_body("no headings here"), "Q&A") == ""
 
 
 def test_write_article_minimal(tmp_path: Path) -> None:

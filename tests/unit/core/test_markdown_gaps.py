@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from app.core.markdown import extract_research_gaps, remove_research_gap, append_research_gaps
+from app.core.markdown import (
+    append_research_gaps,
+    extract_research_gaps,
+    parse_body,
+    remove_research_gap,
+)
 
 
 class TestExtractResearchGaps:
@@ -13,16 +18,16 @@ class TestExtractResearchGaps:
             "- How does slab pull compare to convection?\n"
             "- What role does asthenosphere viscosity play?\n"
         )
-        gaps = extract_research_gaps(body)
+        gaps = extract_research_gaps(parse_body(body))
         assert len(gaps) == 2
         assert "slab pull" in gaps[0]
         assert "viscosity" in gaps[1]
 
     def test_empty_when_no_section(self) -> None:
-        assert extract_research_gaps("# Article\n\nContent.") == []
+        assert extract_research_gaps(parse_body("# Article\n\nContent.")) == []
 
     def test_empty_when_section_empty(self) -> None:
-        assert extract_research_gaps("# Article\n\n## Research Gaps\n\n") == []
+        assert extract_research_gaps(parse_body("# Article\n\n## Research Gaps\n\n")) == []
 
     def test_ignores_non_list_lines(self) -> None:
         body = (
@@ -31,7 +36,7 @@ class TestExtractResearchGaps:
             "- Actual question?\n"
             "More text.\n"
         )
-        gaps = extract_research_gaps(body)
+        gaps = extract_research_gaps(parse_body(body))
         assert len(gaps) == 1
 
 
@@ -45,7 +50,7 @@ class TestRemoveResearchGap:
             "- Question three?\n"
         )
         result = remove_research_gap(body, "Question two?")
-        gaps = extract_research_gaps(result)
+        gaps = extract_research_gaps(parse_body(result))
         assert len(gaps) == 2
         assert "Question two?" not in result
 

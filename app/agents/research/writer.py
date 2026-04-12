@@ -18,7 +18,8 @@ import logging
 import re
 
 from app.agents.research.verifier import FindingTuple
-from app.core.markdown import extract_section, next_footnote_number
+from app.core.markdown import extract_section, next_footnote_number, parse_body
+from app.core.markdown_ext import FootnoteDef
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +37,14 @@ def apply_findings_to_article(
     - append: add new sentence with footnote after the relevant paragraph
     - dispute: add entry to ## Disputes section
     """
-    footnote_num = next_footnote_number(body)
+    tree = parse_body(body)
+    footnote_num = next_footnote_number(tree)
     new_footnote_defs: list[str] = []
-    # Pre-populate with URLs already in the body from prior runs.
+    # Pre-populate with URLs already in the body from prior runs (AST-based).
     url_to_footnote: dict[str, int] = {}
-    for match in _EXISTING_FOOTNOTE_RE.finditer(body):
-        num = int(match.group(1))
-        url = match.group(2)
-        if url.startswith("http"):
-            url_to_footnote[url] = num
+    for node in tree.children:
+        if isinstance(node, FootnoteDef) and node.url.startswith("http"):
+            url_to_footnote[node.url] = node.number
     disputes: list[str] = []
     appends: dict[str, list[str]] = {}  # section -> sentences to append
 
@@ -100,7 +100,7 @@ def apply_findings_to_article(
     # Add disputes — append to existing section or create new one.
     # Dedup: skip disputes whose claim text is already in the section.
     if disputes:
-        existing_disputes = extract_section(body, "Disputes")
+        existing_disputes = extract_section(parse_body(body), "Disputes")
         fresh_disputes = [
             d for d in disputes
             if d.split("\n")[0] not in (existing_disputes or "")

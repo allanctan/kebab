@@ -121,26 +121,66 @@ def write_article(path: Path, fm: FrontmatterSchema, body: str) -> None:
     _parse_path.cache_clear()
 
 
-def extract_section(body: str, heading: str) -> str:
-    """Return the text under ``## <heading>`` up to the next ``## `` or EOF.
+# ---------------------------------------------------------------------------
+# AST helpers — heading text extraction, section walking
+# ---------------------------------------------------------------------------
 
-    Case-insensitive heading match — adapted from
-    ``better-ed-ai/app/core/parser.py::_extract_md_section`` (lines 52–56).
+
+def _heading_text(node: marko.block.Heading) -> str:
+    """Extract the plain-text content of a heading node."""
+    return _node_text(node)
+
+
+def _node_text(node: object) -> str:
+    """Recursively extract plain text from any AST node."""
+    children = getattr(node, "children", None)
+    if isinstance(children, str):
+        return children
+    if children is None:
+        return ""
+    parts: list[str] = []
+    for child in children:
+        parts.append(_node_text(child))
+    return "".join(parts)
+
+
+def _render_nodes(nodes: list[object]) -> str:
+    """Render a list of AST nodes to markdown text using the module parser."""
+    if not nodes:
+        return ""
+    doc = marko.block.Document()
+    doc.children = nodes  # type: ignore[assignment]
+    return _md.render(doc).strip()
+
+
+def extract_section(tree: marko.block.Document, heading: str) -> str:
+    """Return the rendered text under ``## <heading>`` up to the next ``##`` or EOF.
+
+    Uses the AST to find section boundaries (fixes the regex edge cases with
+    nested headings). Returns rendered markdown text for downstream processing.
+    Case-insensitive heading match.
     """
-    pattern = re.compile(
-        rf"^##\s+{re.escape(heading)}\s*\n(?P<section>.*?)(?=^##\s+|\Z)",
-        re.DOTALL | re.MULTILINE | re.IGNORECASE,
-    )
-    match = pattern.search(body)
-    return match.group("section").strip() if match else ""
+    nodes: list[object] = []
+    in_section = False
+    for node in tree.children:
+        if isinstance(node, marko.block.Heading) and node.level == 2:
+            text = _heading_text(node)
+            if not in_section and text.strip().lower() == heading.strip().lower():
+                in_section = True
+                continue
+            elif in_section:
+                break
+        if in_section:
+            nodes.append(node)
+    return _render_nodes(nodes)
 
 
-def extract_faq(body: str) -> list[str]:
+def extract_faq(tree: marko.block.Document) -> list[str]:
     """Extract questions from the ``## Q&A`` section.
 
     Spec §10: every ``**Q:`` line in the Q&A section becomes a FAQ entry.
     """
-    section = extract_section(body, "Q&A")
+    section = extract_section(tree, "Q&A")
     if not section:
         return []
     questions: list[str] = []
@@ -154,36 +194,40 @@ def extract_faq(body: str) -> list[str]:
     return questions
 
 
-_FOOTNOTE_DEF_RE = re.compile(r"^\[\^(\d+)\]:\s*(.+)$", re.MULTILINE)
-_EXTERNAL_URL_RE = re.compile(r"https?://")
+def count_external_footnotes(tree: marko.block.Document) -> int:
+    """Count FootnoteDef nodes whose URL contains http."""
+    from app.core.markdown_ext import FootnoteDef
+
+    return sum(
+        1
+        for node in tree.children
+        if isinstance(node, FootnoteDef) and node.url.startswith("http")
+    )
 
 
-def count_external_footnotes(body: str) -> int:
-    """Count footnote definitions that link to external URLs (http/https)."""
-    count = 0
-    for match in _FOOTNOTE_DEF_RE.finditer(body):
-        if _EXTERNAL_URL_RE.search(match.group(2)):
-            count += 1
-    return count
-
-
-def extract_disputes(body: str) -> int:
+def extract_disputes(tree: marko.block.Document) -> int:
     """Count dispute entries in the ``## Disputes`` section."""
-    section = extract_section(body, "Disputes")
+    section = extract_section(tree, "Disputes")
     if not section:
         return 0
     return section.count("- **Claim**:")
 
 
-def next_footnote_number(body: str) -> int:
-    """Return the next available footnote number (max existing + 1)."""
-    numbers = [int(m.group(1)) for m in _FOOTNOTE_DEF_RE.finditer(body)]
+def next_footnote_number(tree: marko.block.Document) -> int:
+    """Return the next available footnote number (max FootnoteDef.number + 1)."""
+    from app.core.markdown_ext import FootnoteDef
+
+    numbers = [
+        node.number
+        for node in tree.children
+        if isinstance(node, FootnoteDef)
+    ]
     return max(numbers, default=0) + 1
 
 
-def extract_research_gaps(body: str) -> list[str]:
+def extract_research_gaps(tree: marko.block.Document) -> list[str]:
     """Extract gap questions from the ``## Research Gaps`` section."""
-    section = extract_section(body, "Research Gaps")
+    section = extract_section(tree, "Research Gaps")
     if not section:
         return []
     gaps: list[str] = []
@@ -198,6 +242,7 @@ def remove_research_gap(body: str, question: str) -> str:
     """Remove a specific gap question from ``## Research Gaps``.
 
     If the last gap is removed, the entire section is dropped.
+    Operates on the body string (mutation helper — will migrate to AST later).
     """
     line_to_remove = f"- {question}"
     lines = body.splitlines()
@@ -205,7 +250,8 @@ def remove_research_gap(body: str, question: str) -> str:
     if len(new_lines) == len(lines):
         return body
     result = "\n".join(new_lines)
-    remaining_gaps = extract_research_gaps(result)
+    tree = parse_body(result)
+    remaining_gaps = extract_research_gaps(tree)
     if not remaining_gaps:
         result = re.sub(
             r"\n*^##\s+Research Gaps\s*\n*",
@@ -220,15 +266,17 @@ def append_research_gaps(body: str, gaps: list[str]) -> str:
     """Append gap questions to ``## Research Gaps``, creating section if needed.
 
     Skips questions already present in the section.
+    Operates on the body string (mutation helper — will migrate to AST later).
     """
     if not gaps:
         return body
-    existing = set(extract_research_gaps(body))
+    tree = parse_body(body)
+    existing = set(extract_research_gaps(tree))
     fresh = [g for g in gaps if g not in existing]
     if not fresh:
         return body
     new_lines = "\n".join(f"- {g}" for g in fresh)
-    section = extract_section(body, "Research Gaps")
+    section = extract_section(tree, "Research Gaps")
     if section:
         return body.rstrip() + "\n" + new_lines + "\n"
     return body.rstrip() + "\n\n## Research Gaps\n\n" + new_lines + "\n"

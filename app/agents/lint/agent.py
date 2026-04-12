@@ -101,7 +101,7 @@ def run(
 
     for path in _iter_markdown(Path(settings.CURATED_DIR)):
         try:
-            fm, body, _ = read_article(path)
+            fm, body, tree = read_article(path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("lint: skip %s (%s)", path, exc)
             continue
@@ -158,7 +158,7 @@ def run(
                 )
 
         # Check for unanswered research gaps.
-        gaps = extract_research_gaps(body)
+        gaps = extract_research_gaps(tree)
         # Answered gaps have **Q:** prefix, unanswered are plain text
         unanswered = [g for g in gaps if not g.startswith("**Q:")]
         if unanswered:

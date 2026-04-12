@@ -44,6 +44,7 @@ from app.core.markdown import (
     extract_disputes,
     find_article_by_id,
     next_footnote_number,
+    parse_body,
     read_article,
     write_article,
 )
@@ -97,7 +98,7 @@ def run(
         logger.warning("research: article %r not found — skipping", article_id)
         return ResearchResult(article_id=article_id)
 
-    fm, body, _ = read_article(path)
+    fm, body, tree = read_article(path)
 
     deps = PlannerDeps(
         settings=settings,
@@ -166,7 +167,7 @@ def run(
     # to preserve in the merged text.
     if findings:
         footnote_refs: dict[str, str] = {}
-        fn_num = next_footnote_number(body)
+        fn_num = next_footnote_number(tree)
         for _, finding, _title, url in findings:
             if finding.outcome == "append" and url not in footnote_refs:
                 footnote_refs[url] = f"[^{fn_num}]"
@@ -175,9 +176,11 @@ def run(
 
     new_body = apply_findings_to_article(body, findings) if findings else body
 
+    # Parse the mutated body to get an AST for tree-based helpers.
+    new_tree = parse_body(new_body)
     setattr(fm, "research_claims_total", len(plan.claims))
-    setattr(fm, "external_confirms", count_external_footnotes(new_body))
-    setattr(fm, "dispute_count", extract_disputes(new_body))
+    setattr(fm, "external_confirms", count_external_footnotes(new_tree))
+    setattr(fm, "dispute_count", extract_disputes(new_tree))
     setattr(fm, "researched_at", date.today().isoformat())
 
     write_article(path, fm, new_body)
