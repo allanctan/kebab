@@ -128,6 +128,91 @@ def write_article(path: Path, fm: FrontmatterSchema, body: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Section ordering — canonical order for the bottom of every article
+# ---------------------------------------------------------------------------
+
+# Sections that live at the bottom of every article, in this order.
+# Content sections (headings not in this list) always come before these.
+_TAIL_SECTION_ORDER = ["q&a", "research gaps", "disputes", "sources"]
+
+
+def _insert_index_before(tree: marko.block.Document, before_sections: list[str]) -> int:
+    """Return the tree index where new content should be inserted.
+
+    Finds the first heading whose lowercased text matches any entry in
+    ``before_sections`` and returns its index. If none found, returns
+    the index after the last non-FootnoteDef child (i.e. before any
+    trailing footnotes).
+    """
+    from app.core.markdown_ext import FootnoteDef
+
+    children = tree.children
+    for i, node in enumerate(children):
+        if isinstance(node, marko.block.Heading) and node.level == 2:
+            text = _heading_text(node).strip().lower()
+            if text in before_sections:
+                return i
+        if isinstance(node, FootnoteDef):
+            return i
+    return len(children)
+
+
+def insert_section_ordered(body: str, heading: str, content: str) -> str:
+    """Insert or append to a section at the correct position in the article.
+
+    Maintains the canonical tail order: content → Q&A → Research Gaps →
+    Disputes → Sources. If the section already exists, appends to it.
+    If not, creates it at the correct position.
+    """
+    tree = parse_body(body)
+
+    # Find where this heading sits in the canonical order
+    heading_lower = heading.strip().lower()
+    try:
+        order_idx = _TAIL_SECTION_ORDER.index(heading_lower)
+    except ValueError:
+        order_idx = -1
+
+    # Sections that should come AFTER this one
+    after_sections = _TAIL_SECTION_ORDER[order_idx + 1:] if order_idx >= 0 else []
+
+    existing = extract_section(tree, heading)
+    if existing:
+        # Append to existing section
+        end_idx = None
+        in_section = False
+        for i, node in enumerate(tree.children):
+            if isinstance(node, marko.block.Heading) and node.level == 2:
+                text = _heading_text(node).strip().lower()
+                if text == heading_lower:
+                    in_section = True
+                    end_idx = i + 1
+                    continue
+                elif in_section:
+                    end_idx = i
+                    break
+            if in_section:
+                end_idx = i + 1
+        if end_idx is not None:
+            snippet_nodes = parse_body(content).children
+            children = list(tree.children)
+            for j, node in enumerate(snippet_nodes):
+                children.insert(end_idx + j, node)
+            tree.children = children  # type: ignore[assignment]
+        return render_body(tree)
+
+    # Create new section at the right position
+    insert_idx = _insert_index_before(tree, after_sections)
+    section_md = f"## {heading}\n\n{content}\n"
+    snippet_nodes = parse_body(section_md).children
+    children = list(tree.children)
+    for j, node in enumerate(snippet_nodes):
+        children.insert(insert_idx + j, node)
+    tree.children = children  # type: ignore[assignment]
+    return render_body(tree)
+
+
+# ---------------------------------------------------------------------------
 # AST helpers — heading text extraction, section walking
 # ---------------------------------------------------------------------------
 
@@ -269,10 +354,10 @@ def remove_research_gap(body: str, question: str) -> str:
 
 
 def append_research_gaps(body: str, gaps: list[str]) -> str:
-    """Append gap questions to ``## Research Gaps``, creating section if needed.
+    """Append gap questions to ``## Research Gaps`` at the correct position.
 
-    Skips questions already present in the section.
-    Operates on the body string (mutation helper — will migrate to AST later).
+    Skips questions already present. Uses ordered insertion so Research Gaps
+    always appears after Q&A and before Disputes and Sources.
     """
     if not gaps:
         return body
@@ -282,7 +367,4 @@ def append_research_gaps(body: str, gaps: list[str]) -> str:
     if not fresh:
         return body
     new_lines = "\n".join(f"- {g}" for g in fresh)
-    section = extract_section(tree, "Research Gaps")
-    if section:
-        return body.rstrip() + "\n" + new_lines + "\n"
-    return body.rstrip() + "\n\n## Research Gaps\n\n" + new_lines + "\n"
+    return insert_section_ordered(body, "Research Gaps", new_lines)

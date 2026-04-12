@@ -141,13 +141,17 @@ def _has_qa_section(body: str) -> bool:
 
 
 def _append_pairs(body: str, pairs: list[QaPair]) -> str:
-    """Append new ``**Q:`` blocks to the existing ``## Q&A`` section, or create one."""
+    """Append new ``**Q:`` blocks to ``## Q&A`` at the correct position.
+
+    Uses ordered insertion so Q&A always appears before Research Gaps,
+    Disputes, and Sources.
+    """
+    from app.core.markdown import insert_section_ordered
+
     new_block = "\n".join(
-        f"\n**Q: {pair.question}**\n{pair.answer}\n" for pair in pairs
+        f"**Q: {pair.question}**\n{pair.answer}\n" for pair in pairs
     )
-    if _has_qa_section(body):
-        return body.rstrip() + "\n" + new_block
-    return body.rstrip() + "\n\n## Q&A\n" + new_block
+    return insert_section_ordered(body, "Q&A", new_block)
 
 
 def _process_article(
