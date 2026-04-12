@@ -20,6 +20,20 @@ from app.core.sources.fetcher import user_agent
 
 logger = logging.getLogger(__name__)
 
+_http_client: httpx.Client | None = None
+
+
+def _get_client() -> httpx.Client:
+    """Return a reusable httpx client for image downloads."""
+    global _http_client  # noqa: PLW0603
+    if _http_client is None:
+        _http_client = httpx.Client(
+            timeout=15,
+            follow_redirects=True,
+            headers={"User-Agent": user_agent()},
+        )
+    return _http_client
+
 
 @dataclass
 class ImageCandidate:
@@ -97,12 +111,7 @@ def download(image: dict[str, str], *, dest: Path) -> Path | None:
         return None
 
     try:
-        response = httpx.get(
-            image_url,
-            timeout=15,
-            follow_redirects=True,
-            headers={"User-Agent": user_agent()},
-        )
+        response = _get_client().get(image_url)
         response.raise_for_status()
     except Exception as exc:
         logger.warning("research-images: download failed for %s: %s", image_url, exc)

@@ -133,11 +133,9 @@ class TestTavilyFetch:
 
         mock_fetcher = MagicMock()
         mock_fetcher.get.return_value = mock_response
-        mock_fetcher.__enter__ = MagicMock(return_value=mock_fetcher)
-        mock_fetcher.__exit__ = MagicMock(return_value=None)
 
         mocker.patch(
-            "app.agents.ingest.adapters.tavily.SharedFetcher",
+            "app.agents.ingest.adapters.tavily.get_default_fetcher",
             return_value=mock_fetcher,
         )
 

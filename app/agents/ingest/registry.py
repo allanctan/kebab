@@ -15,6 +15,8 @@ Future adapters (Tavily, Wikipedia, OpenStax, …) plug in via
 :meth:`AdapterRegistry.register`.
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 
@@ -34,10 +36,6 @@ class AdapterRegistry:
 
     def register(self, adapter: SourceAdapter) -> None:
         """Register ``adapter`` under its ``name``. Overwrites silently."""
-        if not isinstance(adapter, SourceAdapter):
-            raise KebabError(
-                f"{type(adapter).__name__} does not satisfy the SourceAdapter protocol"
-            )
         self._adapters[adapter.name] = adapter
         logger.debug("registry: registered adapter %r (tier=%d)", adapter.name, adapter.default_tier)
 

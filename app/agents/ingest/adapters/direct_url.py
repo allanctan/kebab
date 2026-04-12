@@ -7,6 +7,8 @@ Reader), which writes cleaned markdown under ``raw/web/`` and
 cached file with the full envelope (retrieved_at, checksum, ...).
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import ClassVar

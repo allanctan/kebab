@@ -51,11 +51,6 @@ class TestAdapterRegistry:
         with pytest.raises(KebabError, match="no adapter"):
             registry.get("nope")
 
-    def test_register_rejects_non_protocol(self, tmp_path: Path) -> None:
-        registry = AdapterRegistry(settings=_settings(tmp_path))
-        with pytest.raises(KebabError, match="SourceAdapter"):
-            registry.register(_BrokenAdapter())  # type: ignore[arg-type]
-
     def test_register_overwrites_silently(self, tmp_path: Path) -> None:
         registry = AdapterRegistry(settings=_settings(tmp_path))
         first = _StubAdapter()

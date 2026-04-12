@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 from tavily import TavilyClient  # type: ignore[import-untyped]
 
 from app.config.config import Settings
-from app.core.sources.fetcher import SharedFetcher
+from app.core.sources.fetcher import SharedFetcher, get_default_fetcher
 from app.core.sources.provenance import sha256_bytes, write_sidecar
 from app.core.sources.adapter import (
     AdapterError,
@@ -58,6 +58,12 @@ class TavilyAdapter:
     settings: Settings
     name: ClassVar[str] = "tavily"
     default_tier: SourceTier = field(default=4)
+    _fetcher: SharedFetcher | None = field(default=None, repr=False)
+
+    def _get_fetcher(self) -> SharedFetcher:
+        if self._fetcher is None:
+            self._fetcher = get_default_fetcher(self.settings)
+        return self._fetcher
 
     def discover(self, query: str, *, limit: int = 10) -> list[Candidate]:
         """Search Tavily for ``query`` and return up to ``limit`` candidates.
@@ -119,11 +125,8 @@ class TavilyAdapter:
         raw_dir.mkdir(parents=True, exist_ok=True)
         raw_path = raw_dir / filename
 
-        fetcher = SharedFetcher(settings=self.settings)
-        try:
-            response = fetcher.get(url)
-        finally:
-            fetcher.close()
+        fetcher = self._get_fetcher()
+        response = fetcher.get(url)
 
         html_bytes = response.content
         raw_path.write_bytes(html_bytes)

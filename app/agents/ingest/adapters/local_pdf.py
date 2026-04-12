@@ -5,6 +5,8 @@ PDF found. ``fetch(candidate)`` delegates to the legacy ``pdf.ingest()``
 function and stamps a provenance sidecar next to the copied raw file.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path

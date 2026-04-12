@@ -20,6 +20,22 @@ logger = logging.getLogger(__name__)
 
 _JINA_PREFIX = "https://r.jina.ai/"
 
+_http_client: httpx.Client | None = None
+
+
+def _get_client() -> httpx.Client:
+    """Return a reusable httpx client for Jina Reader requests."""
+    global _http_client  # noqa: PLW0603
+    if _http_client is None:
+        from app.core.sources.fetcher import user_agent
+
+        _http_client = httpx.Client(
+            timeout=30.0,
+            follow_redirects=True,
+            headers={"User-Agent": user_agent()},
+        )
+    return _http_client
+
 
 @dataclass
 class WebIngestResult:
@@ -44,16 +60,10 @@ def _fetch_jina(url: str) -> tuple[str, str]:
 
     Returns (raw_response, clean_markdown).
     """
-    from app.core.sources.fetcher import user_agent
     jina_url = f"{_JINA_PREFIX}{url}"
-    response = httpx.get(
+    response = _get_client().get(
         jina_url,
-        timeout=30.0,
-        headers={
-            "Accept": "text/markdown",
-            "User-Agent": user_agent(),
-        },
-        follow_redirects=True,
+        headers={"Accept": "text/markdown"},
     )
     response.raise_for_status()
     text = response.text
