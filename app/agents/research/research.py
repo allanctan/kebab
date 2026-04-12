@@ -219,6 +219,10 @@ def run(
         len(disputed_claims),
     )
 
+    # Auto-sync to Qdrant (updates confidence_level)
+    from app.agents.sync import auto_sync
+    auto_sync(settings, "research")
+
     return ResearchResult(
         article_id=article_id,
         claims_total=len(plan.claims),

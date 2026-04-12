@@ -124,4 +124,8 @@ def run(
     result.contexts_updated = len(ctx_result.updated)
     logger.info("generate: %d context(s) updated", result.contexts_updated)
 
+    # Step 4: Auto-sync to Qdrant
+    from app.agents.sync import auto_sync
+    auto_sync(settings, "generate")
+
     return result
