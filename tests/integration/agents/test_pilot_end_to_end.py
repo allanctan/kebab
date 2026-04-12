@@ -15,7 +15,7 @@ import pytest
 from qdrant_client import QdrantClient
 
 from app.agents.lint import agent as lint_agent
-from app.agents.qa import agent as qa_agent
+from app.agents.qa import qa as qa_agent
 from app.config.config import Settings
 from app.core.markdown import read_article
 from app.agents.organize.agent import HierarchyNode, HierarchyPlan

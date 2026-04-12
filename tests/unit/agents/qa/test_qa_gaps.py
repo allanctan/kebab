@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.agents.qa.agent import GapQuestion, QaResult, QaPair
+from app.agents.qa.qa import GapQuestion, QaResult, QaPair
 from app.models.source import Source
 
 

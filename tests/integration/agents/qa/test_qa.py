@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.qa import agent as qa_agent
+from app.agents.qa import qa as qa_agent
 from app.config.config import Settings
 from app.core.markdown import extract_faq, read_article
 from app.models.source import Source

@@ -16,7 +16,7 @@ from app.config.config import Settings
 from app.core.llm.embeddings import embed
 from app.core.store import Store
 from app.agents.lint import agent as lint_agent
-from app.agents.qa import agent as qa_agent
+from app.agents.qa import qa as qa_agent
 from app.agents import generate as generate_stage
 from app.agents import organize as organize_stage
 from app.agents import sync as sync_stage
