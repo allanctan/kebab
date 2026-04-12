@@ -1,11 +1,15 @@
-"""Q&A enrichment agent.
+"""Q&A enrichment agent — two-pass: generate Q&A pairs then discover gaps.
 
-Continuously walks curated articles, asks bridging/deepening questions,
-and appends grounded answers to the ``## Q&A`` section of each markdown
-file. Pattern mirrors
-``better-ed-ai/app/agents/assignment/assignment_checker.py``: dataclass
-deps, ``Agent(model=..., deps_type=..., output_type=...)``, prompt loaded
-from a markdown file.
+Pass 1: LLM reads the article body and generates ALL grounded Q&A pairs
+it can support. No cap — exhausts meaningful questions in one call.
+
+Pass 2: LLM identifies knowledge gaps — questions the article SHOULD
+answer but doesn't. These feed into ``research-gaps`` for external
+source answering.
+
+Two separate LLM calls with separate prompts, so each can focus on
+its task without context-switching between grounding and reasoning
+about what's missing.
 """
 
 from __future__ import annotations
@@ -23,13 +27,23 @@ from pydantic_ai import Agent
 from app.config.config import Settings
 from app.core.errors import KebabError
 from app.core.llm.resolve import resolve_model
-from app.core.markdown import extract_faq, extract_research_gaps, read_article, write_article
+from app.core.markdown import (
+    extract_faq,
+    extract_research_gaps,
+    read_article,
+    write_article,
+)
 from app.models.source import Source
 
 logger = logging.getLogger(__name__)
 
+_QA_PROMPT = Path(__file__).parent / "prompts" / "qa_generate.md"
+_GAP_PROMPT = Path(__file__).parent / "prompts" / "gap_discover.md"
 
-_PROMPT_PATH = Path(__file__).parent / "prompts" / "system.md"
+
+# ---------------------------------------------------------------------------
+# Output models — one per LLM call
+# ---------------------------------------------------------------------------
 
 
 class QaPair(BaseModel):
@@ -44,6 +58,18 @@ class QaPair(BaseModel):
     )
 
 
+class QaGenerateResult(BaseModel):
+    """Output of the Q&A generation call."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    new_questions: list[QaPair] = Field(
+        default_factory=list,
+        description="All grounded Q&A pairs the article supports. "
+        "Empty list is valid if article is well-covered.",
+    )
+
+
 class GapQuestion(BaseModel):
     """A question relevant to the topic but not answerable from the article."""
 
@@ -53,24 +79,32 @@ class GapQuestion(BaseModel):
     reasoning: str = Field(..., description="Why this gap matters for the topic.")
 
 
-class QaResult(BaseModel):
-    """Output of one agent call."""
+class GapDiscoveryResult(BaseModel):
+    """Output of the gap discovery call."""
 
     model_config = ConfigDict(extra="forbid")
 
-    reasoning: str = Field(..., description="Brief analysis of the gaps the pairs fill.")
-    new_questions: list[QaPair] = Field(
-        default_factory=list, description="At most 5 new pairs."
-    )
     gap_questions: list[GapQuestion] = Field(
-        default_factory=list, description="Up to 5 questions the article doesn't answer."
+        default_factory=list,
+        description="All meaningful gaps. Empty list is valid.",
     )
-    is_ready_to_commit: bool = Field(
-        ...,
-        description="True if there are new questions or gaps to add. "
-        "False if the article is already well-covered — returning false "
-        "with empty lists is valid and expected.",
-    )
+
+
+# Legacy compat — tests reference QaResult
+class QaResult(BaseModel):
+    """Combined result from both passes."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str = Field(default="", description="Not used — kept for compat.")
+    new_questions: list[QaPair] = Field(default_factory=list)
+    gap_questions: list[GapQuestion] = Field(default_factory=list)
+    is_ready_to_commit: bool = Field(default=False)
+
+
+# ---------------------------------------------------------------------------
+# Deps + run result
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -99,32 +133,64 @@ class QaRunResult:
 QaProposer = Callable[[Settings, QaDeps], QaResult]
 
 
-def _load_prompt() -> str:
-    return _PROMPT_PATH.read_text(encoding="utf-8")
+# ---------------------------------------------------------------------------
+# Two-pass LLM calls
+# ---------------------------------------------------------------------------
 
 
-def build_qa_agent(settings: Settings) -> Agent[QaDeps, QaResult]:
-    return Agent(
+def _generate_qa(settings: Settings, deps: QaDeps) -> list[QaPair]:
+    """Pass 1: generate all grounded Q&A pairs."""
+    agent: Agent[QaDeps, QaGenerateResult] = Agent(
         model=resolve_model(settings.QA_MODEL),
         deps_type=QaDeps,
-        output_type=QaResult,
-        system_prompt=_load_prompt(),
+        output_type=QaGenerateResult,
+        system_prompt=_QA_PROMPT.read_text(encoding="utf-8"),
         retries=settings.LLM_MAX_RETRIES,
     )
-
-
-def _default_proposer(settings: Settings, deps: QaDeps) -> QaResult:
-    agent = build_qa_agent(settings)
     user = (
-        f"article_id: {deps.article_id}\n"
         f"article_name: {deps.article_name}\n"
         f"existing_questions: {deps.existing_questions}\n"
-        f"existing_gaps: {deps.existing_gaps}\n"
-        f"cited_sources: {deps.cited_sources}\n"
         f"context_metadata: {deps.context_metadata}\n\n"
         f"body:\n{deps.body}"
     )
-    return agent.run_sync(user, deps=deps).output
+    result = agent.run_sync(user, deps=deps).output
+    return result.new_questions
+
+
+def _discover_gaps(settings: Settings, deps: QaDeps) -> list[GapQuestion]:
+    """Pass 2: identify all knowledge gaps."""
+    agent: Agent[QaDeps, GapDiscoveryResult] = Agent(
+        model=resolve_model(settings.QA_MODEL),
+        deps_type=QaDeps,
+        output_type=GapDiscoveryResult,
+        system_prompt=_GAP_PROMPT.read_text(encoding="utf-8"),
+        retries=settings.LLM_MAX_RETRIES,
+    )
+    user = (
+        f"article_name: {deps.article_name}\n"
+        f"existing_gaps: {deps.existing_gaps}\n"
+        f"context_metadata: {deps.context_metadata}\n\n"
+        f"body:\n{deps.body}"
+    )
+    result = agent.run_sync(user, deps=deps).output
+    return result.gap_questions
+
+
+def _default_proposer(settings: Settings, deps: QaDeps) -> QaResult:
+    """Run both passes and combine into a QaResult."""
+    new_questions = _generate_qa(settings, deps)
+    gap_questions = _discover_gaps(settings, deps)
+    has_content = bool(new_questions or gap_questions)
+    return QaResult(
+        new_questions=new_questions,
+        gap_questions=gap_questions,
+        is_ready_to_commit=has_content,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Article processing + run loop
+# ---------------------------------------------------------------------------
 
 
 def _iter_articles(root: Path) -> list[Path]:
@@ -133,19 +199,8 @@ def _iter_articles(root: Path) -> list[Path]:
     return sorted(root.rglob("*.md"))
 
 
-def _has_qa_section(body: str) -> bool:
-    for line in body.splitlines():
-        if line.strip().lower().startswith("## q&a"):
-            return True
-    return False
-
-
 def _append_pairs(body: str, pairs: list[QaPair]) -> str:
-    """Append new ``**Q:`` blocks to ``## Q&A`` at the correct position.
-
-    Uses ordered insertion so Q&A always appears before Research Gaps,
-    Disputes, and Sources.
-    """
+    """Append new ``**Q:`` blocks to ``## Q&A`` at the correct position."""
     from app.core.markdown import insert_section_ordered
 
     new_block = "\n".join(
@@ -182,16 +237,15 @@ def _process_article(
         return (False, 0, str(exc))
     if not result.is_ready_to_commit or (not result.new_questions and not result.gap_questions):
         return (False, 0, None)
-    # Drop duplicates the agent missed.
+
+    # Drop exact duplicates the agent missed.
     existing = set(deps.existing_questions)
     fresh = [pair for pair in result.new_questions if pair.question not in existing]
-    if fresh:
-        new_body = _append_pairs(body, fresh)
-    else:
-        new_body = body
+    new_body = _append_pairs(body, fresh) if fresh else body
 
     if result.gap_questions:
         from app.core.markdown import append_research_gaps
+
         gap_texts = [gq.question for gq in result.gap_questions]
         new_body = append_research_gaps(new_body, gap_texts)
 
@@ -201,9 +255,12 @@ def _process_article(
     write_article(path, fm, new_body)
 
     from app.core.audit import log_event
+
     for pair in fresh:
         log_event(
-            path, stage="qa", action="qa_added",
+            path,
+            stage="qa",
+            action="qa_added",
             article_id=fm.id,
             question=pair.question,
             answer=pair.answer,
@@ -211,7 +268,9 @@ def _process_article(
     if result.gap_questions:
         for gq in result.gap_questions:
             log_event(
-                path, stage="qa", action="gap_discovered",
+                path,
+                stage="qa",
+                action="gap_discovered",
                 article_id=fm.id,
                 question=gq.question,
                 reasoning=gq.reasoning,
@@ -243,9 +302,9 @@ def run(
     if once and watch:
         raise KebabError("qa: --once and --watch are mutually exclusive")
 
-    # Resolve article paths based on filters
     if article_id:
         from app.core.markdown import find_article_by_id
+
         target = find_article_by_id(settings.CURATED_DIR, article_id)
         all_paths = [target] if target else []
     else:
