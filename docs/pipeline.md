@@ -320,7 +320,7 @@ skipped, and confidence is at level 1 (has sources, not yet researched).
 ## Stage 4: Research (claim verification)
 
 **Code:** `app/agents/research/`
-**CLI:** `kebab agent research [<id>] [--all] [--budget 10]`
+**CLI:** `kebab research [<id>] [--all] [--budget 10]`
 **Inputs:** a curated article, the source index, search adapters
 **Outputs:** the same article with confirmations / appends / disputes
 applied to the body, plus updated frontmatter metadata
@@ -452,7 +452,7 @@ researched_at: '2026-04-12'
 ## Stage 5: Research-gaps
 
 **Code:** `app/agents/research_gaps/`
-**CLI:** `kebab agent research-gaps [<id>] [--all] [--budget 5]`
+**CLI:** `kebab research-gaps [<id>] [--all] [--budget 5]`
 **Inputs:** a curated article with a `## Research Gaps` section
 **Outputs:** the same article with answered gaps rewritten as Q/A
 blocks; updated frontmatter metadata
@@ -557,7 +557,7 @@ gaps_researched_at: '2026-04-12'
 ## Stage 6: Research-images
 
 **Code:** `app/agents/research_images/`
-**CLI:** `kebab agent research-images [<id>] [--all]`
+**CLI:** `kebab research-images [<id>] [--all]`
 **Inputs:** a curated article with existing Wikipedia footnotes
 **Outputs:** the same article with `![desc](path)` image refs appended;
 downloaded image files under `figures/<slug>/`
@@ -717,10 +717,10 @@ articles with unanswered research gaps.
 kebab ingest pdf --input knowledge/raw/documents/
 kebab organize --domain Science --force
 kebab generate --domain Science
-kebab agent research --all
+kebab research --all
 kebab agent qa --once
-kebab agent research-gaps --all
-kebab agent research-images --all
+kebab research-gaps --all
+kebab research-images --all
 kebab sync
 kebab agent lint
 ```
@@ -731,9 +731,9 @@ kebab agent lint
 kebab ingest pdf --input new-file.pdf
 kebab organize --domain Science     # extends existing plan
 kebab generate --domain Science     # writes new articles, contexts, gaps
-kebab agent research --all
-kebab agent research-gaps --all
-kebab agent research-images --all
+kebab research --all
+kebab research-gaps --all
+kebab research-images --all
 kebab sync
 ```
 

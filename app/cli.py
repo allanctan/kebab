@@ -198,11 +198,11 @@ def agent_qa(once: bool, watch: bool) -> None:
     )
 
 
-@agent.command("research")
+@main.command()
 @click.argument("article_id", required=False)
 @click.option("--all", "research_all", is_flag=True, help="Research all articles.")
 @click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
-def agent_research(article_id: str | None, research_all: bool, budget: int) -> None:
+def research(article_id: str | None, research_all: bool, budget: int) -> None:
     """Verify an article's claims against external sources."""
     from app.agents.research import research as research_agent
     from app.core.markdown import read_article as _read_article
@@ -232,11 +232,11 @@ def agent_research(article_id: str | None, research_all: bool, budget: int) -> N
         raise click.ClickException("provide an article ID or use --all")
 
 
-@agent.command("research-gaps")
+@main.command("research-gaps")
 @click.argument("article_id", required=False)
 @click.option("--all", "gaps_all", is_flag=True, help="Run on all articles.")
 @click.option("--budget", type=int, default=5, show_default=True, help="Max queries per article.")
-def agent_research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> None:
+def research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> None:
     """Answer unanswered questions in the Research Gaps section of an article."""
     from app.agents.research_gaps import research_gaps as gaps_agent
     from app.core.markdown import read_article as _read_article
@@ -261,10 +261,10 @@ def agent_research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> 
         raise click.ClickException("provide an article ID or use --all")
 
 
-@agent.command("research-images")
+@main.command("research-images")
 @click.argument("article_id", required=False)
 @click.option("--all", "images_all", is_flag=True, help="Run on all articles.")
-def agent_research_images(article_id: str | None, images_all: bool) -> None:
+def research_images(article_id: str | None, images_all: bool) -> None:
     """Enrich an article with figures from its existing Wikipedia footnotes."""
     from app.agents.research_images import research_images as images_agent
     from app.core.markdown import read_article as _read_article

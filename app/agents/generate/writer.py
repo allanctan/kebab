@@ -12,8 +12,8 @@ exceeding ``MAX_TOKENS_PER_ARTICLE`` are skipped, not silently truncated.
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from dataclasses import dataclass
-
 from pathlib import Path
 from typing import Callable
 
@@ -56,12 +56,17 @@ class GenerationResult(BaseModel):
 
     reasoning: str = Field(
         ...,
-        description="Brief analysis of which sources cover which claims.",
+        description="Brief analysis of the source material: what key concepts are "
+        "covered, how to structure the article, and what to omit because the "
+        "sources don't support it.",
     )
-    body: str = Field(..., description="Markdown body, no frontmatter.")
     description: str = Field(..., description="One-sentence article summary.")
+    body: str = Field(..., description="Markdown body, no frontmatter.")
     keywords: list[str] = Field(
-        default_factory=list, description="3–8 short keywords."
+        default_factory=list,
+        description="5–8 search terms. Mix of technical terms and plain-language "
+        "phrases a reader might search. Must not duplicate the article name or "
+        "description — those are indexed separately.",
     )
     summary: str = Field(
         ..., description="2-3 sentence scope statement: what the article covers and its boundaries."
@@ -139,6 +144,7 @@ def _default_proposer(
     sources: list[tuple[str, str]],
     figure_manifest: FigureManifest | None = None,
     base_instruction: str | None = None,
+    source_metadata: dict[str, str] | None = None,
 ) -> GenerationResult:
     agent = build_generate_agent(settings)
     deps = GenerateDeps(settings=settings, gap=gap, sources=sources)
@@ -149,7 +155,11 @@ def _default_proposer(
         f"topic_description: {gap.description}",
     ]
     if base_instruction:
-        parts.append(f"\nContent instruction: {base_instruction}")
+        # Format placeholders like {grade}, {subject} with source metadata.
+        # Missing keys are left as-is (e.g. "{grade}" when no metadata).
+        meta = source_metadata or {}
+        instruction = base_instruction.format_map(defaultdict(str, meta))
+        parts.append(f"\nContent instruction: {instruction}")
     parts.append(f"\nsources:\n{sources_str}")
     if figure_manifest and figure_manifest.entries:
         parts.append(f"\n{figure_manifest.prompt_text()}")
@@ -307,9 +317,16 @@ def write_articles(
 
         figure_manifest = _load_figures(settings, gap, index)
 
-        # Get BASE_INSTRUCTION from the article's context vertical
+        # Derive BASE_INSTRUCTION from vertical selection.
+        # On a fresh run the article has no context yet, so we select the
+        # vertical from the source text — the same snippets the writer is
+        # about to send to the LLM. This avoids the chicken-and-egg: the
+        # writer needs the instruction before writing, but the full context
+        # classifier needs the written body.
         base_instruction: str | None = None
         target = _output_path(settings, gap)
+
+        # First try: read from existing context on disk (re-generation case)
         if target.exists():
             try:
                 _fm, _body, _ = read_article(target)
@@ -320,17 +337,38 @@ def write_articles(
                     if vkey in article_contexts:
                         base_instruction = getattr(vcls, "BASE_INSTRUCTION", None)
                         break
-            except Exception as exc:  # noqa: BLE001
-                logger.warning(
-                    "generate: failed to read existing article context for %s: %s — "
-                    "regenerating without base_instruction",
-                    target,
-                    exc,
+            except Exception:  # noqa: BLE001
+                pass
+
+        # Fallback: select vertical from source text (fresh generation case)
+        if base_instruction is None:
+            try:
+                from app.agents.generate.contexts import _select_vertical
+                source_excerpt = "\n".join(text[:500] for _, text in sources_for_llm)
+                vertical_cls = _select_vertical(
+                    settings, gap.name, source_excerpt,
                 )
+                base_instruction = getattr(vertical_cls, "BASE_INSTRUCTION", None)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug(
+                    "generate: vertical selection from sources failed for %s: %s",
+                    gap.id, exc,
+                )
+
+        # Collect source metadata (grade, subject, etc.) from source entries.
+        # Merge across sources — first non-empty value wins per key.
+        merged_meta: dict[str, str] = {}
+        for _, entry, _ in source_triples:
+            for k, v in entry.metadata.items():
+                if k not in merged_meta and v:
+                    merged_meta[k] = v
 
         try:
             if proposer is _default_proposer:
-                result = _default_proposer(settings, gap, sources_for_llm, figure_manifest, base_instruction)
+                result = _default_proposer(
+                    settings, gap, sources_for_llm, figure_manifest,
+                    base_instruction, merged_meta or None,
+                )
             else:
                 result = proposer(settings, gap, sources_for_llm)
         except ValidationError as exc:

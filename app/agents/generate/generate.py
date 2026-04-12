@@ -37,28 +37,28 @@ def run(settings: Settings, *, domain: str = "default", force: bool = False, **k
     """
     result = GenerateStageResult()
 
-    # Collect article paths for this domain from the plan
+    # Load the plan first — bail early if the domain doesn't exist,
+    # before spending LLM calls on contexts classification.
     from app.agents.organize import load_plan
     plan = load_plan(settings, domain)
+    if plan is None:
+        logger.warning("generate: no plan for domain %r — run `kebab organize --domain %s` first", domain, domain)
+        return result
+
     domain_paths: list[Path] = []
-    if plan:
-        for node in plan.nodes:
-            if node.level_type == "article" and node.md_path:
-                p = Path(node.md_path)
-                if p.exists():
-                    domain_paths.append(p)
+    for node in plan.nodes:
+        if node.level_type == "article" and node.md_path:
+            p = Path(node.md_path)
+            if p.exists():
+                domain_paths.append(p)
 
-    # Step 1: Classify contexts (LLM selects the best vertical per article)
-    ctx_result = run_contexts(settings, article_paths=domain_paths or None)
-    result.contexts_updated = len(ctx_result.updated)
-    logger.info("generate: %d context(s) updated", result.contexts_updated)
+    if not domain_paths:
+        logger.warning("generate: plan for %r has no existing article stubs — run `kebab organize --domain %s` first", domain, domain)
+        return result
 
-    # Step 2: Find gaps
+    # Step 1: Find gaps
     if force:
         from app.agents.generate.gaps import Gap, GapReport
-        if plan is None:
-            logger.warning("generate: no plan for domain %r", domain)
-            return result
         forced_gaps = [
             Gap(
                 id=n.id, name=n.name, description=n.description,
@@ -76,7 +76,11 @@ def run(settings: Settings, *, domain: str = "default", force: bool = False, **k
         result.gaps_found = len(gap_report.gaps)
         logger.info("generate: %d gap(s) found", result.gaps_found)
 
-    # Step 3: Write articles (includes summary in each article)
+    # Step 2: Write articles (includes summary in each article).
+    # The writer reads BASE_INSTRUCTION from any pre-existing context on
+    # disk (from a prior run). On a fresh run there's no context yet, so
+    # the writer falls back to a generic instruction — that's fine; the
+    # body still gets written and contexts classifies it in step 3.
     if gap_report.gaps:
         write_result = write_articles(settings, domain=domain, gaps=gap_report, **kwargs)
         result.articles_written = len(write_result.written)
@@ -85,5 +89,21 @@ def run(settings: Settings, *, domain: str = "default", force: bool = False, **k
             "generate: %d written, %d skipped",
             result.articles_written, result.articles_skipped,
         )
+
+    # Step 3: Classify contexts AFTER writing — the classifier reads the
+    # article body to determine vertical (education, healthcare, legal,
+    # policy) and populate fields like grade, subject, bloom_level, etc.
+    # On a fresh run this is the first time the articles have real body
+    # content. Re-read domain_paths to include newly-written articles.
+    written_paths: list[Path] = []
+    for node in plan.nodes:
+        if node.level_type == "article" and node.md_path:
+            p = Path(node.md_path)
+            if p.exists():
+                written_paths.append(p)
+
+    ctx_result = run_contexts(settings, article_paths=written_paths)
+    result.contexts_updated = len(ctx_result.updated)
+    logger.info("generate: %d context(s) updated", result.contexts_updated)
 
     return result

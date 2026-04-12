@@ -1,100 +1,201 @@
-# KEBAB Pilot — K-12 Science: Photosynthesis
+# KEBAB Pilot — K-12 Science
 
-End-to-end walkthrough of the curated knowledge base for the pilot
-vertical (Education / K-12 Science / Photosynthesis). Verified by
-`tests/integration/pipeline/test_pilot_end_to_end.py` against stubbed
-Gemini calls; the same commands run against the real Google AI Studio
-API once `KEBAB_GOOGLE_API_KEY` is set.
+End-to-end walkthrough for setting up and running KEBAB on educational
+content. Uses the K-12 Science vertical as the example.
 
 ## Prerequisites
 
 ```bash
 uv sync
-export KEBAB_GOOGLE_API_KEY=...   # Google AI Studio key
+```
+
+Create `.env.local` with your API keys:
+
+```env
+KEBAB_GOOGLE_API_KEY=...          # Google AI Studio (required — Gemini)
+KEBAB_TAVILY_API_KEY=...          # Tavily web search (optional — for research)
 ```
 
 ## Layout
 
-KEBAB follows medallion architecture (bronze → silver → gold):
-
 ```
 knowledge/
-├── raw/           ← untouched binaries (you put sources here)
-│   └── documents/
-│       └── *.pdf
-├── processed/     ← synthesized derivatives (extracted text + described figures)
+├── raw/           ← untouched sources (PDFs, web fetches)
+│   ├── documents/
+│   │   └── grade_10/science/*.pdf
+│   └── web/
+│       └── *.md
+├── processed/     ← extracted text + described figures
 │   └── documents/
 │       └── <stem>/
 │           ├── text.md
 │           ├── figures.json
 │           └── figures/
-├── curated/       ← the actual knowledge base — markdown + domain tree
-│   └── Science/...
-├── .kebab/        ← pipeline state (plan.json, gaps-*, lint-*)
-└── .qdrant/       ← derived vector index
+├── curated/       ← the knowledge base — grounded markdown articles
+│   └── <Domain>/<Subdomain>/<article>.md
+├── .kebab/        ← pipeline state (plan, sources.json, skip keywords)
+└── .qdrant/       ← local vector index (derived, rebuildable)
 ```
 
-Place real PDFs under `knowledge/raw/documents/` (any nested layout is fine — ingest recursively walks).
+## Source path metadata (optional)
+
+If your PDFs are organized by grade and subject, set `SOURCE_PATH_PATTERN`
+in `.env` so ingest extracts metadata automatically:
+
+```env
+# Matches: raw/documents/grade_10/science/filename.pdf
+SOURCE_PATH_PATTERN=raw/documents/grade_{grade}/{subject}/{filename}
+```
+
+This passes `grade` and `subject` to the generate stage, which writes
+grade-appropriate content (e.g. "Write for grade 10 science students").
+Skip this for web-crawled content with no folder structure.
 
 ## Pipeline
 
-Run each stage in order. Every stage logs progress to stdout and writes
-intermediate artifacts under `knowledge/.kebab/`.
+Run each stage in order. Every stage is idempotent — re-running is safe.
+
+### 1. Ingest
 
 ```bash
-# Stage 0 — ingest raw sources (pass a single PDF or a whole folder)
-uv run kebab ingest pdf --input knowledge/raw/documents/grade_10
+# PDF — single file or whole folder (recursive)
+uv run kebab ingest pdf --input knowledge/raw/documents/
 
-# Stage 1 — propose (or load) the canonical hierarchy
-uv run kebab organize --domain Science
-# Re-running is a no-op — the plan is cached under knowledge/.kebab/plan.json.
-# Use --force to re-propose from scratch (spends real LLM calls).
+# Web page
+uv run kebab ingest web --url https://example.com/article
 
-# Stage 2 — diff the plan against the live index
-uv run kebab gaps
+# Re-process after changing figure filters or describer prompt
+uv run kebab ingest pdf --input knowledge/raw/documents/ --force
 
-# Stage 3 — LLM-generate grounded markdown for each gap, at the plan-reserved path
-uv run kebab generate
+# Retry failed figure descriptions
+uv run kebab ingest retry-errors --stem SCI10_Q1_M2_Plate_Boundaries
+```
 
-# Stage 4 — populate K-12 grade context
-uv run kebab contexts
+### 2. Organize
 
-# Stage 5 — multi-LLM verification
-uv run kebab verify
+```bash
+uv run kebab organize --domain Knowledge
+# Creates: .kebab/plan-knowledge.json + stub articles under curated/
 
-# Stage 6 — embed + upsert into Qdrant
+# Re-propose from scratch (costs LLM calls)
+uv run kebab organize --domain Knowledge --force
+```
+
+The domain name becomes the top-level folder under `curated/` and the
+plan filename. Use the same domain name in all subsequent commands.
+
+### 3. Generate
+
+```bash
+uv run kebab generate --domain Knowledge
+
+# Regenerate all articles (even already-written ones)
+uv run kebab generate --domain Knowledge --force
+```
+
+Runs three steps internally:
+1. **Gaps** — finds stub articles that need writing
+2. **Write** — LLM generates grounded markdown with footnotes and figures
+3. **Contexts** — classifies each article by vertical (education, healthcare,
+   legal, policy) and populates metadata (grade, subject, bloom level, etc.)
+
+### 4. Research (claim verification)
+
+```bash
+uv run kebab research SCI-001          # single article
+uv run kebab research --all            # all articles
+uv run kebab research --all --budget 5 # limit queries per article
+```
+
+Verifies article claims against external sources (Wikipedia, Tavily).
+Adds footnote citations for confirmed claims, appends new information,
+and flags contradictions in a `## Disputes` section.
+
+### 5. Q&A enrichment
+
+```bash
+uv run kebab agent qa --once    # single pass over all articles
+```
+
+Generates grounded Q&A pairs → `## Q&A` section.
+Discovers knowledge gaps → `## Research Gaps` section.
+
+### 6. Research gaps + images
+
+```bash
+uv run kebab research-gaps --all       # answer Research Gaps questions
+uv run kebab research-images --all     # add Wikipedia figures
+```
+
+`research-gaps` answers unanswered questions in `## Research Gaps`.
+`research-images` downloads and describes figures from Wikipedia articles
+cited in the footnotes (requires research to have run first).
+
+### 7. Sync to Qdrant
+
+```bash
 uv run kebab sync
 ```
 
-## Continuous agents
+Embeds articles and upserts to Qdrant. Computes confidence level per
+article. Idempotent — unchanged articles are skipped.
+
+### 8. Lint
 
 ```bash
-uv run kebab agent qa --once          # one enrichment pass
-uv run kebab agent lint               # health check report
+uv run kebab agent lint
 ```
 
-## Manual checks
+Health checks (no LLM): missing sources, oversized articles, stale
+verification, orphaned articles, unanswered gaps, below confidence gate.
+
+## Typical first-run sequence
 
 ```bash
-uv run kebab status
-uv run kebab tree Science
-uv run kebab search "light reactions"
-uv run kebab check SCI-BIO-002
+uv run kebab ingest pdf --input knowledge/raw/documents/
+uv run kebab organize --domain Knowledge
+uv run kebab generate --domain Knowledge
+uv run kebab research --all
+uv run kebab agent qa --once
+uv run kebab research-gaps --all
+uv run kebab research-images --all
+uv run kebab sync
+uv run kebab agent lint
 ```
 
-## Acceptance criteria
+## Incremental (new sources added)
 
-- The Photosynthesis article reaches `confidence_level == 3` (≥2 sources +
-  ≥2 passing verifiers) after the verify + sync stages.
-- The qa agent appends at least one new grounded `**Q:` pair to the
-  article body that does not duplicate existing questions.
-- `uv run kebab agent lint` reports zero issues for the pilot tree.
-- `uv run kebab eval generation` passes the committed
-  `evals/suites/generation_baseline.json` floor.
+```bash
+uv run kebab ingest pdf --input new-file.pdf
+uv run kebab organize --domain Knowledge      # extends existing plan
+uv run kebab generate --domain Knowledge      # writes new articles only
+uv run kebab research --all
+uv run kebab research-gaps --all
+uv run kebab research-images --all
+uv run kebab sync
+```
 
 ## Cost & runtime notes
 
-- A full pilot run hits the Gemini API ~30 times. With `gemini-2.5-flash`
-  the typical cost is well under \$0.10.
-- Each eval suite documents its expected cost in its module docstring.
-- Set `KEBAB_LLM_MAX_RETRIES=3` to keep retries bounded if the API is flaky.
+- A full pilot run (~10 articles) hits the Gemini API ~50-100 times.
+  With `gemini-2.5-flash` the cost is typically under $0.50.
+- Each eval suite documents its expected cost in its docstring.
+- Set `LLM_MAX_RETRIES=3` in `.env` to keep retries bounded.
+
+## Per-operation model configuration
+
+Each pipeline stage can use a different LLM. Set in `.env`:
+
+```env
+ORGANIZE_MODEL=gemini-flash
+GENERATE_MODEL=gemini-flash
+CONTEXTS_MODEL=gemini-flash
+RESEARCH_PLANNER_MODEL=gemini-flash
+RESEARCH_EXECUTOR_MODEL=gemini-flash
+RESEARCH_JUDGE_MODEL=gemini-flash
+QA_MODEL=gemini-flash
+FIGURE_MODEL=gemini-flash-lite
+```
+
+Model aliases are defined in `app/config/models.yaml`. Use `provider:model`
+syntax for non-aliased models (e.g. `google-gla:gemini-2.5-pro`).

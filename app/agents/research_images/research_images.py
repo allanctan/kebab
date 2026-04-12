@@ -68,7 +68,7 @@ def run(
     targets = extract_wikipedia_targets(body)
     if not targets:
         logger.info(
-            "research-images: no Wikipedia footnotes in %r — run `kebab agent research` first",
+            "research-images: no Wikipedia footnotes in %r — run `kebab research` first",
             article_id,
         )
         return ImagesResult(article_id=article_id)

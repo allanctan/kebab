@@ -53,7 +53,15 @@ def test_contexts_writes_grade_into_frontmatter(settings: Settings) -> None:
     assert len(result.updated) == 1
     fm, _, _ = read_article(result.updated[0])
     contexts = fm.model_dump().get("contexts") or {}
-    assert contexts["education"] == {"grade": 7, "subject": "science", "language": "en"}
+    edu = contexts["education"]
+    assert edu["grade"] == 7
+    assert edu["subject"] == "science"
+    assert edu["language"] == "en"
+    # New fields have defaults — verify they're present
+    assert "bloom_level" in edu
+    assert "dok_level" in edu
+    assert "learning_objectives" in edu
+    assert "concept_tags" in edu
 
 
 @pytest.mark.integration

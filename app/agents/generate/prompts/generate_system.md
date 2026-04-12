@@ -14,11 +14,15 @@ provided sources — never invent facts beyond them.
 
 ## Output (`GenerationResult`)
 
-- `reasoning`: Brief analysis of which sources cover which claims.
+- `reasoning`: Brief analysis of the source material — what key concepts
+  are covered, how to structure the article, and what to omit because the
+  sources don't support it.
 - `description`: One-sentence summary suitable for the Qdrant payload.
 - `body`: Markdown body (no frontmatter — KEBAB writes that). Must include
   a `# {topic_name}` heading and a brief introduction.
-- `keywords`: 3–8 short keywords.
+- `keywords`: 5–8 search terms. Mix of technical terms and plain-language
+  phrases a reader might search. Must not duplicate the article name or
+  description — those are indexed separately.
 - `summary`: 2-3 sentence scope statement. State what the article covers,
   its key topics, and its boundaries (what it does NOT cover). Be specific.
 - `source_ids`: List of local footnote numbers you actually cited in the body.
@@ -26,8 +30,10 @@ provided sources — never invent facts beyond them.
 
 ## Hard rules
 
-1. Never invent facts or sources. If you cannot ground a claim in the
-   provided snippets, omit it.
+1. Never invent facts, sources, examples, analogies, or explanations
+   beyond what the provided sources contain. If you cannot ground a
+   claim in the provided snippets, omit it. All content — including
+   examples and descriptions — must come directly from the sources.
 2. Cite sources using Obsidian footnotes: `[^1]`, `[^2]`, or `[^1]` with
    page context written naturally (e.g. "as described on page 5[^1]").
    Footnote numbers correspond to the source list provided.
