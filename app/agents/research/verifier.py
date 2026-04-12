@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_ai import Agent
 
 from app.agents.research.planner import ClaimEntry
@@ -48,16 +48,57 @@ class FindingResult(BaseModel):
     contradiction: str | None = Field(
         default=None, description="Description of contradiction (dispute outcome only)."
     )
+    dispute_category: DisputeCategory | None = Field(
+        default=None,
+        description="Dispute classification set by the judge after initial classification. "
+        "None for confirm/append outcomes.",
+    )
+
+
+DisputeCategory = Literal[
+    "factual_error",
+    "misleading_simplification",
+    "contested_or_opinion",
+    "acceptable_simplification",
+    "false_positive",
+]
+
+# Categories 1-3 are surfaced to the teacher; 4-5 are suppressed.
+SURFACED_CATEGORIES: frozenset[str] = frozenset({
+    "factual_error",
+    "misleading_simplification",
+    "contested_or_opinion",
+})
 
 
 class DisputeJudgment(BaseModel):
-    """Whether a flagged dispute is genuine or superficial."""
+    """Classification of a flagged dispute into a 5-category taxonomy."""
 
     model_config = ConfigDict(extra="forbid")
 
-    is_genuine: bool = Field(..., description="True if real contradiction.")
-    reasoning: str = Field(..., description="Explanation.")
-    summary: str = Field(default="", description="Concise dispute description if genuine.")
+    category: DisputeCategory = Field(
+        ...,
+        description="One of: factual_error, misleading_simplification, "
+        "contested_or_opinion, acceptable_simplification, false_positive.",
+    )
+    reasoning: str = Field(..., description="Explanation of the judgment.")
+    summary: str = Field(
+        default="",
+        description="Concise description of the disagreement (empty for false_positive).",
+    )
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _normalize_category(cls, v: object) -> object:
+        """LLMs return 'FACTUAL_ERROR', 'Factual Error', etc."""
+        if isinstance(v, str):
+            return v.strip().lower().replace(" ", "_").replace("-", "_")
+        return v
+
+    @property
+    def is_surfaced(self) -> bool:
+        """True if this category should be shown to the teacher (1-3)."""
+        return self.category in SURFACED_CATEGORIES
 
 
 # Type alias for a finding tuple: (claim, finding, source_title, source_url)
@@ -168,8 +209,8 @@ def judge_dispute(
     )
     judgment = agent.run_sync(user, deps=deps).output
     logger.info(
-        "judge output — genuine=%s | reasoning: %s | summary: %s",
-        judgment.is_genuine,
+        "judge output — category=%s | reasoning: %s | summary: %s",
+        judgment.category,
         judgment.reasoning[:120],
         judgment.summary[:120] if judgment.summary else "(none)",
     )
@@ -177,11 +218,13 @@ def judge_dispute(
 
 
 __all__ = [
+    "DisputeCategory",
     "DisputeJudgment",
     "ExecutorDeps",
     "FindingResult",
     "FindingTuple",
     "JudgeDeps",
+    "SURFACED_CATEGORIES",
     "classify_finding",
     "judge_dispute",
 ]

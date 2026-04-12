@@ -142,11 +142,15 @@ def run(
 
                 if result.outcome == "dispute":
                     judgment = judge_dispute(settings, claim, result, src.content)
-                    if not judgment.is_genuine:
+                    if not judgment.is_surfaced:
                         logger.debug(
-                            "research: dispute dismissed for claim %r", claim.text
+                            "research: dispute classified as %r for claim %r — suppressed",
+                            judgment.category,
+                            claim.text,
                         )
                         continue
+                    # Stamp the category on the finding so the writer can show it
+                    result = result.model_copy(update={"dispute_category": judgment.category})
 
                 findings.append((claim, result, src.title, src.url))
                 summary = (

@@ -48,13 +48,34 @@ class TestFindingResult:
 
 
 class TestDisputeJudgment:
-    def test_genuine_dispute(self) -> None:
-        j = DisputeJudgment(is_genuine=True, reasoning="Real contradiction.", summary="Slab pull vs convection.")
-        assert j.is_genuine is True
+    def test_factual_error_is_surfaced(self) -> None:
+        j = DisputeJudgment(category="factual_error", reasoning="Demonstrably false.", summary="Pluto is not a planet.")
+        assert j.is_surfaced is True
+        assert j.category == "factual_error"
 
-    def test_superficial_dispute(self) -> None:
-        j = DisputeJudgment(is_genuine=False, reasoning="Phrasing difference.")
-        assert j.is_genuine is False
+    def test_misleading_simplification_is_surfaced(self) -> None:
+        j = DisputeJudgment(category="misleading_simplification", reasoning="Wrong mechanism.", summary="Plate melts vs mantle melts.")
+        assert j.is_surfaced is True
+
+    def test_contested_is_surfaced(self) -> None:
+        j = DisputeJudgment(category="contested_or_opinion", reasoning="Experts disagree.", summary="Competing models.")
+        assert j.is_surfaced is True
+
+    def test_acceptable_simplification_is_not_surfaced(self) -> None:
+        j = DisputeJudgment(category="acceptable_simplification", reasoning="Grade-appropriate.")
+        assert j.is_surfaced is False
+
+    def test_false_positive_is_not_surfaced(self) -> None:
+        j = DisputeJudgment(category="false_positive", reasoning="Phrasing difference.")
+        assert j.is_surfaced is False
+
+    def test_normalizes_category_casing(self) -> None:
+        j = DisputeJudgment(category="FACTUAL_ERROR", reasoning="test")  # type: ignore[arg-type]
+        assert j.category == "factual_error"
+
+    def test_normalizes_spaces_to_underscores(self) -> None:
+        j = DisputeJudgment(category="factual error", reasoning="test")  # type: ignore[arg-type]
+        assert j.category == "factual_error"
 
 
 class TestApplyFindings:
@@ -108,6 +129,7 @@ class TestApplyFindings:
         result = apply_findings_to_article(body, findings)
         assert "## Disputes" in result
         assert "**Claim**:" in result
+        assert "**Category**: Dispute" in result  # default when no dispute_category set
         assert "Source says the opposite." in result
 
     def test_empty_findings_returns_body_unchanged(self) -> None:

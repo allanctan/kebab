@@ -186,8 +186,10 @@ def apply_findings_to_article(
             appends.setdefault(claim.section, []).append(sentence)
 
         elif finding.outcome == "dispute" and finding.contradiction:
+            category_label = (finding.dispute_category or "dispute").replace("_", " ").title()
             disputes.append(
                 f"- **Claim**: \"{claim.text}\"\n"
+                f"  **Category**: {category_label}\n"
                 f"  **Section**: {claim.section}, paragraph {claim.paragraph}\n"
                 f"  **External source**: [{source_title}]({source_url})\n"
                 f"  **Contradiction**: {finding.contradiction}"

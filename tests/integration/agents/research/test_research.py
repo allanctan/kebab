@@ -124,7 +124,7 @@ def _stub_classify_dispute(
 
 def _stub_judge_genuine(*_a: object, **_kw: object) -> DisputeJudgment:
     return DisputeJudgment(
-        is_genuine=True,
+        category="factual_error",
         reasoning="Real contradiction.",
         summary="Slab pull vs convection.",
     )
