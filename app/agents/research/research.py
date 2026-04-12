@@ -147,7 +147,12 @@ def run(
                         log_event(
                             path, stage="research", action="dispute_suppressed",
                             article_id=article_id,
-                            detail=f"{judgment.category}: {claim.text} (source: {src.title})",
+                            detail=(
+                                f"category: {judgment.category} | "
+                                f"claim: {claim.text} | "
+                                f"reasoning: {judgment.reasoning} | "
+                                f"source: {src.title}"
+                            ),
                         )
                         continue
                     # Stamp the category on the finding so the writer can show it
@@ -174,7 +179,13 @@ def run(
                     log_event(
                         path, stage="research", action="dispute",
                         article_id=article_id,
-                        detail=f"{result.dispute_category}: {claim.text} — {result.contradiction or ''} (source: {src.title})",
+                        detail=(
+                            f"category: {result.dispute_category} | "
+                            f"claim: {claim.text} | "
+                            f"contradiction: {result.contradiction or ''} | "
+                            f"reasoning: {result.reasoning} | "
+                            f"source: {src.title}"
+                        ),
                     )
 
     # Synthesize multiple appends per section into one cohesive statement.

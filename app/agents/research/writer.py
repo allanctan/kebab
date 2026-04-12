@@ -192,7 +192,8 @@ def apply_findings_to_article(
                 f"  **Category**: {category_label}\n"
                 f"  **Section**: {claim.section}, paragraph {claim.paragraph}\n"
                 f"  **External source**: [{source_title}]({source_url})\n"
-                f"  **Contradiction**: {finding.contradiction}"
+                f"  **Contradiction**: {finding.contradiction}\n"
+                f"  **Reasoning**: {finding.reasoning}"
             )
 
     # Apply appends at end of their sections (AST-based section boundaries)
