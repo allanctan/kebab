@@ -214,6 +214,8 @@ def _process_article(
 def run(
     settings: Settings,
     *,
+    article_id: str | None = None,
+    domain: str | None = None,
     once: bool = True,
     watch: bool = False,
     proposer: QaProposer = _default_proposer,
@@ -223,11 +225,22 @@ def run(
 ) -> QaRunResult:
     """Run the Q&A enrichment loop.
 
+    - ``article_id`` processes a single article.
+    - ``domain`` filters to articles under ``curated/<domain>/``.
     - ``once=True`` (default) runs a single pass and exits.
     - ``watch=True`` loops forever (or until ``iterations`` is exhausted in tests).
     """
     if once and watch:
         raise KebabError("qa: --once and --watch are mutually exclusive")
+
+    # Resolve article paths based on filters
+    if article_id:
+        from app.core.markdown import find_article_by_id
+        target = find_article_by_id(settings.CURATED_DIR, article_id)
+        all_paths = [target] if target else []
+    else:
+        root = Path(settings.CURATED_DIR) / domain if domain else Path(settings.CURATED_DIR)
+        all_paths = _iter_articles(root)
 
     updated: list[Path] = []
     skipped: list[tuple[Path, str]] = []
@@ -235,7 +248,7 @@ def run(
     runs_done = 0
 
     while True:
-        for path in _iter_articles(Path(settings.CURATED_DIR)):
+        for path in all_paths:
             ok, added, error = _process_article(settings, path, proposer, datetime.now())
             if ok:
                 updated.append(path)

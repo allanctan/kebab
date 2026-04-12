@@ -204,13 +204,22 @@ def agent() -> None:
 
 
 @agent.command("qa")
+@click.argument("article_id", required=False)
+@click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
 @click.option("--once", is_flag=True, default=True, help="Run a single pass and exit.")
 @click.option("--watch", is_flag=True, help="Run continuously.")
-def agent_qa(once: bool, watch: bool) -> None:
+def agent_qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
     """Q&A enrichment agent."""
     if watch:
         once = False
-    result = qa_agent.run(env, once=once, watch=watch)
+    result = qa_agent.run(
+        env,
+        article_id=article_id if not run_all else None,
+        domain=domain,
+        once=once,
+        watch=watch,
+    )
     click.echo(
         f"qa: updated {len(result.updated)} article(s), "
         f"added {result.pairs_added} pair(s), skipped {len(result.skipped)}"
