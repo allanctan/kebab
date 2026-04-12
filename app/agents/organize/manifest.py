@@ -18,15 +18,13 @@ def _build_manifest(settings: Settings) -> list[tuple[str, str]]:
     """Build ``[(label, snippet), …]`` from the processed/ tree.
 
     Labels include source index IDs so the LLM can reference them
-    in source_files as integers. Sources not in the index are skipped
-    when the index exists; if there is no index at all, all processed
-    docs are included with their stem as the label (backward compat).
+    in ``source_files`` as integers. Sources not in the index are
+    skipped — the ingest step must run first to register them.
     """
     from app.core.sources.index import load_index
 
     index_path = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "sources.json"
     index = load_index(index_path)
-    has_index = len(index.sources) > 0
 
     processed_docs = Path(settings.PROCESSED_DIR) / "documents"
     manifest: list[tuple[str, str]] = []
@@ -35,30 +33,24 @@ def _build_manifest(settings: Settings) -> list[tuple[str, str]]:
             text_path = sub / "text.md"
             if not text_path.exists():
                 continue
-            snippet = text_path.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
             entry = index.get_by_stem(sub.name)
-            if entry is not None:
-                label = f"[{entry.id}] {entry.title}"
-            elif has_index:
+            if entry is None:
                 logger.debug("organize: skipping %s — not in source index", sub.name)
                 continue
-            else:
-                label = sub.name
+            snippet = text_path.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
+            label = f"[{entry.id}] {entry.title}"
             manifest.append((label, snippet))
     # Also scan processed/web/ for web-ingested sources
     processed_web = Path(settings.PROCESSED_DIR) / "web"
     if processed_web.exists():
         for md_file in sorted(processed_web.glob("*.md")):
-            snippet = md_file.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
             stem = md_file.stem
             entry = index.get_by_stem(stem)
-            if entry is not None:
-                label = f"[{entry.id}] {entry.title}"
-            elif has_index:
+            if entry is None:
                 logger.debug("organize: skipping web source %s — not in source index", stem)
                 continue
-            else:
-                label = stem
+            snippet = md_file.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
+            label = f"[{entry.id}] {entry.title}"
             manifest.append((label, snippet))
     return manifest
 

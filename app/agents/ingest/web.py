@@ -28,6 +28,7 @@ class WebIngestResult:
     raw_path: Path
     text_path: Path
     chars: int
+    skipped: bool = False
 
 
 def _slug(url: str) -> str:
@@ -59,8 +60,12 @@ def _fetch_jina(url: str) -> tuple[str, str]:
     return text, text
 
 
-def ingest(settings: Settings, url: str) -> WebIngestResult:
-    """Fetch ``url`` via Jina Reader, save markdown to ``raw/web/`` and ``processed/web/``."""
+def ingest(settings: Settings, url: str, *, force: bool = False) -> WebIngestResult:
+    """Fetch ``url`` via Jina Reader, save markdown to ``raw/web/`` and ``processed/web/``.
+
+    Idempotent: if ``text_path`` already exists and ``force`` is False, the cached
+    result is returned without re-fetching the URL or re-registering the source.
+    """
     raw_dir = Path(settings.RAW_DIR) / "web"
     raw_dir.mkdir(parents=True, exist_ok=True)
     processed_dir = Path(settings.PROCESSED_DIR) / "web"
@@ -68,6 +73,16 @@ def ingest(settings: Settings, url: str) -> WebIngestResult:
     slug = _slug(url)
     raw_path = raw_dir / f"{slug}.md"
     text_path = processed_dir / f"{slug}.md"
+
+    if text_path.exists() and not force:
+        cached = text_path.read_text(encoding="utf-8")
+        logger.info("web ingest cached for %s (%d chars)", url, len(cached))
+        return WebIngestResult(
+            raw_path=raw_path,
+            text_path=text_path,
+            chars=len(cached),
+            skipped=True,
+        )
 
     raw, text = _fetch_jina(url)
     logger.info("ingested %s via Jina Reader (%d chars)", url, len(text))

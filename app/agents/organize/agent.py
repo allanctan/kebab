@@ -250,5 +250,4 @@ __all__ = [
     "build_incremental_organize_agent",
     "propose_hierarchy",
     "propose_incremental_hierarchy",
-    "_slugify",
 ]

@@ -94,7 +94,7 @@ def run(
                 plan_path=target,
                 created=created,
                 existing=existing,
-                loaded_from_cache=True,
+                loaded_from_cache=False,
                 extended_articles=extended,
                 added_articles=added,
             )

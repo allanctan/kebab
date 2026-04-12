@@ -279,7 +279,10 @@ def test_organize_runs_incremental_when_new_source_appears(settings: Settings) -
         incremental_proposer=_incremental,
     )
 
-    assert result.loaded_from_cache is True
+    # Incremental path REWRITES the plan (LLM call + merge + persist) — it's not
+    # a cache hit, so loaded_from_cache must be False. The previous bug returned
+    # True here, misleading downstream consumers gating on this flag.
+    assert result.loaded_from_cache is False
     assert result.extended_articles == ["SCI-BIO-001"]
     assert result.added_articles == ["SCI-BIO-003"]
     assert captured["new_names"] == ["[3] New Third Source"]

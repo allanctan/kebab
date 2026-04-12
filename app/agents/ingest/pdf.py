@@ -132,7 +132,7 @@ def _describe_figures(
     figures: list[FigureBytes],
     settings: Settings,
     describer: Describer,
-) -> tuple[dict[tuple[int, int], str], list[FigureRecord], Path | None]:
+) -> tuple[dict[tuple[int, int], str], list[FigureRecord]]:
     """Filter then describe each figure.
 
     The filter pipeline (:mod:`app.core.figure_filters`) runs first —
@@ -218,7 +218,7 @@ def _describe_figures(
     if by_reason:
         logger.info("  filter breakdown: %s", by_reason)
 
-    return descriptions, records, None
+    return descriptions, records
 
 
 def _write_figures_to_disk(
@@ -325,7 +325,7 @@ def ingest(
     descriptions: dict[tuple[int, int], str] = {}
     records: list[FigureRecord] = []
     if describe_figures and extraction.figures:
-        descriptions, records, _ = _describe_figures(extraction.figures, settings, describer)
+        descriptions, records = _describe_figures(extraction.figures, settings, describer)
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     if records:

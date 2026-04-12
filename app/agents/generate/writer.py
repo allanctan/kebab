@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+
 from pathlib import Path
 from typing import Callable
 
@@ -161,15 +161,14 @@ def _append_footnotes(
     body: str,
     local_to_entry: dict[int, SourceEntry],
     article_path: Path,
+    knowledge_root: Path,
 ) -> str:
-    """Append Obsidian footnote definitions to the article body."""
-    # Walk up to find knowledge root (parent of "curated/" or similar)
-    knowledge_root = article_path
-    while knowledge_root.name not in ("curated", "knowledge") and knowledge_root != knowledge_root.parent:
-        knowledge_root = knowledge_root.parent
-    if knowledge_root.name == "curated":
-        knowledge_root = knowledge_root.parent
+    """Append Obsidian footnote definitions to the article body.
 
+    ``knowledge_root`` is the absolute path to ``settings.KNOWLEDGE_DIR``.
+    Footnote URLs are computed as ``knowledge_root / entry.raw_path``
+    expressed relative to the article's parent directory.
+    """
     lines: list[str] = []
     for local_num in sorted(local_to_entry):
         entry = local_to_entry[local_num]
@@ -294,7 +293,6 @@ def write_articles(
     index = load_index(index_path)
     written: list[Path] = []
     skipped: list[tuple[str, str]] = []
-    today = datetime.now().date()  # noqa: F841 — reserved for future verification stamping
 
     for gap in report.gaps:
         source_triples = _load_sources(settings, gap, index)
@@ -322,8 +320,13 @@ def write_articles(
                     if vkey in article_contexts:
                         base_instruction = getattr(vcls, "BASE_INSTRUCTION", None)
                         break
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "generate: failed to read existing article context for %s: %s — "
+                    "regenerating without base_instruction",
+                    target,
+                    exc,
+                )
 
         try:
             if proposer is _default_proposer:
@@ -374,7 +377,9 @@ def write_articles(
             fm_dump[key] = value
         fm = FrontmatterSchema.model_validate(fm_dump)
 
-        body = _append_footnotes(result.body, local_to_entry, path)
+        body = _append_footnotes(
+            result.body, local_to_entry, path, Path(settings.KNOWLEDGE_DIR)
+        )
 
         article_slug = path.stem
         body_with_figures, used_figures = resolve_figure_markers(

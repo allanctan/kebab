@@ -105,10 +105,17 @@ def ingest_retry_errors(stem: str) -> None:
 
 @ingest.command("web")
 @click.option("--url", required=True)
-def ingest_web_cmd(url: str) -> None:
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Re-fetch the URL even if a cached copy already exists.",
+)
+def ingest_web_cmd(url: str, force: bool) -> None:
     """Fetch a web page and store raw HTML + cleaned text under raw/documents/."""
-    result = web_ingest.ingest(env, url)
-    click.echo(f"ingested {url} ({result.chars} chars → {result.text_path})")
+    result = web_ingest.ingest(env, url, force=force)
+    suffix = " (cached)" if result.skipped else ""
+    click.echo(f"ingested {url}{suffix} ({result.chars} chars → {result.text_path})")
 
 
 @main.command()

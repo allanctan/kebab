@@ -1,15 +1,10 @@
 """Direct-URL adapter — wraps :mod:`app.agents.ingest.web`.
 
 ``discover(query)`` treats ``query`` as a URL and returns a single
-candidate. ``fetch(candidate)`` delegates to the legacy ``web.ingest()``
-function, which already respects caching by writing raw HTML + text
-under ``raw/documents/``. The adapter adds a provenance sidecar next
-to the cached HTML with the full envelope (retrieved_at, checksum, ...).
-
-This adapter does NOT route through :class:`SharedFetcher` in M17 — the
-legacy ``web.ingest()`` uses :mod:`app.utils.web_scraper` directly. A
-follow-up pass can migrate it through ``SharedFetcher`` once the
-fetcher has been proven against the other M18–M20 channels.
+candidate. ``fetch(candidate)`` delegates to ``web.ingest()`` (Jina
+Reader), which writes cleaned markdown under ``raw/web/`` and
+``processed/web/``. The adapter adds a provenance sidecar next to the
+cached file with the full envelope (retrieved_at, checksum, ...).
 """
 
 from dataclasses import dataclass, field

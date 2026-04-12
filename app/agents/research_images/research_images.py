@@ -113,8 +113,14 @@ def run(
             c.local_path.unlink(missing_ok=True)
             dropped += 1
             continue
-        c.llm_description = desc
-        approved.append(c)
+        approved.append(
+            ImageCandidate(
+                local_path=c.local_path,
+                source_title=c.source_title,
+                raw_description=c.raw_description,
+                llm_description=desc,
+            )
+        )
 
     new_body = append_figure_refs(body, approved, article_slug=article_slug)
 

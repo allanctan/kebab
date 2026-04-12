@@ -66,6 +66,27 @@ def settings(tmp_path: Path) -> Settings:
     (processed / "deped").mkdir(parents=True)
     (processed / "openstax" / "text.md").write_text("Photosynthesis text.", encoding="utf-8")
     (processed / "deped" / "text.md").write_text("Respiration text.", encoding="utf-8")
+
+    # Register sources in the index — organize requires this since the
+    # back-compat shim for missing source entries was removed.
+    from app.core.sources.index import SourceEntry, SourceIndex, save_index
+
+    (knowledge / ".kebab").mkdir(parents=True)
+    index = SourceIndex(
+        sources=[
+            SourceEntry(
+                id=1, stem="openstax", raw_path="raw/documents/openstax.pdf",
+                title="OpenStax Biology", tier=1, checksum="aaa", adapter="local_pdf",
+            ),
+            SourceEntry(
+                id=2, stem="deped", raw_path="raw/documents/deped.pdf",
+                title="DepEd Science", tier=1, checksum="bbb", adapter="local_pdf",
+            ),
+        ],
+        next_id=3,
+    )
+    save_index(index, knowledge / ".kebab" / "sources.json")
+
     return Settings(
         KNOWLEDGE_DIR=knowledge,
         RAW_DIR=knowledge / "raw",

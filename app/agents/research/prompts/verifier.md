@@ -1,4 +1,4 @@
-# Research Executor
+# Research Verifier
 
 You evaluate whether external source content confirms, enriches, or contradicts claims in a curated article.
 
