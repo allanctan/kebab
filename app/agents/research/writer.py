@@ -188,12 +188,12 @@ def apply_findings_to_article(
         elif finding.outcome == "dispute" and finding.contradiction:
             category_label = (finding.dispute_category or "dispute").replace("_", " ").title()
             disputes.append(
-                f"- **Claim**: \"{claim.text}\"\n"
-                f"  **Category**: {category_label}\n"
-                f"  **Section**: {claim.section}, paragraph {claim.paragraph}\n"
-                f"  **External source**: [{source_title}]({source_url})\n"
-                f"  **Contradiction**: {finding.contradiction}\n"
-                f"  **Reasoning**: {finding.reasoning}"
+                f"**Claim**: \"{claim.text}\"\n\n"
+                f"**Category**: {category_label}\n\n"
+                f"**Section**: {claim.section}, paragraph {claim.paragraph}\n\n"
+                f"**External source**: [{source_title}]({source_url})\n\n"
+                f"**Contradiction**: {finding.contradiction}\n\n"
+                f"**Reasoning**: {finding.reasoning}"
             )
 
     # Apply appends at end of their sections (AST-based section boundaries)
@@ -232,7 +232,7 @@ def apply_findings_to_article(
             if d.split("\n")[0] not in (existing_disputes or "")
         ]
         if fresh_disputes:
-            disputes_md = "\n\n".join(fresh_disputes) + "\n"
+            disputes_md = "\n\n---\n\n".join(fresh_disputes) + "\n"
             end_idx = _find_section_end(tree, "Disputes")
             if end_idx is not None:
                 nodes = _parse_snippet(disputes_md)
