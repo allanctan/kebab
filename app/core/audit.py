@@ -61,12 +61,25 @@ def log_event(
     if article_id:
         entry["article_id"] = article_id
 
+    line = json.dumps(entry, ensure_ascii=False)
+
+    # Write to article sidecar
     audit_file = _audit_path(article_path)
     try:
         with audit_file.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            f.write(line + "\n")
     except Exception as exc:  # noqa: BLE001
-        logger.debug("audit: failed to write to %s: %s", audit_file, exc)
+        logger.debug("audit: failed to write sidecar %s: %s", audit_file, exc)
+
+    # Also write to central audit log under logs/
+    try:
+        from app.config.logging import LOGS_DIR
+
+        central = LOGS_DIR / "audit.jsonl"
+        with central.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def read_log(article_path: Path) -> list[dict[str, str]]:
