@@ -198,19 +198,14 @@ def sync() -> None:
 # ---------- agents ----------
 
 
-@main.group()
-def agent() -> None:
-    """Continuous loops: qa enrichment, lint health checks."""
-
-
-@agent.command("qa")
+@main.command()
 @click.argument("article_id", required=False)
 @click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
 @click.option("--domain", default=None, help="Filter by domain folder name.")
 @click.option("--once", is_flag=True, default=True, help="Run a single pass and exit.")
 @click.option("--watch", is_flag=True, help="Run continuously.")
-def agent_qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
-    """Q&A enrichment agent."""
+def qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
+    """Q&A enrichment — generate grounded question-answer pairs."""
     if watch:
         once = False
     result = qa_agent.run(
@@ -329,8 +324,8 @@ def research_images(article_id: str | None, run_all: bool, domain: str | None) -
         raise click.ClickException("provide an article ID, --domain, or --all")
 
 
-@agent.command("lint")
-def agent_lint() -> None:
+@main.command()
+def lint() -> None:
     """Run all health checks and write a JSON report."""
     result = lint_agent.run(env)
     report = result.report

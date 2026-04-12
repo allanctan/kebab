@@ -718,11 +718,11 @@ kebab ingest pdf --input knowledge/raw/documents/
 kebab organize --domain Science --force
 kebab generate --domain Science
 kebab research --all
-kebab agent qa --once
+kebab qa --once
 kebab research-gaps --all
 kebab research-images --all
 kebab sync
-kebab agent lint
+kebab lint
 ```
 
 ### Incremental (new sources added)

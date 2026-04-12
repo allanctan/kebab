@@ -114,7 +114,7 @@ and flags contradictions in a `## Disputes` section.
 ### 5. Q&A enrichment
 
 ```bash
-uv run kebab agent qa --once    # single pass over all articles
+uv run kebab qa --once    # single pass over all articles
 ```
 
 Generates grounded Q&A pairs → `## Q&A` section.
@@ -146,7 +146,7 @@ article. Idempotent — unchanged articles are skipped.
 ### 8. Lint
 
 ```bash
-uv run kebab agent lint
+uv run kebab lint
 ```
 
 Health checks (no LLM): missing sources, oversized articles, stale
@@ -159,11 +159,11 @@ uv run kebab ingest pdf --input knowledge/raw/documents/
 uv run kebab organize --domain Knowledge
 uv run kebab generate --domain Knowledge
 uv run kebab research --all
-uv run kebab agent qa --once
+uv run kebab qa --once
 uv run kebab research-gaps --all
 uv run kebab research-images --all
 uv run kebab sync
-uv run kebab agent lint
+uv run kebab lint
 ```
 
 ## Incremental (new sources added)
