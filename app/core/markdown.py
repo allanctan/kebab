@@ -216,7 +216,7 @@ def extract_disputes(tree: marko.block.Document) -> int:
     section = extract_section(tree, "Disputes")
     if not section:
         return 0
-    return section.count("- **Claim**:")
+    return section.count("**Claim**:")
 
 
 def next_footnote_number(tree: marko.block.Document) -> int:

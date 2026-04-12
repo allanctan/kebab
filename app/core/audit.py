@@ -48,26 +48,32 @@ def log_event(
     *,
     stage: str,
     action: str,
-    detail: str,
     article_id: str = "",
+    detail: str = "",
+    **fields: str,
 ) -> None:
-    """Append one audit event to ``logs/<article_stem>.audit.jsonl``.
+    """Append one structured audit event to ``logs/<article_stem>.audit.jsonl``.
 
     Args:
         article_path: Path to the curated ``.md`` file.
         stage: Pipeline stage name (``research``, ``research-gaps``, etc.).
         action: What happened (``confirm``, ``append``, ``dispute``, etc.).
-        detail: Human-readable description.
         article_id: Article ID for cross-referencing.
+        detail: Human-readable summary (optional if structured fields given).
+        **fields: Additional structured fields (e.g. ``claim=``, ``source_title=``,
+            ``category=``, ``reasoning=``). These make the log queryable with
+            ``jq 'select(.claim | contains("plate"))'``.
     """
-    entry = {
+    entry: dict[str, str] = {
         "ts": datetime.now().isoformat(timespec="seconds"),
         "stage": stage,
         "action": action,
-        "detail": detail,
     }
     if article_id:
         entry["article_id"] = article_id
+    if detail:
+        entry["detail"] = detail
+    entry.update(fields)
 
     audit_file = _audit_path(article_path)
     try:

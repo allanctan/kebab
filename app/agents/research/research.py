@@ -19,8 +19,10 @@ Replaces the previous ``app/agents/research/agent.py`` from the
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import date
+from datetime import date, datetime
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -76,6 +78,42 @@ def _available_adapters(settings: Settings) -> list[str]:
     if getattr(settings, "TAVILY_API_KEY", ""):
         adapters.append("tavily")
     return adapters
+
+
+def _write_unverified(
+    settings: Settings,
+    article_path: Path,
+    unverified: list[ClaimEntry],
+) -> None:
+    """Write (overwrite) the unverified claims file for an article.
+
+    File: ``.kebab/logs/<stem>.unverified.jsonl``. Overwritten each run —
+    if a claim gets verified in a future run, it simply disappears from
+    the file.
+    """
+    try:
+        from app.config.logging import LOGS_DIR
+
+        out = LOGS_DIR / f"{article_path.stem}.unverified.jsonl"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        now = datetime.now().isoformat(timespec="seconds")
+        with out.open("w", encoding="utf-8") as f:
+            for claim in unverified:
+                entry = {
+                    "claim": claim.text,
+                    "section": claim.section,
+                    "paragraph": claim.paragraph,
+                    "run_at": now,
+                }
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        if unverified:
+            logger.info(
+                "research: %d unverified claim(s) written to %s",
+                len(unverified),
+                out,
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("research: failed to write unverified claims: %s", exc)
 
 
 def run(
@@ -147,12 +185,10 @@ def run(
                         log_event(
                             path, stage="research", action="dispute_suppressed",
                             article_id=article_id,
-                            detail=(
-                                f"category: {judgment.category} | "
-                                f"claim: {claim.text} | "
-                                f"reasoning: {judgment.reasoning} | "
-                                f"source: {src.title}"
-                            ),
+                            claim=claim.text, section=claim.section,
+                            category=judgment.category,
+                            reasoning=judgment.reasoning,
+                            source_title=src.title, source_url=src.url,
                         )
                         continue
                     # Stamp the category on the finding so the writer can show it
@@ -165,27 +201,28 @@ def run(
                     log_event(
                         path, stage="research", action="confirm",
                         article_id=article_id,
-                        detail=f"Claim confirmed: {claim.text} (source: {src.title})",
+                        claim=claim.text, section=claim.section,
+                        source_title=src.title, source_url=src.url,
                     )
                 elif result.outcome == "append":
                     appended_claims.add(claim_idx)
                     log_event(
                         path, stage="research", action="append",
                         article_id=article_id,
-                        detail=f"New info appended: {result.new_sentence or ''} (source: {src.title})",
+                        claim=claim.text, section=claim.section,
+                        new_sentence=result.new_sentence or "",
+                        source_title=src.title, source_url=src.url,
                     )
                 elif result.outcome == "dispute":
                     disputed_claims.add(claim_idx)
                     log_event(
                         path, stage="research", action="dispute",
                         article_id=article_id,
-                        detail=(
-                            f"category: {result.dispute_category} | "
-                            f"claim: {claim.text} | "
-                            f"contradiction: {result.contradiction or ''} | "
-                            f"reasoning: {result.reasoning} | "
-                            f"source: {src.title}"
-                        ),
+                        claim=claim.text, section=claim.section,
+                        category=result.dispute_category or "",
+                        contradiction=result.contradiction or "",
+                        reasoning=result.reasoning,
+                        source_title=src.title, source_url=src.url,
                     )
 
     # Synthesize multiple appends per section into one cohesive statement.
@@ -218,6 +255,16 @@ def run(
         len(appended_claims),
         len(disputed_claims),
     )
+
+    # Write unverified claims file — overwritten each run.
+    # Claims that got no finding (confirm/append/dispute) are unverified.
+    verified = confirmed_claims | appended_claims | disputed_claims
+    unverified = [
+        plan.claims[i]
+        for i in range(len(plan.claims))
+        if i not in verified
+    ]
+    _write_unverified(settings, path, unverified)
 
     # Auto-sync to Qdrant (updates confidence_level)
     from app.agents.sync import auto_sync
