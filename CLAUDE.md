@@ -349,7 +349,7 @@ added or removed.
 
 Note: Python package directories on disk use `snake_case`
 (e.g. `research_gaps/`) because Python imports cannot contain hyphens.
-The CLI command names use `kebab-case` (`kebab agent research-gaps`)
+The CLI command names use `kebab-case` (`kebab research-gaps`)
 per rule §4. The two map 1:1 — the CLI command name is the directory
 name with underscores replaced by hyphens.
 

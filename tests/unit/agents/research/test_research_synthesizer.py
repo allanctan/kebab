@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.agents.research.planner import ClaimEntry
-from app.agents.research.synthesizer import SynthesizedAppend, merge_appends
+from app.agents.research.synthesizer import merge_appends
 from app.agents.research.verifier import FindingResult, FindingTuple
 
 

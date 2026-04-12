@@ -107,7 +107,7 @@ def test_generate_writes_article_with_grounded_sources(settings: Settings) -> No
     result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == [target]
     assert result.skipped == []
-    fm, body = read_article(target)
+    fm, body, _ = read_article(target)
     assert fm.id == "SCI-BIO-001"
     assert len(fm.sources) == 1
     assert fm.sources[0].id == 1
@@ -254,7 +254,7 @@ def test_generate_stamps_parent_ids_and_sources_from_index(settings: Settings) -
     )
     assert result.written == [target]
 
-    fm, body = read_article(target)
+    fm, body, _ = read_article(target)
     dump = fm.model_dump()
     source_ids = {s["id"] for s in dump["sources"]}
     assert source_ids == {1, 2}
@@ -289,7 +289,7 @@ def test_generate_preserves_verifications_on_regen(settings: Settings) -> None:
     report = GapReport(gaps=[_gap(target_path=str(target))])
     result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
     assert result.written == [target]
-    fm, _ = read_article(target)
+    fm, _, _ = read_article(target)
     dump = fm.model_dump()
     assert dump["human_verified"] is True
     assert dump["human_verified_by"] == "daisy"

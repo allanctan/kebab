@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+import marko.block
+
 from app.config.config import Settings
 from app.core.confidence import compute_confidence
 from app.core.llm.embeddings import embed_batch
@@ -83,13 +85,14 @@ def _embed_text(fm: FrontmatterSchema, body: str, faq: list[str]) -> str:
 def _build_article(
     fm: FrontmatterSchema,
     body: str,
+    tree: marko.block.Document,
     *,
     path: Path,
     domain: str,
     subdomain: str | None,
 ) -> Article:
     """Project frontmatter + body into the universal :class:`Article` payload."""
-    faq = extract_faq(body)
+    faq = extract_faq(tree)
     extras = fm.model_dump()
     description = extras.get("description") or body.strip().splitlines()[0:1]
     description_text = (
@@ -144,7 +147,7 @@ def run(
 
     for path in _iter_markdown(root):
         try:
-            fm, body = read_article(path)
+            fm, body, tree = read_article(path)
         except KebabError as exc:
             logger.warning("skip %s: %s", path, exc)
             skipped.append((path, str(exc)))
@@ -156,7 +159,7 @@ def run(
             skipped.append((path, msg))
             continue
         domain, subdomain = _domain_from_path(path, root)
-        article = _build_article(fm, body, path=path, domain=domain, subdomain=subdomain)
+        article = _build_article(fm, body, tree, path=path, domain=domain, subdomain=subdomain)
         articles.append(article)
         embed_texts.append(_embed_text(fm, body, article.faq))
         touched_domains.add(domain)

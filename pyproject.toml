@@ -20,6 +20,7 @@ dependencies = [
     "logfire>=2.0",
     "google-genai>=1.70.0",
     "tavily-python>=0.7.23",
+    "marko>=2.2.2",
 ]
 
 [project.scripts]
@@ -82,5 +83,8 @@ packages = ["app"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "app/config/models.yaml" = "app/config/models.yaml"
-"app/pipeline/prompts" = "app/pipeline/prompts"
+"app/agents/generate/prompts" = "app/agents/generate/prompts"
+"app/agents/organize/prompts" = "app/agents/organize/prompts"
 "app/agents/qa/prompts" = "app/agents/qa/prompts"
+"app/agents/research/prompts" = "app/agents/research/prompts"
+"app/agents/research_gaps/prompts" = "app/agents/research_gaps/prompts"

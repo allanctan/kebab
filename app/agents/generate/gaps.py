@@ -38,7 +38,7 @@ def _is_stub(md_path: str | None) -> bool:
     if not path.exists():
         return True
     try:
-        _fm, body = read_article(path)
+        _fm, body, _ = read_article(path)
     except Exception:  # noqa: BLE001
         return True
     return _STUB_MARKER in body
@@ -103,7 +103,7 @@ def _read_source_ids(md_path: str | None) -> set[int] | None:
     if not path.exists():
         return None
     try:
-        fm, _body = read_article(path)
+        fm, _body, _ = read_article(path)
     except Exception:  # noqa: BLE001
         return None
     if not fm.sources:

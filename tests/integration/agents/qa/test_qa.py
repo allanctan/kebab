@@ -79,8 +79,8 @@ def test_qa_agent_appends_new_pairs(settings: Settings) -> None:
     result = qa_agent.run(settings, once=True, proposer=_ready_proposer)
     assert len(result.updated) == 1
     assert result.pairs_added == 2
-    fm, body = read_article(result.updated[0])
-    assert len(extract_faq(body)) == 3  # 1 existing + 2 new
+    fm, body, tree = read_article(result.updated[0])
+    assert len(extract_faq(tree)) == 3  # 1 existing + 2 new
 
 
 @pytest.mark.integration
