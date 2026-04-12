@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in KEBAB, please report it privately:
 
-**Email:** allan@allanctan.com
+**Email:** allanctan@gmail.com
 
 Do not open a public GitHub issue for security vulnerabilities.
 
