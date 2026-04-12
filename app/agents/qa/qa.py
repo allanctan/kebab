@@ -23,7 +23,7 @@ from pydantic_ai import Agent
 from app.config.config import Settings
 from app.core.errors import KebabError
 from app.core.llm.resolve import resolve_model
-from app.core.markdown import extract_faq, read_article, write_article
+from app.core.markdown import extract_faq, extract_research_gaps, read_article, write_article
 from app.models.source import Source
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,10 @@ class QaResult(BaseModel):
         default_factory=list, description="Up to 5 questions the article doesn't answer."
     )
     is_ready_to_commit: bool = Field(
-        ..., description="True once at least one new grounded pair or gap question is produced."
+        ...,
+        description="True if there are new questions or gaps to add. "
+        "False if the article is already well-covered — returning false "
+        "with empty lists is valid and expected.",
     )
 
 
@@ -79,6 +82,7 @@ class QaDeps:
     article_name: str
     body: str
     existing_questions: list[str]
+    existing_gaps: list[str]
     cited_sources: list[str]
     context_metadata: str
 
@@ -115,6 +119,7 @@ def _default_proposer(settings: Settings, deps: QaDeps) -> QaResult:
         f"article_id: {deps.article_id}\n"
         f"article_name: {deps.article_name}\n"
         f"existing_questions: {deps.existing_questions}\n"
+        f"existing_gaps: {deps.existing_gaps}\n"
         f"cited_sources: {deps.cited_sources}\n"
         f"context_metadata: {deps.context_metadata}\n\n"
         f"body:\n{deps.body}"
@@ -161,6 +166,7 @@ def _process_article(
         article_name=fm.name,
         body=body,
         existing_questions=extract_faq(tree),
+        existing_gaps=extract_research_gaps(tree),
         cited_sources=[src.title for src in fm.sources],
         context_metadata=context_str,
     )
