@@ -200,7 +200,7 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
     article_paths = list(settings.CURATED_DIR.rglob("*.md"))
     assert len(article_paths) == 1
-    fm_pre, _ = read_article(article_paths[0])
+    fm_pre, _, _ = read_article(article_paths[0])
 
     monkeypatch.setattr(research_stage, "plan_research", _stub_research_planner)
     monkeypatch.setattr(
@@ -219,7 +219,7 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     research_stage.run(settings, article_id=fm_pre.id)
 
     # Confirm the markdown frontmatter reflects research metadata.
-    fm, body = read_article(article_paths[0])
+    fm, body, _ = read_article(article_paths[0])
     assert fm.model_dump().get("research_claims_total") == 1
 
     # Stage 7 — sync into Qdrant. Confidence histogram should show level 3.
@@ -230,7 +230,7 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     # Q&A agent — at least one new pair appended.
     qa_result = qa_agent.run(settings, once=True, proposer=_stub_qa)
     assert qa_result.pairs_added >= 1
-    fm_after, body_after = read_article(article_paths[0])
+    fm_after, body_after, _ = read_article(article_paths[0])
     assert "How do chloroplasts" in body_after
 
     # Lint agent — no orphans (article has parent_ids), gate is met.

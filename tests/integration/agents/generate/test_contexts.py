@@ -51,7 +51,7 @@ def _stub_proposer(
 def test_contexts_writes_grade_into_frontmatter(settings: Settings) -> None:
     result = contexts_stage.run(settings, proposer=_stub_proposer)
     assert len(result.updated) == 1
-    fm, _ = read_article(result.updated[0])
+    fm, _, _ = read_article(result.updated[0])
     contexts = fm.model_dump().get("contexts") or {}
     assert contexts["education"] == {"grade": 7, "subject": "science", "language": "en"}
 

@@ -101,7 +101,7 @@ def run(
 
     for path in _iter_markdown(Path(settings.CURATED_DIR)):
         try:
-            fm, body = read_article(path)
+            fm, body, _ = read_article(path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("lint: skip %s (%s)", path, exc)
             continue

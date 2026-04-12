@@ -153,7 +153,7 @@ def test_research_enriches_article_with_confirm(
 
     assert result.confirms >= 1
     assert result.claims_total == 1
-    fm, body = read_article(settings.CURATED_DIR / "Science" / "plate-tectonics.md")
+    fm, body, _ = read_article(settings.CURATED_DIR / "Science" / "plate-tectonics.md")
     assert "wikipedia.org" in body
     dump = fm.model_dump()
     assert dump.get("research_claims_total") == 1
@@ -182,7 +182,7 @@ def test_research_with_dispute(
     result = research_stage.run(settings, article_id="SCI-001")
 
     assert result.disputes >= 1
-    fm, body = read_article(settings.CURATED_DIR / "Science" / "plate-tectonics.md")
+    fm, body, _ = read_article(settings.CURATED_DIR / "Science" / "plate-tectonics.md")
     assert "## Disputes" in body
     dump = fm.model_dump()
     assert dump.get("dispute_count", 0) >= 1

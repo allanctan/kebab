@@ -64,7 +64,7 @@ def run(
         logger.warning("research-images: article %r not found — skipping", article_id)
         return ImagesResult(article_id=article_id)
 
-    fm, body = read_article(path)
+    fm, body, _ = read_article(path)
     targets = extract_wikipedia_targets(body)
     if not targets:
         logger.info(

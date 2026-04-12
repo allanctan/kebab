@@ -213,7 +213,7 @@ def agent_research(article_id: str | None, research_all: bool, budget: int) -> N
             raise click.ClickException("no curated articles found")
         for md in sorted(curated.rglob("*.md")):
             try:
-                fm, _ = _read_article(md)
+                fm, _, _ = _read_article(md)
             except Exception:  # noqa: BLE001
                 continue
             result = research_agent.run(env, article_id=fm.id, budget=budget)
@@ -247,7 +247,7 @@ def agent_research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> 
             raise click.ClickException("no curated articles found")
         for md in sorted(curated.rglob("*.md")):
             try:
-                fm, _ = _read_article(md)
+                fm, _, _ = _read_article(md)
             except Exception:  # noqa: BLE001
                 continue
             result = gaps_agent.run(env, article_id=fm.id, budget=budget)
@@ -275,7 +275,7 @@ def agent_research_images(article_id: str | None, images_all: bool) -> None:
             raise click.ClickException("no curated articles found")
         for md in sorted(curated.rglob("*.md")):
             try:
-                fm, _ = _read_article(md)
+                fm, _, _ = _read_article(md)
             except Exception:  # noqa: BLE001
                 continue
             result = images_agent.run(env, article_id=fm.id)

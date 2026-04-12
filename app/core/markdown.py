@@ -1,9 +1,8 @@
 """Read and write curated markdown articles.
 
-Primary parser: :mod:`frontmatter`. A regex fallback (adapted from
-``better-ed-ai/app/core/parser.py::parse_yaml_frontmatter``) handles files
-with BOM/whitespace quirks. Section extraction mirrors
-``better-ed-ai/app/core/parser.py::_extract_md_section``.
+Primary parser: :mod:`frontmatter` for YAML frontmatter, :mod:`marko`
+(with GFM + KEBAB footnote plugin) for the markdown body AST. A regex
+fallback handles files with BOM/whitespace quirks in the YAML layer.
 """
 
 from __future__ import annotations
@@ -14,12 +13,35 @@ from functools import lru_cache
 from pathlib import Path
 
 import frontmatter
+import marko
 import yaml
 
 from app.core.errors import MarkdownError
+from app.core.markdown_ext import make_extension
 from app.models.frontmatter import FrontmatterSchema
 
+# Module-level marko parser: GFM + KEBAB footnotes, markdown renderer.
+from marko.md_renderer import MarkdownRenderer
+
+_md = marko.Markdown(renderer=MarkdownRenderer, extensions=["gfm", make_extension()])
+
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# AST parsing / rendering
+# ---------------------------------------------------------------------------
+
+
+def parse_body(body: str) -> marko.block.Document:
+    """Parse a markdown body string into an AST (GFM + footnotes)."""
+    return _md.parse(body)
+
+
+def render_body(tree: marko.block.Document) -> str:
+    """Render an AST back to markdown string. Roundtrip-safe."""
+    return _md.render(tree)
+
 
 _FRONTMATTER_RE = re.compile(
     r"^\s*---\s*\n(?P<yaml>.*?)\n\s*---\s*\n?(?P<body>.*)$",
@@ -50,7 +72,7 @@ def _parse_yaml_frontmatter(text: str) -> tuple[dict, str]:
 
 
 @lru_cache(maxsize=512)
-def _parse_path(path: Path) -> tuple[FrontmatterSchema, str]:
+def _parse_path(path: Path) -> tuple[FrontmatterSchema, str, marko.block.Document]:
     raw = path.read_text(encoding="utf-8")
     try:
         post = frontmatter.loads(raw)
@@ -62,11 +84,16 @@ def _parse_path(path: Path) -> tuple[FrontmatterSchema, str]:
         fm = FrontmatterSchema.model_validate(meta)
     except Exception as exc:
         raise MarkdownError(f"invalid frontmatter in {path}: {exc}") from exc
-    return fm, body
+    tree = parse_body(body)
+    return fm, body, tree
 
 
-def read_article(path: Path) -> tuple[FrontmatterSchema, str]:
-    """Parse a curated markdown file into ``(frontmatter, body)``."""
+def read_article(path: Path) -> tuple[FrontmatterSchema, str, marko.block.Document]:
+    """Parse a curated markdown file into ``(frontmatter, raw_body, AST)``.
+
+    ``raw_body`` is the original string (for embedding, token counting).
+    ``tree`` is the parsed marko AST (for structural reads and mutations).
+    """
     return _parse_path(path)
 
 
@@ -78,7 +105,7 @@ def find_article_by_id(curated_dir: Path, article_id: str) -> Path | None:
     """
     for path in curated_dir.rglob("*.md"):
         try:
-            fm, _ = read_article(path)
+            fm, _, _ = read_article(path)
         except Exception:
             continue
         if fm.id == article_id:

@@ -152,7 +152,7 @@ def _process_article(
     today: datetime,
 ) -> tuple[bool, int, str | None]:
     """Run the agent on a single article. Returns ``(updated, n_added, error)``."""
-    fm, body = read_article(path)
+    fm, body, _ = read_article(path)
     contexts = fm.model_dump().get("contexts", {})
     context_str = str(contexts) if contexts else "none"
     deps = QaDeps(

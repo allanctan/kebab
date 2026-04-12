@@ -255,7 +255,7 @@ def _preserve_existing_fields(target_path: Path) -> dict[str, object]:
     if not target_path.exists():
         return {}
     try:
-        fm, _body = read_article(target_path)
+        fm, _body, _ = read_article(target_path)
     except Exception as exc:  # noqa: BLE001
         logger.warning(
             "generate: could not parse existing frontmatter at %s: %s", target_path, exc
@@ -312,7 +312,7 @@ def write_articles(
         target = _output_path(settings, gap)
         if target.exists():
             try:
-                _fm, _body = read_article(target)
+                _fm, _body, _ = read_article(target)
                 fm_extras = _fm.model_dump()
                 article_contexts = fm_extras.get("contexts", {})
                 from app.agents.generate.contexts import VERTICALS

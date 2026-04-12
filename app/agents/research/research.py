@@ -97,7 +97,7 @@ def run(
         logger.warning("research: article %r not found — skipping", article_id)
         return ResearchResult(article_id=article_id)
 
-    fm, body = read_article(path)
+    fm, body, _ = read_article(path)
 
     deps = PlannerDeps(
         settings=settings,

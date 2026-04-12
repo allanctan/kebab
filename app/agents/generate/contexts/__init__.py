@@ -166,7 +166,7 @@ def run(
     paths = article_paths if article_paths is not None else _iter_articles(Path(settings.CURATED_DIR))
     for path in paths:
         try:
-            fm, body = read_article(path)
+            fm, body, _ = read_article(path)
         except Exception as exc:  # noqa: BLE001
             skipped.append((path, str(exc)))
             continue

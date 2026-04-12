@@ -144,7 +144,7 @@ def run(
 
     for path in _iter_markdown(root):
         try:
-            fm, body = read_article(path)
+            fm, body, _ = read_article(path)
         except KebabError as exc:
             logger.warning("skip %s: %s", path, exc)
             skipped.append((path, str(exc)))

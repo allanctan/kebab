@@ -78,7 +78,7 @@ def run(
         logger.warning("research-gaps: article %r not found — skipping", article_id)
         return GapsResult(article_id=article_id)
 
-    fm, body = read_article(path)
+    fm, body, _ = read_article(path)
     all_gaps = extract_research_gaps(body)
     gaps = [g for g in all_gaps if not g.startswith("**Q:")]
     if not gaps:
