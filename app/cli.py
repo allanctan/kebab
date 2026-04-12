@@ -17,11 +17,11 @@ from app.core.llm.embeddings import embed
 from app.core.store import Store
 from app.agents.lint import agent as lint_agent
 from app.agents.qa import agent as qa_agent
-from app.pipeline import generate as generate_stage
-from app.pipeline import organize as organize_stage
-from app.pipeline import sync as sync_stage
-from app.pipeline.ingest import pdf as pdf_ingest
-from app.pipeline.ingest import web as web_ingest
+from app.agents import generate as generate_stage
+from app.agents import organize as organize_stage
+from app.agents import sync as sync_stage
+from app.agents.ingest import pdf as pdf_ingest
+from app.agents.ingest import web as web_ingest
 
 
 @click.group()
@@ -140,7 +140,7 @@ def organize(domain: str, force: bool) -> None:
 @click.option("--force", is_flag=True, default=False, help="Regenerate all articles, re-run contexts and summaries.")
 def generate(domain: str | None, force: bool) -> None:
     """Find gaps, generate articles, classify contexts, write summaries."""
-    from app.pipeline.organize import list_domains
+    from app.agents.organize import list_domains
 
     if domain:
         domains = [domain]

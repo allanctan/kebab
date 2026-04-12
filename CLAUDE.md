@@ -225,11 +225,11 @@ def lookup_source(ctx: RunContext[QaDeps], source_id: str) -> str:
 
 ## 17. Module layout
 
-- Every package has `__init__.py`. Public packages declare explicit `__all__` with re-exports. Private ones (`pipeline/`, `agents/*/`) can stay empty.
+- Every package has `__init__.py`. Public packages declare explicit `__all__` with re-exports.
 - Absolute imports only: `from app.models import Article`. Never `from .models import Article`.
-- One stage = one file in `app/pipeline/`, each exporting `def run(settings: Settings) -> None`.
-- One agent = one directory in `app/agents/` with `agent.py` and optional `prompts/`.
+- **Each agent is a directory** in `app/agents/<name>/` with a **main file named after the folder** (e.g. `organize/organize.py`, `generate/generate.py`) containing the primary `run()` function. Optional: `prompts/`, helper modules.
 - No circular imports. If you need one, you have a layering bug.
+- No `app/pipeline/` — all pipeline stages live under `app/agents/`.
 
 ### Package structure
 
@@ -246,14 +246,14 @@ app/
     store.py                # Qdrant wrapper
     confidence.py           # Confidence level computation
     llm/                    # All LLM resolution + tracing
-      resolve.py            # resolve_model() — $VAR expansion, factory dispatch
-      presets.py            # models.yaml alias loading, resolve_alias()
+      resolve.py            # resolve_model()
+      model_registry.py     # models.yaml alias loading
       trace.py              # JSONL span exporter for LLM call tracing
       tokens.py             # Token counting via tiktoken
       embeddings.py         # Embedding via google-genai
-      multimodal.py         # Image description via Gemini (SVG→PNG conversion)
     images/                 # Image processing
-      filters.py            # Deterministic figure pre-LLM filters (tiny/solid/repeated/ribbon)
+      image_describer.py    # Image description via Gemini (SVG→PNG conversion)
+      filter_images.py      # Deterministic figure pre-LLM filters
       figures.py            # Figure manifest, marker resolution, file copying
     sources/                # Source tracking + HTTP fetching
       adapter.py            # SourceAdapter protocol, Candidate, FetchedArtifact
@@ -261,31 +261,40 @@ app/
       provenance.py         # .meta.json sidecar I/O
       fetcher.py            # SharedFetcher (robots.txt, rate limit, allowlist)
   models/                   # Pydantic data models (no I/O)
-    article.py              # Article (17-field Qdrant payload)
-    confidence.py           # VerificationRecord, ConfidenceLevel
-    context.py              # ContextMapping (vertical-specific)
-    frontmatter.py          # FrontmatterSchema (curated article YAML)
-    source.py               # Source citation model
-  pipeline/                 # Sequential stages (ingest → organize → ... → sync)
+    article.py, confidence.py, context.py, frontmatter.py, source.py
+  agents/                   # All pipeline stages + autonomous agents
     ingest/
-      pdf.py, csv_json.py, web.py   # Legacy ingest functions
+      ingest.py             # (reserved for future unified entry point)
+      pdf.py                # PDF ingest with figure extraction
+      web.py                # Web ingest via Jina Reader
       inbox.py              # raw/inbox/ staging helpers
       registry.py           # AdapterRegistry
       adapters/             # SourceAdapter implementations
-        local_pdf.py, local_dataset.py, direct_url.py
+        local_pdf.py, direct_url.py
         tavily.py, wikipedia.py, openstax.py
-    organize.py             # Stage 1: hierarchy proposal
-    organize_agent.py       # Pydantic-ai organize agent
-    gaps.py                 # Stage 3: plan vs index diff
-    generate.py             # Stage 4: LLM article generation with figures
-    contexts.py             # Stage 5: vertical context classification
-    sync.py                 # Stage 7: embed + upsert to Qdrant
-    prompts/                # System prompts for pipeline agents
-  agents/                   # Autonomous LLM agents (run independently)
-    qa/                     # Q&A enrichment agent
-    lint/                   # Health check agent
-    research/               # Research agent (planner → executor → judge)
-  utils/                    # Non-domain helpers
+    organize/
+      organize.py           # Main: propose hierarchy from sources
+      agent.py              # Pydantic-ai organize agent
+      plan.py, manifest.py, merge.py, stubs.py, models.py
+    generate/
+      generate.py           # Main: contexts → gaps → write (with summary)
+      writer.py             # LLM article generation with figures
+      gaps.py               # Plan vs existing diff
+      contexts/             # Vertical-specific metadata classification
+        education.py, healthcare.py, legal.py, policy.py
+      prompts/
+    research/
+      agent.py              # Main: planner → executor → judge
+      planner.py, executor.py
+      prompts/
+    qa/
+      agent.py              # Main: Q&A enrichment + gap discovery
+      prompts/
+    lint/
+      agent.py              # Main: health checks (no LLM)
+    sync/
+      sync.py               # Main: embed + upsert to Qdrant
+  utils/
     pdf_extractor.py, git_ops.py, web_scraper.py
 ```
 

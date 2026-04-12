@@ -41,7 +41,7 @@ from app.core.markdown import (
     read_article,
     write_article,
 )
-from app.pipeline.ingest.inbox import stage_to_inbox
+from app.agents.ingest.inbox import stage_to_inbox
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ def _default_searcher(
     ``https://en.wikipedia.org/wiki/<locator>`` and also attempt a full
     fetch so the raw text lands in ``raw/inbox/`` for provenance.
     """
-    from app.pipeline.ingest.registry import build_default_registry
+    from app.agents.ingest.registry import build_default_registry
 
     registry = build_default_registry(settings)
     try:
@@ -228,7 +228,7 @@ def run(
     # ------------------------------------------------------------------
     # Step 1: Plan
     # ------------------------------------------------------------------
-    from app.pipeline.ingest.registry import build_default_registry
+    from app.agents.ingest.registry import build_default_registry
     registry = build_default_registry(settings)
     # Only include adapters useful for claim verification.
     # Exclude: openstax (book-level only), local_pdf/local_dataset/direct_url (not search engines).
@@ -272,9 +272,9 @@ def run(
     # Step 2: Execute queries and collect (claim, finding, title, url)
     # ------------------------------------------------------------------
     findings: list[FindingTuple] = []
-    confirms = 0
-    appends = 0
-    disputes = 0
+    confirmed_claims: set[int] = set()
+    appended_claims: set[int] = set()
+    disputed_claims: set[int] = set()
     finding_summaries: list[str] = []
 
     queries_run = 0
@@ -317,11 +317,11 @@ def run(
                 logger.info("research: %s", summary)
 
                 if result.outcome == "confirm":
-                    confirms += 1
+                    confirmed_claims.add(claim_idx)
                 elif result.outcome == "append":
-                    appends += 1
+                    appended_claims.add(claim_idx)
                 elif result.outcome == "dispute":
-                    disputes += 1
+                    disputed_claims.add(claim_idx)
 
     # ------------------------------------------------------------------
     # Step 3: Apply findings to the article body
@@ -337,7 +337,7 @@ def run(
     # ------------------------------------------------------------------
     from app.core.images.figures import FigureEntry
     from app.core.images.image_describer import describe_image
-    from app.pipeline.ingest.adapters.wikipedia import fetch_article_images
+    from app.agents.ingest.adapters.wikipedia import fetch_article_images
 
     # Prefilter keywords — loaded from file so the list can grow over time.
     _skip_file = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "image_skip_keywords.txt"
@@ -451,18 +451,19 @@ def run(
 
     write_article(path, fm, new_body)
     logger.info(
-        "research: wrote %r — confirms=%d appends=%d disputes=%d",
+        "research: wrote %r — confirms=%d/%d appends=%d disputes=%d",
         path.name,
-        confirms,
-        appends,
-        disputes,
+        len(confirmed_claims),
+        len(plan.claims),
+        len(appended_claims),
+        len(disputed_claims),
     )
 
     return ResearchResult(
         article_id=article_id,
         claims_total=len(plan.claims),
-        confirms=confirms,
-        appends=appends,
-        disputes=disputes,
+        confirms=len(confirmed_claims),
+        appends=len(appended_claims),
+        disputes=len(disputed_claims),
         findings=finding_summaries,
     )

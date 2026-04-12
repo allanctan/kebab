@@ -12,7 +12,7 @@ from qdrant_client import QdrantClient
 from app.cli import main as cli
 from app.config.config import Settings
 from app.core.store import EMBEDDING_DIM, Store
-from app.pipeline import sync as sync_stage
+from app.agents import sync as sync_stage
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "articles"
 

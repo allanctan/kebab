@@ -222,7 +222,7 @@ def apply_findings_to_article(
 
         elif finding.outcome == "append" and finding.new_sentence:
             ref = _get_footnote(source_title, source_url)
-            sentence = f"{finding.new_sentence}{ref}"
+            sentence = f"{finding.new_sentence}{ref} <!-- appended -->"
             appends.setdefault(claim.section, []).append(sentence)
 
         elif finding.outcome == "dispute" and finding.contradiction:
