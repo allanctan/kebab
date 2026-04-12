@@ -23,6 +23,6 @@ def auto_sync(settings: Settings, caller: str) -> None:
     """
     try:
         result = run(settings)
-        logger.info("%s: auto-synced %d article(s) to Qdrant", caller, result.articles)
+        logger.info("auto-sync: indexed %d article(s) to Qdrant", result.articles)
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s: auto-sync failed — run `kebab sync` manually: %s", caller, exc)
