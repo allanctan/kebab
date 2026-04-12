@@ -211,6 +211,19 @@ def apply_findings_to_article(
         for j, node in enumerate(nodes):
             children.insert(idx + j, node)
 
+    # Reorder tree to guarantee: content → ## Disputes → footnotes.
+    # Only reorder if we have new findings; otherwise leave the body untouched.
+    has_changes = bool(disputes or new_footnote_defs or appends)
+    children = _children(tree)
+
+    if has_changes:
+        # Pull existing FootnoteDef nodes out — we'll re-append them last.
+        existing_fdefs = [n for n in children if isinstance(n, FootnoteDef)]
+        for fdef in existing_fdefs:
+            children.remove(fdef)
+    else:
+        existing_fdefs = []
+
     # Add disputes — find or create ## Disputes section
     if disputes:
         existing_disputes = extract_section(tree, "Disputes")
@@ -221,20 +234,20 @@ def apply_findings_to_article(
         if fresh_disputes:
             disputes_md = "\n\n".join(fresh_disputes) + "\n"
             end_idx = _find_section_end(tree, "Disputes")
-            children = _children(tree)
             if end_idx is not None:
-                # Append to existing section
                 nodes = _parse_snippet(disputes_md)
                 for j, node in enumerate(nodes):
                     children.insert(end_idx + j, node)
             else:
-                # Create new section
                 section_md = "## Disputes\n\n" + disputes_md
                 nodes = _parse_snippet(section_md)
                 children.extend(nodes)
 
-    # Add new FootnoteDef nodes at the end of the tree
-    _children(tree).extend(new_footnote_defs)
+    # Re-append all footnotes (existing + new) at the very end
+    all_fdefs = existing_fdefs + new_footnote_defs
+    # Sort by footnote number for clean output
+    all_fdefs.sort(key=lambda n: n.number)
+    children.extend(all_fdefs)
 
     return render_body(tree)
 
