@@ -243,11 +243,23 @@ def apply_findings_to_article(
                 nodes = _parse_snippet(section_md)
                 children.extend(nodes)
 
-    # Re-append all footnotes (existing + new) at the very end
+    # Re-append all footnotes under a ## Sources heading at the very end.
     all_fdefs = existing_fdefs + new_footnote_defs
-    # Sort by footnote number for clean output
     all_fdefs.sort(key=lambda n: n.number)
-    children.extend(all_fdefs)
+    if all_fdefs:
+        # Remove any existing ## Sources heading (we'll re-add it)
+        sources_idx = None
+        for i, node in enumerate(children):
+            if isinstance(node, marko.block.Heading) and node.level == 2:
+                if _node_text(node).strip().lower() == "sources":
+                    sources_idx = i
+                    break
+        if sources_idx is not None:
+            children.pop(sources_idx)
+        # Add heading + footnotes
+        heading_nodes = _parse_snippet("## Sources\n")
+        children.extend(heading_nodes)
+        children.extend(all_fdefs)
 
     return render_body(tree)
 

@@ -189,7 +189,7 @@ def _append_footnotes(
 
     if not lines:
         return body
-    return body.rstrip() + "\n\n" + "\n".join(lines) + "\n"
+    return body.rstrip() + "\n\n## Sources\n\n" + "\n".join(lines) + "\n"
 
 
 def _load_sources(
