@@ -71,13 +71,14 @@ def _domain_from_path(path: Path, root: Path) -> tuple[str, str | None]:
 
 
 def _embed_text(fm: FrontmatterSchema, body: str) -> str:
-    """Build the text bundle that gets embedded for an article."""
-    description = (
-        getattr(fm, "description", None)
-        or body[:500]
-    )
-    keywords = getattr(fm, "keywords", None) or []
-    parts: list[str] = [fm.name, str(description), " ".join(keywords)]
+    """Build the text bundle that gets embedded (dense vector).
+
+    Uses name + description + summary. Keywords are excluded — they're
+    better suited for sparse/keyword search, not semantic embedding.
+    """
+    description = getattr(fm, "description", None) or body[:500]
+    summary = getattr(fm, "summary", None) or ""
+    parts: list[str] = [fm.name, str(description), str(summary)]
     return "\n\n".join(part for part in parts if part)
 
 
