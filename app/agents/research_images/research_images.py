@@ -89,9 +89,12 @@ def run(
         images = fetch_wikipedia_images(target.title, limit=3)
         for img in images[:2]:
             if is_decorative_by_keyword(img, skip_keywords):
-                logger.debug(
-                    "research-images: skipping image %r — prefilter match",
-                    img.get("title", ""),
+                log_event(
+                    path, stage="research-images", action="image_dropped",
+                    article_id=article_id,
+                    reason="keyword_prefilter",
+                    source_title=target.title,
+                    raw_description=img.get("description", ""),
                 )
                 continue
             local_path = download(img, dest=figures_dir)
@@ -110,9 +113,16 @@ def run(
     for c in candidates:
         desc = describe(settings, c)
         if desc == "DECORATIVE":
-            logger.debug("research-images: dropping decorative image %s", c.local_path)
             c.local_path.unlink(missing_ok=True)
             dropped += 1
+            log_event(
+                path, stage="research-images", action="image_dropped",
+                article_id=article_id,
+                reason="decorative",
+                source_title=c.source_title,
+                filename=c.local_path.name,
+                raw_description=c.raw_description,
+            )
             continue
         approved.append(
             ImageCandidate(
