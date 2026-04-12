@@ -363,7 +363,7 @@ def check(article_id: str) -> None:
     click.echo(f"description: {a.description}")
     click.echo(f"domain: {a.domain} / {a.subdomain}")
     click.echo(f"confidence: {a.confidence_level}")
-    click.echo(f"sources/keywords/faq: {len(a.keywords)} kw, {len(a.faq)} faq")
+    click.echo(f"keywords: {', '.join(a.keywords) if a.keywords else '(none)'}")
     if a.md_path:
         click.echo(f"markdown: {a.md_path}")
 

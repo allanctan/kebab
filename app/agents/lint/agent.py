@@ -93,7 +93,6 @@ def run(
     store = store or Store(settings)
     store.ensure_collection()
 
-    indexed_ids = {article.id for article in store.scroll()}
     issues: list[LintIssue] = []
     today_value = today()
     stale_cutoff = today_value - timedelta(days=_STALE_AFTER_DAYS)
@@ -121,16 +120,6 @@ def run(
                     detail=f"{token_count} > {settings.MAX_TOKENS_PER_ARTICLE}",
                 )
             )
-
-        for prereq in fm.prerequisites:
-            if prereq not in indexed_ids:
-                issues.append(
-                    LintIssue(
-                        article_id=fm.id,
-                        code="broken_prerequisite",
-                        detail=f"missing prerequisite: {prereq}",
-                    )
-                )
 
         # Check research freshness (replaces old verification staleness check).
         extras = fm.model_dump()
@@ -172,7 +161,7 @@ def run(
 
     # Index-derived checks (orphans, gate).
     for article in store.scroll():
-        if article.level_type == "article" and not article.parent_ids:
+        if not article.parent_ids:
             issues.append(
                 LintIssue(article_id=article.id, code="orphan", detail="no parent_ids")
             )

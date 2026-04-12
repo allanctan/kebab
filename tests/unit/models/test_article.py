@@ -6,7 +6,6 @@ def test_article_minimal() -> None:
         id="SCI-BIO-002",
         name="Photosynthesis",
         description="How plants convert light energy into chemical energy.",
-        level_type="article",
         depth=3,
         domain="Science",
         subdomain="Biology",
@@ -15,7 +14,6 @@ def test_article_minimal() -> None:
     assert a.id == "SCI-BIO-002"
     assert a.confidence_level == 3
     assert a.keywords == []
-    assert a.faq == []
 
 
 def test_article_contexts_accept_arbitrary_keys() -> None:
@@ -24,7 +22,6 @@ def test_article_contexts_accept_arbitrary_keys() -> None:
         id="SCI-BIO-002",
         name="Photosynthesis",
         description="…",
-        level_type="article",
         depth=3,
         domain="Science",
         confidence_level=3,

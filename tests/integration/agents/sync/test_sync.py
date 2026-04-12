@@ -58,17 +58,6 @@ def test_sync_indexes_articles(settings: Settings, store: Store) -> None:
 
 
 @pytest.mark.integration
-def test_sync_extracts_faq_into_payload(settings: Settings, store: Store) -> None:
-    sync_stage.run(settings, store=store, embed_fn=_stub_embed)
-    photo = next(a for a in store.scroll() if a.id == "SCI-BIO-001")
-    assert photo.faq == [
-        "What is photosynthesis?",
-        "Where does photosynthesis happen in a plant cell?",
-    ]
-    assert photo.confidence_level == 1  # 2 sources, no verifications yet → level 1
-
-
-@pytest.mark.integration
 def test_sync_is_idempotent(settings: Settings, store: Store) -> None:
     first = sync_stage.run(settings, store=store, embed_fn=_stub_embed)
     second = sync_stage.run(settings, store=store, embed_fn=_stub_embed)

@@ -8,7 +8,6 @@ def test_frontmatter_universal_fields() -> None:
         id="SCI-BIO-002",
         name="Photosynthesis",
         type="article",
-        prerequisites=["SCI-BIO-001"],
         sources=[Source(id=0, title="OpenStax Biology 2e, Ch. 8", tier=2)],
         verifications=[
             VerificationRecord(model="gpt-4o", passed=True, date=date(2026, 4, 1))

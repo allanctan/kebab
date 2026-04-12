@@ -23,12 +23,6 @@ class FrontmatterSchema(BaseModel):
     id: str = Field(..., description="Universal article ID.")
     name: str = Field(..., description="Article name.")
     type: str = Field(..., description="Level type, typically 'article'.")
-    prerequisites: list[str] = Field(
-        default_factory=list, description="Prerequisite article IDs."
-    )
-    related: list[str] = Field(
-        default_factory=list, description="Related article IDs."
-    )
     sources: list[Source] = Field(
         default_factory=list, description="Grounded source citations."
     )

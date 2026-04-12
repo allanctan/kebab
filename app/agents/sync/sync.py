@@ -30,10 +30,10 @@ from app.config.config import Settings
 from app.core.confidence import compute_confidence
 from app.core.llm.embeddings import embed_batch
 from app.core.errors import KebabError, SyncError
-from app.core.markdown import extract_faq, read_article
+from app.core.markdown import read_article
 from app.core.store import Store
 from app.core.llm.tokens import count_tokens
-from app.models.article import Article, LevelType
+from app.models.article import Article
 from app.models.context import ContextMapping
 from app.models.frontmatter import FrontmatterSchema
 
@@ -70,7 +70,7 @@ def _domain_from_path(path: Path, root: Path) -> tuple[str, str | None]:
     return domain, subdomain
 
 
-def _embed_text(fm: FrontmatterSchema, body: str, faq: list[str]) -> str:
+def _embed_text(fm: FrontmatterSchema, body: str) -> str:
     """Build the text bundle that gets embedded for an article."""
     description = (
         getattr(fm, "description", None)
@@ -78,7 +78,6 @@ def _embed_text(fm: FrontmatterSchema, body: str, faq: list[str]) -> str:
     )
     keywords = getattr(fm, "keywords", None) or []
     parts: list[str] = [fm.name, str(description), " ".join(keywords)]
-    parts.extend(faq)
     return "\n\n".join(part for part in parts if part)
 
 
@@ -92,7 +91,6 @@ def _build_article(
     subdomain: str | None,
 ) -> Article:
     """Project frontmatter + body into the universal :class:`Article` payload."""
-    faq = extract_faq(tree)
     extras = fm.model_dump()
     description = extras.get("description") or body.strip().splitlines()[0:1]
     description_text = (
@@ -101,10 +99,6 @@ def _build_article(
     )
     keywords = extras.get("keywords") or []
     contexts_raw = extras.get("contexts") or {}
-    level_type_raw = (extras.get("level_type") or fm.type or "article").lower()
-    if level_type_raw not in {"domain", "subdomain", "topic", "article"}:
-        level_type_raw = "article"
-    level_type: LevelType = level_type_raw  # type: ignore[assignment]
     parent_ids = extras.get("parent_ids") or []
     depth = extras.get("depth")
     if depth is None:
@@ -114,15 +108,10 @@ def _build_article(
         name=fm.name,
         description=str(description_text),
         keywords=list(keywords),
-        faq=faq,
-        level_type=level_type,
         parent_ids=list(parent_ids),
         depth=int(depth),
-        position=int(extras.get("position", 0)),
         domain=domain,
         subdomain=subdomain,
-        prerequisites=list(fm.prerequisites),
-        related=list(fm.related),
         md_path=str(path),
         confidence_level=compute_confidence(fm),
         contexts=ContextMapping.model_validate(contexts_raw),
@@ -161,7 +150,7 @@ def run(
         domain, subdomain = _domain_from_path(path, root)
         article = _build_article(fm, body, tree, path=path, domain=domain, subdomain=subdomain)
         articles.append(article)
-        embed_texts.append(_embed_text(fm, body, article.faq))
+        embed_texts.append(_embed_text(fm, body))
         touched_domains.add(domain)
 
     if not articles:

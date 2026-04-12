@@ -39,7 +39,6 @@ def settings(tmp_path: Path) -> Settings:
         "id: SCI-BIO-002\nname: y\ntype: article\n"
         "sources:\n  - id: 0\n    title: t\n    tier: 2\n"
         "verifications:\n  - model: m\n    passed: true\n    date: 2024-01-01\n"
-        "prerequisites:\n  - SCI-BIO-MISSING\n"
         "---\n\nbody",
         encoding="utf-8",
     )
@@ -65,15 +64,10 @@ def store(settings: Settings) -> Store:
                     name="x",
                     description="d",
                     keywords=[],
-                    faq=[],
-                    level_type="article",
                     parent_ids=[],  # orphan
                     depth=2,
-                    position=0,
                     domain="Science",
                     subdomain="Biology",
-                    prerequisites=[],
-                    related=[],
                     md_path=None,
                     confidence_level=0,  # below gate
                 ),
@@ -85,15 +79,10 @@ def store(settings: Settings) -> Store:
                     name="y",
                     description="d",
                     keywords=[],
-                    faq=[],
-                    level_type="article",
                     parent_ids=["SCI-BIO"],  # has parent
                     depth=2,
-                    position=0,
                     domain="Science",
                     subdomain="Biology",
-                    prerequisites=["SCI-BIO-MISSING"],
-                    related=[],
                     md_path=None,
                     confidence_level=3,  # at gate
                 ),
@@ -109,13 +98,6 @@ def test_lint_finds_missing_sources(settings: Settings, store: Store) -> None:
     result = lint_agent.run(settings, store=store, today=_today)
     codes = {issue.code for issue in result.report.issues}
     assert "missing_sources" in codes
-
-
-@pytest.mark.integration
-def test_lint_finds_broken_prerequisite(settings: Settings, store: Store) -> None:
-    result = lint_agent.run(settings, store=store, today=_today)
-    codes = {issue.code for issue in result.report.issues}
-    assert "broken_prerequisite" in codes
 
 
 @pytest.mark.integration

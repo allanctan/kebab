@@ -8,7 +8,7 @@ that file is the *tour*.
 
 ## 1. Invariants (never break these)
 
-- **17-field universal index.** The Qdrant payload schema in `app/models/article.py` is the same for every vertical. No vertical ever adds fields to the index.
+- **12-field universal index.** The Qdrant payload schema in `app/models/article.py` is the same for every vertical. No vertical ever adds fields to the index.
 - **Markdown is the source of truth.** The Qdrant index is derived during `kebab sync` and can always be rebuilt from markdown.
 - **Vertical-agnostic core.** KEBAB never reads vertical-specific frontmatter fields (`bloom_ceiling`, `evidence_grade`, `policy_version`). They pass through via `model_config = ConfigDict(extra="allow")`.
 - **No source, no save.** Content without a traceable source is discarded at ingest, generate, and Q&A stages. Never invent content.

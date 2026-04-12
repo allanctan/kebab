@@ -1,21 +1,18 @@
-"""Article model — the 17-field universal Qdrant payload.
+"""Article model — the 12-field universal Qdrant payload.
 
 This schema is the same for every vertical and never changes per domain.
-See spec §4 (kebab-knowledge-base-architecture.html).
 """
 
-from typing import Literal
+from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.confidence import ConfidenceLevel
 from app.models.context import ContextMapping
 
-LevelType = Literal["domain", "subdomain", "topic", "article"]
-
 
 class Article(BaseModel):
-    """Universal Qdrant payload. 17 fields, no vertical extensions."""
+    """Universal Qdrant payload. 12 fields, no vertical extensions."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -25,24 +22,12 @@ class Article(BaseModel):
     keywords: list[str] = Field(
         default_factory=list, description="Key topics; enriches the embedding."
     )
-    faq: list[str] = Field(
-        default_factory=list,
-        description="Questions extracted from the markdown ## Q&A section.",
-    )
-    level_type: LevelType = Field(..., description="Hierarchy level.")
     parent_ids: list[str] = Field(
         default_factory=list, description="Parent node IDs (DAG)."
     )
     depth: int = Field(..., description="Hierarchy depth from root.")
-    position: int = Field(default=0, description="Sibling ordering.")
     domain: str = Field(..., description="Top-level domain name.")
     subdomain: str | None = Field(default=None, description="Second-level domain name.")
-    prerequisites: list[str] = Field(
-        default_factory=list, description="Prerequisite article IDs."
-    )
-    related: list[str] = Field(
-        default_factory=list, description="Related article IDs."
-    )
     md_path: str | None = Field(
         default=None, description="Pointer to the .md file on disk."
     )
@@ -53,4 +38,4 @@ class Article(BaseModel):
         default_factory=ContextMapping,
         description="Nested vertical-specific context for filtering.",
     )
-    # The 17th field — embedding — is stored as the Qdrant vector, not in the payload.
+    # The 12th field — embedding — is stored as the Qdrant vector, not in the payload.
