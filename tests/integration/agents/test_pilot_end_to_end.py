@@ -119,7 +119,7 @@ def _stub_research_searcher(_adapter, _query, _settings):
 
 
 def _stub_research_classifier(_settings, _claim, _source_title, _source_content):
-    from app.agents.research.executor import FindingResult
+    from app.agents.research.verifier import FindingResult
     return FindingResult(outcome="confirm", reasoning="confirmed", evidence_quote="Test confirms.")
 
 
@@ -145,7 +145,7 @@ def _stub_embed(texts: list[str], _settings: Settings) -> list[list[float]]:
 
 
 @pytest.mark.integration
-def test_pilot_end_to_end(tmp_path: Path) -> None:
+def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     knowledge = tmp_path / "knowledge"
     raw_docs = knowledge / "raw" / "documents"
     raw_docs.mkdir(parents=True)
@@ -193,17 +193,30 @@ def test_pilot_end_to_end(tmp_path: Path) -> None:
     contexts_stage.run(settings, proposer=_stub_contexts_proposer)
 
     # Stage 6 — research agent confirms claims via external sources → confidence ≥ 3.
-    from app.agents.research.agent import run as research_run
+    # The new orchestrator has no callable swap-points; stub the per-step
+    # functions via monkeypatch instead.
+    from app.agents.research import research as research_stage
+    from app.core.research import searcher as searcher_module
+
     article_paths = list(settings.CURATED_DIR.rglob("*.md"))
     assert len(article_paths) == 1
     fm_pre, _ = read_article(article_paths[0])
-    research_run(
-        settings,
-        article_id=fm_pre.id,
-        planner=_stub_research_planner,
-        searcher=_stub_research_searcher,
-        classifier=_stub_research_classifier,
+
+    monkeypatch.setattr(research_stage, "plan_research", _stub_research_planner)
+    monkeypatch.setattr(
+        research_stage,
+        "search",
+        lambda _s, _a, _q, **_kw: [
+            searcher_module.SourceContent(
+                title="Wikipedia: Test",
+                url="https://en.wikipedia.org/wiki/Test",
+                content="Test confirms the claim.",
+            )
+        ],
     )
+    monkeypatch.setattr(research_stage, "classify_finding", _stub_research_classifier)
+
+    research_stage.run(settings, article_id=fm_pre.id)
 
     # Confirm the markdown frontmatter reflects research metadata.
     fm, body = read_article(article_paths[0])

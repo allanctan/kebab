@@ -194,11 +194,10 @@ def agent_qa(once: bool, watch: bool) -> None:
 @agent.command("research")
 @click.argument("article_id", required=False)
 @click.option("--all", "research_all", is_flag=True, help="Research all articles.")
-@click.option("--mode", type=click.Choice(["all", "content", "gaps"]), default="all", show_default=True, help="Research mode: all, content-only, or gaps-only.")
 @click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
-def agent_research(article_id: str | None, research_all: bool, mode: str, budget: int) -> None:
-    """Enrich and verify an article against external sources."""
-    from app.agents.research import agent as research_agent
+def agent_research(article_id: str | None, research_all: bool, budget: int) -> None:
+    """Verify an article's claims against external sources."""
+    from app.agents.research import research as research_agent
     from app.core.markdown import read_article as _read_article
 
     if research_all:
@@ -210,17 +209,78 @@ def agent_research(article_id: str | None, research_all: bool, mode: str, budget
                 fm, _ = _read_article(md)
             except Exception:  # noqa: BLE001
                 continue
-            result = research_agent.run(env, article_id=fm.id, mode=mode, budget=budget)
+            result = research_agent.run(env, article_id=fm.id, budget=budget)
             click.echo(
                 f"  {fm.id}: {result.confirms} confirmed, "
                 f"{result.appends} appended, {result.disputes} disputed"
             )
     elif article_id:
-        result = research_agent.run(env, article_id=article_id, mode=mode, budget=budget)
+        result = research_agent.run(env, article_id=article_id, budget=budget)
         click.echo(
             f"research {article_id}: {result.claims_total} claims, "
             f"{result.confirms} confirmed, {result.appends} appended, "
             f"{result.disputes} disputed"
+        )
+    else:
+        raise click.ClickException("provide an article ID or use --all")
+
+
+@agent.command("research-gaps")
+@click.argument("article_id", required=False)
+@click.option("--all", "gaps_all", is_flag=True, help="Run on all articles.")
+@click.option("--budget", type=int, default=5, show_default=True, help="Max queries per article.")
+def agent_research_gaps(article_id: str | None, gaps_all: bool, budget: int) -> None:
+    """Answer unanswered questions in the Research Gaps section of an article."""
+    from app.agents.research_gaps import research_gaps as gaps_agent
+    from app.core.markdown import read_article as _read_article
+
+    if gaps_all:
+        curated = Path(env.CURATED_DIR)
+        if not curated.exists():
+            raise click.ClickException("no curated articles found")
+        for md in sorted(curated.rglob("*.md")):
+            try:
+                fm, _ = _read_article(md)
+            except Exception:  # noqa: BLE001
+                continue
+            result = gaps_agent.run(env, article_id=fm.id, budget=budget)
+            click.echo(f"  {fm.id}: {result.answered}/{result.gaps_total} gaps answered")
+    elif article_id:
+        result = gaps_agent.run(env, article_id=article_id, budget=budget)
+        click.echo(
+            f"research-gaps {article_id}: {result.answered}/{result.gaps_total} gaps answered"
+        )
+    else:
+        raise click.ClickException("provide an article ID or use --all")
+
+
+@agent.command("research-images")
+@click.argument("article_id", required=False)
+@click.option("--all", "images_all", is_flag=True, help="Run on all articles.")
+def agent_research_images(article_id: str | None, images_all: bool) -> None:
+    """Enrich an article with figures from its existing Wikipedia footnotes."""
+    from app.agents.research_images import research_images as images_agent
+    from app.core.markdown import read_article as _read_article
+
+    if images_all:
+        curated = Path(env.CURATED_DIR)
+        if not curated.exists():
+            raise click.ClickException("no curated articles found")
+        for md in sorted(curated.rglob("*.md")):
+            try:
+                fm, _ = _read_article(md)
+            except Exception:  # noqa: BLE001
+                continue
+            result = images_agent.run(env, article_id=fm.id)
+            click.echo(
+                f"  {fm.id}: {result.images_added} added, "
+                f"{result.decoratives_dropped} dropped, {result.targets_found} targets"
+            )
+    elif article_id:
+        result = images_agent.run(env, article_id=article_id)
+        click.echo(
+            f"research-images {article_id}: {result.images_added} added, "
+            f"{result.decoratives_dropped} dropped, {result.targets_found} targets"
         )
     else:
         raise click.ClickException("provide an article ID or use --all")

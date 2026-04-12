@@ -53,14 +53,18 @@ class ResearchPlan(BaseModel):
 
 @dataclass
 class PlannerDeps:
-    """Runtime context for the planner agent."""
+    """Runtime context for the planner agent.
+
+    The ``research_gaps`` field was removed in the 2026-04-12 research
+    restructure: gap-answering moved to :mod:`app.agents.research_gaps`,
+    so the claim-verification planner no longer needs to know about gaps.
+    """
 
     settings: Settings
     article_name: str
     article_body: str
     available_adapters: list[str]
     budget_hint: int
-    research_gaps: list[str]
 
 
 def _build_planner_agent(settings: Settings) -> Agent[PlannerDeps, ResearchPlan]:
@@ -85,9 +89,7 @@ def plan_research(
         f"article_name: {deps.article_name}",
         f"available_adapters: {deps.available_adapters}",
         f"budget_hint: {deps.budget_hint}",
+        f"\narticle_body:\n{deps.article_body}",
     ]
-    if deps.research_gaps:
-        parts.append("research_gaps:\n" + "\n".join(f"- {g}" for g in deps.research_gaps))
-    parts.append(f"\narticle_body:\n{deps.article_body}")
     user = "\n".join(parts)
     return agent.run_sync(user, deps=deps).output

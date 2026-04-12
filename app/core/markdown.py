@@ -70,6 +70,22 @@ def read_article(path: Path) -> tuple[FrontmatterSchema, str]:
     return _parse_path(path)
 
 
+def find_article_by_id(curated_dir: Path, article_id: str) -> Path | None:
+    """Scan ``curated_dir`` recursively for the article with the given ID.
+
+    Returns ``None`` if no curated markdown file has frontmatter ``id``
+    matching ``article_id``. Files that fail to parse are skipped.
+    """
+    for path in curated_dir.rglob("*.md"):
+        try:
+            fm, _ = read_article(path)
+        except Exception:
+            continue
+        if fm.id == article_id:
+            return path
+    return None
+
+
 def write_article(path: Path, fm: FrontmatterSchema, body: str) -> None:
     """Serialize frontmatter + body back to disk preserving extra keys."""
     post = frontmatter.Post(content=body)

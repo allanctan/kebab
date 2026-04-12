@@ -1,14 +1,19 @@
-"""Tests for the research executor."""
+"""Tests for the research writer + verifier model classes.
+
+Originally ``test_research_executor.py``. Renamed when ``executor.py`` was
+split into ``verifier.py`` (LLM agents) and ``writer.py`` (markdown surgery)
+in the 2026-04-12 research restructure.
+"""
 
 from __future__ import annotations
 
-from app.agents.research.executor import (
+from app.agents.research.planner import ClaimEntry
+from app.agents.research.verifier import (
     DisputeJudgment,
     FindingResult,
     FindingTuple,
-    apply_findings_to_article,
 )
-from app.agents.research.planner import ClaimEntry
+from app.agents.research.writer import apply_findings_to_article
 
 
 class TestFindingResult:

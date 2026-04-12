@@ -57,7 +57,6 @@ class TestResearchPlanModels:
             article_body="body",
             available_adapters=["wikipedia"],
             budget_hint=5,
-            research_gaps=[],
         )
         assert deps.article_name == "Test"
         assert deps.budget_hint == 5
