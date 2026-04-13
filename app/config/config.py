@@ -172,6 +172,10 @@ class Settings(BaseSettings):
         default="gemini-flash",
         description="Model for describing PDF figures (ingest stage).",
     )
+    EDITORIAL_MODEL: str = Field(
+        default="gemini-pro",
+        description="Model for editorial chief editor (editorial agent).",
+    )
 
     LLM_VERIFICATION_MODELS: list[str] = Field(
         default_factory=lambda: ["$GEMINI_MODEL", "$FAST_MODEL"],
