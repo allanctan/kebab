@@ -15,54 +15,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-import yaml
 from pydantic import BaseModel, Field, create_model
 from pydantic_ai import Agent
 
 from app.config.config import Settings
 from app.core.llm.resolve import resolve_model
 from app.core.markdown import read_article, write_article
+from app.core.verticals import VerticalConfig, load_verticals as _load_verticals
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# YAML-based vertical loading
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class VerticalConfig:
-    """Loaded from .kebab/<vertical>.yaml."""
-
-    key: str
-    description: str
-    generate_instruction: str
-    authoritative_sources: list[str]
-    classification_fields: dict[str, Any]
-
-
-def _load_verticals(settings: Settings) -> dict[str, VerticalConfig]:
-    """Load all .kebab/<name>.yaml files as vertical configs."""
-    kebab_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab"
-    verticals: dict[str, VerticalConfig] = {}
-    if not kebab_dir.exists():
-        return verticals
-    for yaml_path in sorted(kebab_dir.glob("*.yaml")):
-        key = yaml_path.stem
-        try:
-            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("contexts: failed to load %s: %s", yaml_path, exc)
-            continue
-        verticals[key] = VerticalConfig(
-            key=key,
-            description=data.get("description", ""),
-            generate_instruction=data.get("generate_instruction", ""),
-            authoritative_sources=data.get("authoritative_sources", []),
-            classification_fields=data.get("classification_fields", {}),
-        )
-    return verticals
 
 
 def _build_pydantic_model(vertical: VerticalConfig) -> type[BaseModel]:
