@@ -86,6 +86,49 @@ class TestTavilyDiscover:
 
         mock_client.search.assert_called_once_with("plate tectonics", max_results=5)
 
+    def test_tavily_discover_passes_include_domains(
+        self, tmp_path: Path, mocker: pytest.FixtureRequest
+    ) -> None:
+        settings = _settings(tmp_path)
+        adapter = TavilyAdapter(settings=settings)
+
+        mock_client = MagicMock()
+        mock_client.search.return_value = _fake_tavily_response(2)
+        mocker.patch(
+            "app.agents.ingest.adapters.tavily.TavilyClient",
+            return_value=mock_client,
+        )
+
+        adapter.discover(
+            "plate tectonics",
+            limit=3,
+            include_domains=["britannica.com", "usgs.gov"],
+        )
+
+        mock_client.search.assert_called_once_with(
+            "plate tectonics",
+            max_results=3,
+            include_domains=["britannica.com", "usgs.gov"],
+        )
+
+    def test_tavily_discover_omits_include_domains_when_none(
+        self, tmp_path: Path, mocker: pytest.FixtureRequest
+    ) -> None:
+        settings = _settings(tmp_path)
+        adapter = TavilyAdapter(settings=settings)
+
+        mock_client = MagicMock()
+        mock_client.search.return_value = _fake_tavily_response(1)
+        mocker.patch(
+            "app.agents.ingest.adapters.tavily.TavilyClient",
+            return_value=mock_client,
+        )
+
+        adapter.discover("plate tectonics", limit=3)
+
+        # Should NOT pass include_domains when it's None
+        mock_client.search.assert_called_once_with("plate tectonics", max_results=3)
+
     def test_tavily_discover_skips_results_without_url(
         self, tmp_path: Path, mocker: pytest.FixtureRequest
     ) -> None:
