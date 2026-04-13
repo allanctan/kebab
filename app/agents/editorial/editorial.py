@@ -76,10 +76,11 @@ def _run_qa(settings: Settings, article_id: str) -> qa_module.QaRunResult:
 def _run_research_gaps(settings: Settings, article_id: str) -> gaps_module.GapsResult:
     """Run the research-gaps agent for a single article.
 
-    Uses a higher budget (20) than the CLI default (5) because the
-    editorial loop needs to answer gaps faster than qa discovers them.
+    Uses budget=50 to exhaust all unanswered gaps. The CLI default (5)
+    is too low for the editorial loop where qa front-loads all gaps in
+    cycle 1 and research-gaps must work through them across cycles.
     """
-    return gaps_module.run(settings, article_id=article_id, budget=20)
+    return gaps_module.run(settings, article_id=article_id, budget=50)
 
 
 def _run_research(settings: Settings, article_id: str) -> research_module.ResearchResult:
@@ -261,10 +262,12 @@ def run(
             )
 
         # --- sub-agents (skip if already completed in a resumed cycle) ---
-        if "qa" not in already_done:
+        # qa only runs in cycle 1 — subsequent cycles focus on answering
+        # and verifying, not discovering more gaps.
+        if cycle == 1 and "qa" not in already_done:
             qa_result = _run_qa(settings, article_id)
             result.gaps_answered += qa_result.gaps_added
-        else:
+        elif cycle == 1:
             logger.info("editorial: [%s] skipping qa (already ran)", article_id)
 
         if "research-gaps" not in already_done:
