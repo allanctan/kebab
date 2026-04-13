@@ -161,6 +161,44 @@ def _write_final_frontmatter(
 
 
 # ---------------------------------------------------------------------------
+# Mid-cycle resumption
+# ---------------------------------------------------------------------------
+
+
+def _completed_stages_in_current_cycle(article_path: object) -> set[str]:
+    """Check the audit log for stages completed after the last cycle_start.
+
+    If the last editorial event is a ``cycle_start`` followed by sub-agent
+    events, those sub-agents already ran successfully. Returns the set of
+    stage names (e.g. ``{"qa", "research-gaps"}``) that can be skipped.
+    """
+    from pathlib import Path as _Path
+
+    entries = read_log(_Path(str(article_path)))
+    if not entries:
+        return set()
+
+    # Walk backwards to find the last editorial cycle_start
+    last_cycle_idx = -1
+    for i in range(len(entries) - 1, -1, -1):
+        if entries[i].get("stage") == "editorial" and entries[i].get("action") == "cycle_start":
+            last_cycle_idx = i
+            break
+
+    if last_cycle_idx < 0:
+        return set()
+
+    # Check if this cycle already completed (has a verdict)
+    events_after = entries[last_cycle_idx + 1 :]
+    for e in events_after:
+        if e.get("stage") == "editorial" and e.get("action") == "verdict":
+            return set()  # Cycle finished — no resumption needed
+
+    # Collect stages that logged events after cycle_start
+    return {e["stage"] for e in events_after if "stage" in e}
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -192,31 +230,54 @@ def run(
     result = EditorialResult(article_id=article_id)
     decision: Literal["accept", "max_cycles_reached"] = "max_cycles_reached"
 
-    for cycle in range(1, max_cycles + 1):
+    # Check for a partially-completed cycle from a previous run
+    already_done = _completed_stages_in_current_cycle(article_path)
+    resuming = bool(already_done)
+    if resuming:
         logger.info(
-            "editorial: [%s] cycle %d/%d — starting qa → research-gaps → research",
+            "editorial: [%s] resuming — stages already done: %s",
             article_id,
-            cycle,
-            max_cycles,
-        )
-        log_event(
-            article_path,
-            stage="editorial",
-            action="cycle_start",
-            article_id=article_id,
-            detail=f"cycle {cycle}/{max_cycles}",
+            ", ".join(sorted(already_done)),
         )
 
-        # --- sub-agents ---
-        qa_result = _run_qa(settings, article_id)
-        result.gaps_answered += qa_result.gaps_added
+    for cycle in range(1, max_cycles + 1):
+        if not resuming:
+            logger.info(
+                "editorial: [%s] cycle %d/%d — starting qa → research-gaps → research",
+                article_id,
+                cycle,
+                max_cycles,
+            )
+            log_event(
+                article_path,
+                stage="editorial",
+                action="cycle_start",
+                article_id=article_id,
+                detail=f"cycle {cycle}/{max_cycles}",
+            )
 
-        gaps_result = _run_research_gaps(settings, article_id)
-        result.gaps_answered += gaps_result.answered
+        # --- sub-agents (skip if already completed in a resumed cycle) ---
+        if "qa" not in already_done:
+            qa_result = _run_qa(settings, article_id)
+            result.gaps_answered += qa_result.gaps_added
+        else:
+            logger.info("editorial: [%s] skipping qa (already ran)", article_id)
 
-        research_result = _run_research(settings, article_id)
-        result.claims_total = research_result.claims_total
-        result.claims_confirmed += research_result.confirms
+        if "research-gaps" not in already_done:
+            gaps_result = _run_research_gaps(settings, article_id)
+            result.gaps_answered += gaps_result.answered
+        else:
+            logger.info("editorial: [%s] skipping research-gaps (already ran)", article_id)
+
+        if "research" not in already_done:
+            research_result = _run_research(settings, article_id)
+            result.claims_total = research_result.claims_total
+            result.claims_confirmed += research_result.confirms
+        else:
+            logger.info("editorial: [%s] skipping research (already ran)", article_id)
+
+        # Clear resumption state — subsequent cycles run from scratch
+        already_done = set()
 
         # --- re-read article after sub-agents may have modified it ---
         body, fm_dict, disputes_section, gaps_section, audit_entries = _load_article_state(

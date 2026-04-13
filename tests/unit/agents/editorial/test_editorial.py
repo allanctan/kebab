@@ -11,7 +11,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.agents.editorial.chief_editor import ClaimRewrite, UnresolvableDispute, Verdict
-from app.agents.editorial.editorial import EditorialResult, run
+from app.agents.editorial.editorial import (
+    EditorialResult,
+    _completed_stages_in_current_cycle,
+    run,
+)
 
 
 def _make_verdict(
@@ -49,6 +53,11 @@ def _patch_common(mocker, *, article_path: Path = Path("/fake/art.md")) -> None:
     mocker.patch(
         "app.agents.editorial.editorial.log_event",
         return_value=None,
+    )
+    # Default: no resumption (clean start)
+    mocker.patch(
+        "app.agents.editorial.editorial._completed_stages_in_current_cycle",
+        return_value=set(),
     )
 
 
@@ -235,3 +244,84 @@ class TestEditorialOrchestrator:
         mock_annotate.assert_called_once()
         mock_apply.assert_not_called()
         mock_write.assert_called_once()
+
+    def test_resumes_mid_cycle_skipping_completed_stages(self, mocker, mock_env) -> None:
+        """When qa and research-gaps already ran, only research + chief editor execute."""
+        _patch_common(mocker)
+        # Override: qa and research-gaps already completed
+        mocker.patch(
+            "app.agents.editorial.editorial._completed_stages_in_current_cycle",
+            return_value={"qa", "research-gaps"},
+        )
+        mock_qa = mocker.patch(
+            "app.agents.editorial.editorial._run_qa",
+            return_value=MagicMock(gaps_added=0),
+        )
+        mock_gaps = mocker.patch(
+            "app.agents.editorial.editorial._run_research_gaps",
+            return_value=MagicMock(answered=0, gaps_total=0),
+        )
+        mock_research = mocker.patch(
+            "app.agents.editorial.editorial._run_research",
+            return_value=MagicMock(claims_total=5, confirms=4, disputes=0),
+        )
+        mocker.patch(
+            "app.agents.editorial.editorial._run_chief_editor",
+            return_value=_make_verdict("accept"),
+        )
+
+        result = run(mock_env, article_id="ART-006", max_cycles=3)
+
+        mock_qa.assert_not_called()
+        mock_gaps.assert_not_called()
+        mock_research.assert_called_once()
+        assert result.decision == "accept"
+
+
+@pytest.mark.unit
+class TestCompletedStagesInCurrentCycle:
+    def test_returns_empty_when_no_log(self, mocker) -> None:
+        mocker.patch(
+            "app.agents.editorial.editorial.read_log",
+            return_value=[],
+        )
+        assert _completed_stages_in_current_cycle(Path("/fake/art.md")) == set()
+
+    def test_returns_stages_after_last_cycle_start(self, mocker) -> None:
+        entries = [
+            {"stage": "editorial", "action": "cycle_start"},
+            {"stage": "qa", "action": "gap_discovered"},
+            {"stage": "research-gaps", "action": "gap_answered"},
+        ]
+        mocker.patch(
+            "app.agents.editorial.editorial.read_log",
+            return_value=entries,
+        )
+        assert _completed_stages_in_current_cycle(Path("/fake/art.md")) == {
+            "qa",
+            "research-gaps",
+        }
+
+    def test_returns_empty_when_cycle_has_verdict(self, mocker) -> None:
+        """A completed cycle (has verdict) means no resumption needed."""
+        entries = [
+            {"stage": "editorial", "action": "cycle_start"},
+            {"stage": "qa", "action": "gap_discovered"},
+            {"stage": "research", "action": "confirm"},
+            {"stage": "editorial", "action": "verdict"},
+        ]
+        mocker.patch(
+            "app.agents.editorial.editorial.read_log",
+            return_value=entries,
+        )
+        assert _completed_stages_in_current_cycle(Path("/fake/art.md")) == set()
+
+    def test_returns_empty_when_no_cycle_start(self, mocker) -> None:
+        entries = [
+            {"stage": "qa", "action": "gap_discovered"},
+        ]
+        mocker.patch(
+            "app.agents.editorial.editorial.read_log",
+            return_value=entries,
+        )
+        assert _completed_stages_in_current_cycle(Path("/fake/art.md")) == set()
