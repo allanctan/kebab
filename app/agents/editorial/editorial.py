@@ -73,14 +73,9 @@ def _run_qa(settings: Settings, article_id: str) -> qa_module.QaRunResult:
     return qa_module.run(settings, article_id=article_id, once=True)
 
 
-def _run_research_gaps(settings: Settings, article_id: str) -> gaps_module.GapsResult:
-    """Run the research-gaps agent for a single article.
-
-    Uses budget=50 to exhaust all unanswered gaps. The CLI default (5)
-    is too low for the editorial loop where qa front-loads all gaps in
-    cycle 1 and research-gaps must work through them across cycles.
-    """
-    return gaps_module.run(settings, article_id=article_id, budget=50)
+def _run_research_gaps(settings: Settings, article_id: str, *, budget: int = 30) -> gaps_module.GapsResult:
+    """Run the research-gaps agent for a single article."""
+    return gaps_module.run(settings, article_id=article_id, budget=budget)
 
 
 def _run_research(settings: Settings, article_id: str) -> research_module.ResearchResult:
@@ -213,16 +208,19 @@ def run(
     *,
     article_id: str,
     max_cycles: int = 3,
+    budget: int = 30,
 ) -> EditorialResult:
     """Run the editorial enrich loop for one article.
 
     Cycles: qa → research-gaps → research → chief editor, until the
-    chief editor accepts or ``max_cycles`` is exhausted.
+    chief editor accepts, ``max_cycles`` is exhausted, or ``budget``
+    search queries have been used by research-gaps.
 
     Args:
         settings:   KEBAB runtime configuration.
         article_id: ID of the article to enrich.
         max_cycles: Maximum number of enrichment cycles before giving up.
+        budget:     Total search queries for research-gaps across all cycles.
 
     Returns:
         :class:`EditorialResult` summarising the run.
@@ -234,6 +232,7 @@ def run(
 
     result = EditorialResult(article_id=article_id)
     decision: Literal["accept", "max_cycles_reached"] = "max_cycles_reached"
+    budget_remaining = budget
 
     # Check for a partially-completed cycle from a previous run
     already_done = _completed_stages_in_current_cycle(article_path)
@@ -270,11 +269,17 @@ def run(
         elif cycle == 1:
             logger.info("editorial: [%s] skipping qa (already ran)", article_id)
 
-        if "research-gaps" not in already_done:
-            gaps_result = _run_research_gaps(settings, article_id)
+        if "research-gaps" not in already_done and budget_remaining > 0:
+            gaps_result = _run_research_gaps(settings, article_id, budget=budget_remaining)
             result.gaps_answered += gaps_result.answered
-        else:
+            # Each gap answered consumed at least one search query
+            budget_remaining -= gaps_result.gaps_total  # queries planned = gaps attempted
+            if budget_remaining < 0:
+                budget_remaining = 0
+        elif "research-gaps" in already_done:
             logger.info("editorial: [%s] skipping research-gaps (already ran)", article_id)
+        else:
+            logger.info("editorial: [%s] skipping research-gaps (budget exhausted)", article_id)
 
         if "research" not in already_done:
             research_result = _run_research(settings, article_id)
