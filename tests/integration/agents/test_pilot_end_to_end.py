@@ -100,9 +100,9 @@ def _stub_generate(
 
 
 def _stub_contexts_proposer(
-    _settings: Settings, _deps: contexts_stage.ContextDeps, _cls: type
-) -> contexts_stage.EducationContext:
-    return contexts_stage.EducationContext(grade=7, subject="science", language="en")
+    _settings: Settings, _deps: contexts_stage.ContextDeps, _vertical_key: str
+) -> dict[str, object]:
+    return {"grade": 7, "subject": "science", "language": "en"}
 
 
 def _stub_research_planner(_settings, _deps):

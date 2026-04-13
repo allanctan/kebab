@@ -143,7 +143,7 @@ def _default_proposer(
     gap: Gap,
     sources: list[tuple[str, str]],
     figure_manifest: FigureManifest | None = None,
-    base_instruction: str | None = None,
+    generate_instruction: str | None = None,
     source_metadata: dict[str, str] | None = None,
 ) -> GenerationResult:
     agent = build_generate_agent(settings)
@@ -154,11 +154,11 @@ def _default_proposer(
         f"topic_name: {gap.name}",
         f"topic_description: {gap.description}",
     ]
-    if base_instruction:
+    if generate_instruction:
         # Format placeholders like {grade}, {subject} with source metadata.
         # Missing keys are left as-is (e.g. "{grade}" when no metadata).
         meta = source_metadata or {}
-        instruction = base_instruction.format_map(defaultdict(str, meta))
+        instruction = generate_instruction.format_map(defaultdict(str, meta))
         parts.append(f"\nContent instruction: {instruction}")
     parts.append(f"\nsources:\n{sources_str}")
     if figure_manifest and figure_manifest.entries:
@@ -317,38 +317,39 @@ def write_articles(
 
         figure_manifest = _load_figures(settings, gap, index)
 
-        # Derive BASE_INSTRUCTION from vertical selection.
+        # Derive generate_instruction from vertical selection.
         # On a fresh run the article has no context yet, so we select the
         # vertical from the source text — the same snippets the writer is
         # about to send to the LLM. This avoids the chicken-and-egg: the
         # writer needs the instruction before writing, but the full context
         # classifier needs the written body.
-        base_instruction: str | None = None
+        generate_instruction: str | None = None
         target = _output_path(settings, gap)
 
-        # First try: read from existing context on disk (re-generation case)
+        # First try: read vertical from existing context on disk (re-gen case)
         if target.exists():
             try:
                 _fm, _body, _ = read_article(target)
                 fm_extras = _fm.model_dump()
                 article_contexts = fm_extras.get("contexts", {})
-                from app.agents.generate.contexts import VERTICALS
-                for vkey, vcls in VERTICALS.items():
-                    if vkey in article_contexts:
-                        base_instruction = getattr(vcls, "BASE_INSTRUCTION", None)
+                from app.agents.generate.contexts import load_vertical_config
+                for vkey in article_contexts:
+                    vc = load_vertical_config(settings, vkey)
+                    if vc and vc.generate_instruction:
+                        generate_instruction = vc.generate_instruction
                         break
             except Exception:  # noqa: BLE001
                 pass
 
         # Fallback: select vertical from source text (fresh generation case)
-        if base_instruction is None:
+        if generate_instruction is None:
             try:
-                from app.agents.generate.contexts import _select_vertical
+                from app.agents.generate.contexts import _select_vertical, load_vertical_config as _lvc
                 source_excerpt = "\n".join(text[:500] for _, text in sources_for_llm)
-                vertical_cls = _select_vertical(
-                    settings, gap.name, source_excerpt,
-                )
-                base_instruction = getattr(vertical_cls, "BASE_INSTRUCTION", None)
+                vkey = _select_vertical(settings, gap.name, source_excerpt)
+                vc = _lvc(settings, vkey)
+                if vc:
+                    generate_instruction = vc.generate_instruction
             except Exception as exc:  # noqa: BLE001
                 logger.debug(
                     "generate: vertical selection from sources failed for %s: %s",
@@ -367,7 +368,7 @@ def write_articles(
             if proposer is _default_proposer:
                 result = _default_proposer(
                     settings, gap, sources_for_llm, figure_manifest,
-                    base_instruction, merged_meta or None,
+                    generate_instruction, merged_meta or None,
                 )
             else:
                 result = proposer(settings, gap, sources_for_llm)

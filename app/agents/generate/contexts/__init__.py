@@ -1,8 +1,11 @@
 """Contexts subpackage — vertical-specific metadata classification.
 
-Each vertical is a separate module with DESCRIPTION, BASE_INSTRUCTION,
-and VERTICAL_KEY as ClassVars. The LLM selector picks the best vertical
-based on article content.
+Verticals are defined in YAML files under ``.kebab/<vertical>.yaml``.
+No Python classes per vertical — the YAML defines description,
+generate_instruction, authoritative_sources, and classification_fields.
+
+The LLM selector picks the best vertical based on article content,
+then the LLM classifier populates the fields defined in the YAML.
 """
 
 from __future__ import annotations
@@ -12,27 +15,97 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-from pydantic import BaseModel
+import yaml
+from pydantic import BaseModel, Field, create_model
 from pydantic_ai import Agent
 
 from app.config.config import Settings
 from app.core.llm.resolve import resolve_model
 from app.core.markdown import read_article, write_article
 
-from app.agents.generate.contexts.education import EducationContext as EducationContext
-from app.agents.generate.contexts.healthcare import HealthcareContext as HealthcareContext
-from app.agents.generate.contexts.legal import LegalContext as LegalContext
-from app.agents.generate.contexts.policy import PolicyContext as PolicyContext
-
 logger = logging.getLogger(__name__)
 
-# Registry of available verticals — add new ones here.
-VERTICALS: dict[str, type[BaseModel]] = {
-    "education": EducationContext,
-    "healthcare": HealthcareContext,
-    "policy": PolicyContext,
-    "legal": LegalContext,
-}
+
+# ---------------------------------------------------------------------------
+# YAML-based vertical loading
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class VerticalConfig:
+    """Loaded from .kebab/<vertical>.yaml."""
+
+    key: str
+    description: str
+    generate_instruction: str
+    authoritative_sources: list[str]
+    classification_fields: dict[str, Any]
+
+
+def _load_verticals(settings: Settings) -> dict[str, VerticalConfig]:
+    """Load all .kebab/<name>.yaml files as vertical configs."""
+    kebab_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab"
+    verticals: dict[str, VerticalConfig] = {}
+    if not kebab_dir.exists():
+        return verticals
+    for yaml_path in sorted(kebab_dir.glob("*.yaml")):
+        key = yaml_path.stem
+        try:
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8")) or {}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("contexts: failed to load %s: %s", yaml_path, exc)
+            continue
+        verticals[key] = VerticalConfig(
+            key=key,
+            description=data.get("description", ""),
+            generate_instruction=data.get("generate_instruction", ""),
+            authoritative_sources=data.get("authoritative_sources", []),
+            classification_fields=data.get("classification_fields", {}),
+        )
+    return verticals
+
+
+def _build_pydantic_model(vertical: VerticalConfig) -> type[BaseModel]:
+    """Dynamically build a Pydantic model from classification_fields YAML."""
+    fields: dict[str, Any] = {}
+    for name, spec in vertical.classification_fields.items():
+        field_type = spec.get("type", "str")
+        description = spec.get("description", "")
+        default = spec.get("default", ...)
+
+        if field_type == "int":
+            py_type = int
+        elif field_type == "list":
+            py_type = list[str]
+            if default is ...:
+                default = []
+        elif field_type == "enum":
+            # For dynamic enums, use str with description listing valid values
+            py_type = str
+        else:
+            py_type = str
+
+        if default is ...:
+            fields[name] = (py_type, Field(..., description=description))
+        else:
+            fields[name] = (py_type, Field(default=default, description=description))
+
+    model = create_model(
+        f"{vertical.key.title()}Context",
+        **fields,
+    )
+    return model
+
+
+def load_vertical_config(settings: Settings, vertical_key: str) -> VerticalConfig | None:
+    """Load a single vertical config by key."""
+    verticals = _load_verticals(settings)
+    return verticals.get(vertical_key)
+
+
+# ---------------------------------------------------------------------------
+# LLM-based vertical selection and field classification
+# ---------------------------------------------------------------------------
 
 
 def _select_vertical(
@@ -40,11 +113,15 @@ def _select_vertical(
     article_name: str,
     body_excerpt: str,
     source_metadata: list[dict[str, str]] | None = None,
-) -> type[BaseModel]:
-    """Use LLM to select the most appropriate vertical for an article."""
+) -> str:
+    """Use LLM to select the most appropriate vertical key for an article."""
+    verticals = _load_verticals(settings)
+    if not verticals:
+        return "education"
+
     descriptions = "\n".join(
-        f"- {key}: {getattr(cls, 'DESCRIPTION', '')}"
-        for key, cls in VERTICALS.items()
+        f"- {key}: {v.description.strip()}"
+        for key, v in verticals.items()
     )
 
     agent = Agent(
@@ -64,35 +141,34 @@ def _select_vertical(
         parts.append(f"\nsource_metadata: {source_metadata}")
     result = agent.run_sync("\n".join(parts)).output.strip().lower()
 
-    if result in VERTICALS:
-        return VERTICALS[result]
-
-    # Fallback: try matching partial key
-    for key, cls in VERTICALS.items():
+    if result in verticals:
+        return result
+    for key in verticals:
         if key in result:
-            return cls
+            return key
 
     logger.warning("contexts: LLM returned unknown vertical %r — defaulting to education", result)
-    return EducationContext
+    return "education"
 
 
 def _classify_fields(
     settings: Settings,
-    context_cls: type[BaseModel],
+    vertical: VerticalConfig,
     article_name: str,
     body_excerpt: str,
     source_metadata: list[dict[str, str]],
-) -> BaseModel:
+) -> dict[str, Any]:
     """Use LLM to classify the vertical-specific fields."""
-    # Build a prompt from the field descriptions
+    model_cls = _build_pydantic_model(vertical)
+
     field_descriptions = "\n".join(
         f"- {name}: {field.description}"
-        for name, field in context_cls.model_fields.items()
+        for name, field in model_cls.model_fields.items()
     )
 
     agent = Agent(
         model=resolve_model(settings.CONTEXTS_MODEL),
-        output_type=context_cls,
+        output_type=model_cls,
         system_prompt=(
             f"Classify this article's metadata fields.\n\n"
             f"## Fields to populate\n{field_descriptions}\n\n"
@@ -104,7 +180,13 @@ def _classify_fields(
     parts = [f"article_name: {article_name}", f"\nbody_excerpt:\n{body_excerpt}"]
     if source_metadata:
         parts.append(f"\nsource_metadata: {source_metadata}")
-    return agent.run_sync("\n".join(parts)).output
+    result = agent.run_sync("\n".join(parts)).output
+    return result.model_dump()
+
+
+# ---------------------------------------------------------------------------
+# Main run function
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -122,7 +204,7 @@ class ContextsResult:
     skipped: list[tuple[Path, str]]
 
 
-VerticalProposer = Callable[[Settings, ContextDeps, type[BaseModel]], BaseModel]
+VerticalProposer = Callable[[Settings, ContextDeps, str], dict[str, Any]]
 
 
 def _iter_articles(root: Path) -> list[Path]:
@@ -152,13 +234,14 @@ def _load_source_metadata(settings: Settings, fm: Any) -> list[dict[str, str]]:
 def run(
     settings: Settings,
     *,
-    context_cls: type[BaseModel] | None = None,
     proposer: VerticalProposer | None = None,
     article_paths: list[Path] | None = None,
 ) -> ContextsResult:
     """Classify vertical-specific context metadata for articles.
 
-    If ``context_cls`` is None, the LLM selects the best vertical per article.
+    The LLM selects the best vertical per article from the available
+    .kebab/<vertical>.yaml files, then classifies the fields defined
+    in that vertical's classification_fields.
     """
     updated: list[Path] = []
     skipped: list[tuple[Path, str]] = []
@@ -174,11 +257,7 @@ def run(
         source_meta = _load_source_metadata(settings, fm)
         body_excerpt = body[:2000]
 
-        # Select vertical — either provided or LLM-selected
-        if context_cls is not None:
-            selected_cls = context_cls
-        elif proposer is not None:
-            # Legacy path: proposer handles everything
+        if proposer is not None:
             deps = ContextDeps(
                 settings=settings,
                 article_id=fm.id,
@@ -187,39 +266,35 @@ def run(
                 source_metadata=source_meta,
             )
             try:
-                context = proposer(settings, deps, EducationContext)
+                context = proposer(settings, deps, "education")
             except Exception as exc:  # noqa: BLE001
                 skipped.append((path, f"proposer failed: {exc}"))
                 continue
-            vertical_key = getattr(type(context), "VERTICAL_KEY", "default")
-            fm_dump: dict[str, Any] = fm.model_dump()
-            contexts = dict(fm_dump.get("contexts") or {})
-            contexts[vertical_key] = context.model_dump() if hasattr(context, "model_dump") else context
-            fm_dump["contexts"] = contexts
-            write_article(path, type(fm).model_validate(fm_dump), body)
-            updated.append(path)
-            continue
+            vertical_key = "education"
+            context_dict = context if isinstance(context, dict) else context.model_dump()
         else:
             try:
-                selected_cls = _select_vertical(settings, fm.name, body_excerpt, source_meta)
+                vertical_key = _select_vertical(settings, fm.name, body_excerpt, source_meta)
             except Exception as exc:  # noqa: BLE001
                 skipped.append((path, f"vertical selection failed: {exc}"))
                 continue
 
-        vertical_key = getattr(selected_cls, "VERTICAL_KEY", "default")
+            vertical = load_vertical_config(settings, vertical_key)
+            if vertical is None or not vertical.classification_fields:
+                skipped.append((path, f"no classification fields for {vertical_key}"))
+                continue
 
-        # Classify fields
-        try:
-            context = _classify_fields(
-                settings, selected_cls, fm.name, body_excerpt, source_meta,
-            )
-        except Exception as exc:  # noqa: BLE001
-            skipped.append((path, f"classification failed: {exc}"))
-            continue
+            try:
+                context_dict = _classify_fields(
+                    settings, vertical, fm.name, body_excerpt, source_meta,
+                )
+            except Exception as exc:  # noqa: BLE001
+                skipped.append((path, f"classification failed: {exc}"))
+                continue
 
-        fm_dump = fm.model_dump()
+        fm_dump: dict[str, Any] = fm.model_dump()
         contexts = dict(fm_dump.get("contexts") or {})
-        contexts[vertical_key] = context.model_dump() if hasattr(context, "model_dump") else context
+        contexts[vertical_key] = context_dict
         fm_dump["contexts"] = contexts
         write_article(path, type(fm).model_validate(fm_dump), body)
         updated.append(path)
@@ -229,7 +304,8 @@ def run(
         log_event(
             path, stage="contexts", action="context_classified",
             article_id=fm.id,
-            detail=f"Classified as {vertical_key}: {context.model_dump() if hasattr(context, 'model_dump') else context}",
+            vertical=vertical_key,
+            fields=str(context_dict),
         )
 
     logger.info("contexts: updated %d, skipped %d", len(updated), len(skipped))

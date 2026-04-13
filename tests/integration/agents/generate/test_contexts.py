@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -34,9 +35,8 @@ def settings(tmp_path: Path) -> Settings:
 
 
 def _stub_proposer(
-    _settings: Settings, deps: contexts_stage.ContextDeps, _cls: type
-) -> contexts_stage.EducationContext:
-    # Use grade/subject from source metadata if available, otherwise default.
+    _settings: Settings, deps: contexts_stage.ContextDeps, _vertical_key: str
+) -> dict[str, Any]:
     grade = 7
     subject = "science"
     for meta in deps.source_metadata:
@@ -44,11 +44,11 @@ def _stub_proposer(
             grade = int(meta["grade"])
         if "subject" in meta:
             subject = meta["subject"]
-    return contexts_stage.EducationContext(grade=grade, subject=subject, language="en")
+    return {"grade": grade, "subject": subject, "language": "en"}
 
 
 @pytest.mark.integration
-def test_contexts_writes_grade_into_frontmatter(settings: Settings) -> None:
+def test_contexts_writes_fields_into_frontmatter(settings: Settings) -> None:
     result = contexts_stage.run(settings, proposer=_stub_proposer)
     assert len(result.updated) == 1
     fm, _, _ = read_article(result.updated[0])
@@ -57,16 +57,10 @@ def test_contexts_writes_grade_into_frontmatter(settings: Settings) -> None:
     assert edu["grade"] == 7
     assert edu["subject"] == "science"
     assert edu["language"] == "en"
-    # New fields have defaults — verify they're present
-    assert "bloom_level" in edu
-    assert "dok_level" in edu
-    assert "learning_objectives" in edu
-    assert "concept_tags" in edu
 
 
 @pytest.mark.integration
 def test_contexts_walk_scoped_to_curated(settings: Settings) -> None:
-    """Markdown outside CURATED_DIR must never be touched."""
     raw_md = settings.KNOWLEDGE_DIR / "raw" / "stray.md"
     raw_md.write_text(
         "---\nid: X-1\nname: x\ntype: article\nsources: []\n---\n\nbody",
@@ -74,13 +68,12 @@ def test_contexts_walk_scoped_to_curated(settings: Settings) -> None:
     )
     result = contexts_stage.run(settings, proposer=_stub_proposer)
     assert raw_md not in result.updated
-    # The stray file is unchanged (no contexts block added).
     assert "contexts" not in raw_md.read_text()
 
 
 @pytest.mark.integration
 def test_contexts_records_proposer_failures_as_skipped(settings: Settings) -> None:
-    def _fail(_s: Settings, _d: contexts_stage.ContextDeps, _cls: type) -> contexts_stage.EducationContext:  # noqa: ARG001
+    def _fail(_s: Settings, _d: contexts_stage.ContextDeps, _k: str) -> dict[str, Any]:
         raise RuntimeError("model unavailable")
 
     result = contexts_stage.run(settings, proposer=_fail)
