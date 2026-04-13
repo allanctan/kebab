@@ -315,6 +315,55 @@ def research_gaps(article_id: str | None, run_all: bool, domain: str | None, bud
         raise click.ClickException("provide an article ID, --domain, or --all")
 
 
+@main.command("editorial")
+@click.argument("article_id", required=False)
+@click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
+@click.option(
+    "--max-cycles",
+    type=int,
+    default=3,
+    show_default=True,
+    help="Max enrich cycles per article.",
+)
+def editorial(
+    article_id: str | None,
+    run_all: bool,
+    domain: str | None,
+    max_cycles: int,
+) -> None:
+    """Run the editorial enrich loop (qa -> research-gaps -> research -> chief editor)."""
+    from app.agents.editorial import editorial as editorial_agent
+
+    if run_all or domain:
+        ids = _iter_article_ids(domain)
+        if not ids:
+            raise click.ClickException("no curated articles found")
+        for aid in ids:
+            click.echo(f"editorial {aid}:")
+            result = editorial_agent.run(env, article_id=aid, max_cycles=max_cycles)
+            click.echo(
+                f"  {result.cycles} cycle(s), decision={result.decision}, "
+                f"confirmed={result.claims_confirmed}/{result.claims_total}, "
+                f"disputes resolved={result.disputes_resolved}, "
+                f"unresolvable={result.disputes_unresolvable}"
+            )
+    elif article_id:
+        result = editorial_agent.run(
+            env, article_id=article_id, max_cycles=max_cycles
+        )
+        click.echo(
+            f"editorial {article_id}: {result.cycles} cycle(s), "
+            f"decision={result.decision}, "
+            f"confirmed={result.claims_confirmed}/{result.claims_total}, "
+            f"disputes resolved={result.disputes_resolved}, "
+            f"unresolvable={result.disputes_unresolvable}, "
+            f"gaps answered={result.gaps_answered}"
+        )
+    else:
+        raise click.ClickException("provide an article ID, --domain, or --all")
+
+
 @main.command("research-images")
 @click.argument("article_id", required=False)
 @click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
