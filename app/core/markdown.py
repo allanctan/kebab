@@ -133,7 +133,7 @@ def write_article(path: Path, fm: FrontmatterSchema, body: str) -> None:
 
 # Sections that live at the bottom of every article, in this order.
 # Content sections (headings not in this list) always come before these.
-_TAIL_SECTION_ORDER = ["q&a", "research gaps", "disputes", "sources"]
+_TAIL_SECTION_ORDER = ["research gaps", "disputes", "sources"]
 
 
 def _insert_index_before(tree: marko.block.Document, before_sections: list[str]) -> int:

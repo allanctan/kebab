@@ -20,7 +20,6 @@ from app.config.config import Settings
 from app.core.markdown import read_article
 from app.agents.organize.agent import HierarchyNode, HierarchyPlan
 from app.core.store import EMBEDDING_DIM, Store
-from app.models.source import Source
 from app.agents.generate import contexts as contexts_stage
 from app.agents.generate import gaps as gaps_stage
 from app.agents.generate import writer as generate_stage
@@ -123,17 +122,14 @@ def _stub_research_classifier(_settings, _claim, _source_title, _source_content)
     return FindingResult(outcome="confirm", reasoning="confirmed", evidence_quote="Test confirms.")
 
 
-def _stub_qa(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.QaResult:
-    return qa_agent.QaResult(
-        reasoning="One non-duplicate question to add.",
-        new_questions=[
-            qa_agent.QaPair(
+def _stub_qa(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+    return qa_agent.GapDiscoveryResult(
+        gap_questions=[
+            qa_agent.GapQuestion(
                 question="How do chloroplasts capture light energy?",
-                answer="Pigments in the thylakoid membrane absorb photons.",
-                sources=[Source(id=0, title="OpenStax Biology 2e", tier=2)],
+                reasoning="Article mentions photosynthesis but not chloroplast mechanism.",
             )
         ],
-        is_ready_to_commit=True,
     )
 
 
@@ -229,9 +225,9 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
     # Q&A agent — at least one new pair appended.
     qa_result = qa_agent.run(settings, once=True, proposer=_stub_qa)
-    assert qa_result.pairs_added >= 1
+    assert qa_result.gaps_added >= 1
     fm_after, body_after, _ = read_article(article_paths[0])
-    assert "How do chloroplasts" in body_after
+    assert "How do chloroplasts" in body_after  # gap question in Research Gaps
 
     # Lint agent — no orphans (article has parent_ids), gate is met.
     lint_result = lint_agent.run(settings, store=store, today=lambda: date(2026, 4, 9))

@@ -6,8 +6,8 @@ the universal Qdrant index. It is **idempotent and resumable**: running
 
 Pipeline:
     1. Walk ``settings.CURATED_DIR`` and collect ``.md`` files.
-    2. For each: ``read_article`` → enforce token limit → ``extract_faq``
-       → ``compute_confidence`` → build :class:`Article` payload.
+    2. For each: ``read_article`` → enforce token limit →
+       ``compute_confidence`` → build :class:`Article` payload.
     3. ``embed_batch`` the embed-text bundles in one call.
     4. For each touched ``(domain, subdomain, slug)`` group, delete-by-filter
        then upsert. Idempotency comes from the article ID being the

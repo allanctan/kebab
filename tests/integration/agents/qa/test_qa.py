@@ -1,4 +1,4 @@
-"""Q&A agent with stubbed proposer."""
+"""Gap discovery agent with stubbed proposer."""
 
 from __future__ import annotations
 
@@ -8,44 +8,26 @@ import pytest
 
 from app.agents.qa import qa as qa_agent
 from app.config.config import Settings
-from app.core.markdown import extract_faq, read_article
-from app.models.source import Source
+from app.core.markdown import extract_research_gaps, read_article
 
 
-def _src() -> Source:
-    return Source(id=0, title="OpenStax Biology 2e", tier=2)
-
-
-def _ready_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.QaResult:
-    return qa_agent.QaResult(
-        reasoning="Two new questions cover the depth gaps.",
-        new_questions=[
-            qa_agent.QaPair(
-                question="How do chloroplasts capture light?",
-                answer="Pigments in the thylakoid membrane absorb photons.",
-                sources=[_src()],
+def _gap_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+    return qa_agent.GapDiscoveryResult(
+        gap_questions=[
+            qa_agent.GapQuestion(
+                question="What is the Ring of Fire?",
+                reasoning="Article discusses plate boundaries but doesn't mention this.",
             ),
-            qa_agent.QaPair(
-                question="What gas does photosynthesis release?",
-                answer="Oxygen, as a byproduct of water splitting.",
-                sources=[_src()],
+            qa_agent.GapQuestion(
+                question="How fast do tectonic plates move?",
+                reasoning="Article says plates move but gives no quantitative data.",
             ),
         ],
-        is_ready_to_commit=True,
     )
 
 
-def _not_ready_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.QaResult:
-    return qa_agent.QaResult(reasoning="not enough", new_questions=[], is_ready_to_commit=False)
-
-
-def _duplicate_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.QaResult:
-    # Duplicates whatever already exists.
-    pairs = [
-        qa_agent.QaPair(question=q, answer="dup", sources=[_src()])
-        for q in deps.existing_questions
-    ]
-    return qa_agent.QaResult(reasoning="dups", new_questions=pairs, is_ready_to_commit=True)
+def _empty_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+    return qa_agent.GapDiscoveryResult(gap_questions=[])
 
 
 @pytest.fixture
@@ -61,8 +43,7 @@ def settings(tmp_path: Path) -> Settings:
         "sources:\n"
         "  - id: 0\n    title: OpenStax Biology 2e\n    tier: 2\n"
         "---\n\n"
-        "# Photosynthesis\n\nLight reactions and Calvin cycle.\n\n"
-        "## Q&A\n\n**Q: What is photosynthesis?**\nA grounded answer.\n",
+        "# Photosynthesis\n\nLight reactions and Calvin cycle.\n",
         encoding="utf-8",
     )
     return Settings(
@@ -75,30 +56,25 @@ def settings(tmp_path: Path) -> Settings:
 
 
 @pytest.mark.integration
-def test_qa_agent_appends_new_pairs(settings: Settings) -> None:
-    result = qa_agent.run(settings, once=True, proposer=_ready_proposer)
+def test_qa_discovers_gaps(settings: Settings) -> None:
+    result = qa_agent.run(settings, once=True, proposer=_gap_proposer)
     assert len(result.updated) == 1
-    assert result.pairs_added == 2
+    assert result.gaps_added == 2
     fm, body, tree = read_article(result.updated[0])
-    assert len(extract_faq(tree)) == 3  # 1 existing + 2 new
+    gaps = extract_research_gaps(tree)
+    assert len(gaps) == 2
+    assert any("Ring of Fire" in g for g in gaps)
 
 
 @pytest.mark.integration
-def test_qa_agent_skips_when_not_ready(settings: Settings) -> None:
-    result = qa_agent.run(settings, once=True, proposer=_not_ready_proposer)
+def test_qa_skips_when_no_gaps(settings: Settings) -> None:
+    result = qa_agent.run(settings, once=True, proposer=_empty_proposer)
     assert result.updated == []
-    assert result.pairs_added == 0
+    assert result.gaps_added == 0
 
 
 @pytest.mark.integration
-def test_qa_agent_skips_duplicates(settings: Settings) -> None:
-    result = qa_agent.run(settings, once=True, proposer=_duplicate_proposer)
-    assert result.updated == []
-    assert result.pairs_added == 0
-
-
-@pytest.mark.integration
-def test_qa_agent_skips_articles_without_sources(tmp_path: Path) -> None:
+def test_qa_skips_articles_without_sources(tmp_path: Path) -> None:
     knowledge = tmp_path / "knowledge"
     bio = knowledge / "curated" / "Science" / "Biology"
     bio.mkdir(parents=True)
@@ -113,28 +89,25 @@ def test_qa_agent_skips_articles_without_sources(tmp_path: Path) -> None:
         QDRANT_URL=None,
         GOOGLE_API_KEY="test-key",
     )
-    result = qa_agent.run(settings, once=True, proposer=_ready_proposer)
+    result = qa_agent.run(settings, once=True, proposer=_gap_proposer)
     assert result.updated == []
     assert any("no cited sources" in reason for _, reason in result.skipped)
 
 
 @pytest.mark.integration
-def test_qa_agent_watch_mode_runs_n_iterations(settings: Settings) -> None:
+def test_qa_watch_mode_runs_n_iterations(settings: Settings) -> None:
     sleeps: list[float] = []
     counter = {"n": 0}
 
-    def _fresh_pairs(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.QaResult:
+    def _fresh_gaps(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
         counter["n"] += 1
-        return qa_agent.QaResult(
-            reasoning="fresh",
-            new_questions=[
-                qa_agent.QaPair(
-                    question=f"Iteration question {counter['n']}?",
-                    answer="grounded",
-                    sources=[_src()],
+        return qa_agent.GapDiscoveryResult(
+            gap_questions=[
+                qa_agent.GapQuestion(
+                    question=f"Iteration gap {counter['n']}?",
+                    reasoning="fresh",
                 ),
             ],
-            is_ready_to_commit=True,
         )
 
     def _fake_sleep(s: float) -> None:
@@ -144,11 +117,11 @@ def test_qa_agent_watch_mode_runs_n_iterations(settings: Settings) -> None:
         settings,
         once=False,
         watch=True,
-        proposer=_fresh_pairs,
+        proposer=_fresh_gaps,
         sleep_seconds=0.0,
         sleep_fn=_fake_sleep,
         iterations=3,
     )
     assert len(result.updated) == 3
-    assert result.pairs_added == 3
-    assert len(sleeps) == 2  # sleeps between iterations only
+    assert result.gaps_added == 3
+    assert len(sleeps) == 2

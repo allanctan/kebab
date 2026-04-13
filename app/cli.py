@@ -205,7 +205,7 @@ def sync() -> None:
 @click.option("--once", is_flag=True, default=True, help="Run a single pass and exit.")
 @click.option("--watch", is_flag=True, help="Run continuously.")
 def qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
-    """Q&A enrichment — generate grounded question-answer pairs."""
+    """Discover knowledge gaps in articles."""
     if watch:
         once = False
     result = qa_agent.run(
@@ -217,7 +217,7 @@ def qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, wa
     )
     click.echo(
         f"qa: updated {len(result.updated)} article(s), "
-        f"added {result.pairs_added} pair(s), skipped {len(result.skipped)}"
+        f"{result.gaps_added} gap(s) discovered, skipped {len(result.skipped)}"
     )
 
 
