@@ -72,3 +72,85 @@ def test_level_3_when_two_verifiers_and_two_sources() -> None:
 def test_level_4_when_human_verified_overrides_everything() -> None:
     assert compute_confidence(_fm(human_verified=True)) == 4
     assert compute_confidence(_fm(sources=[_source()], human_verified=True)) == 4
+
+
+class TestResearchBasedConfidence:
+    """Tests for research-based verification (external source confirmation)."""
+
+    def test_level_3_with_research_high_confirmation_no_disputes(self) -> None:
+        """Article with 90% confirmation and 0 disputes reaches level 3."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=20,
+            external_confirms=18,  # 90% > 70% threshold
+            dispute_count=0,
+        )
+        assert compute_confidence(fm) == 3
+
+    def test_level_2_with_research_low_confirmation(self) -> None:
+        """Article with 50% confirmation stays at level 2."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=20,
+            external_confirms=10,  # 50% < 70% threshold
+            dispute_count=0,
+        )
+        assert compute_confidence(fm) == 2
+
+    def test_level_2_with_research_resolvable_disputes(self) -> None:
+        """Article with resolvable disputes stays at level 2 despite high confirmation."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=20,
+            external_confirms=18,  # 90% > 70%
+            dispute_count=1,  # Has resolvable dispute
+        )
+        assert compute_confidence(fm) == 2
+
+    def test_level_3_unresolvable_disputes_do_not_block(self) -> None:
+        """Articles with only unresolvable disputes can reach level 3.
+
+        Since Task 3 ensures unresolvable_dispute_count is tracked separately
+        from dispute_count, compute_confidence ignores unresolvable_dispute_count
+        and only checks dispute_count (resolvable disputes).
+        """
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=20,
+            external_confirms=18,  # 90% > 70% threshold
+            dispute_count=0,  # No resolvable disputes
+            unresolvable_dispute_count=2,  # Has unresolvable disputes (doesn't block)
+        )
+        assert compute_confidence(fm) == 3
+
+    def test_level_2_with_both_resolvable_and_unresolvable_disputes(self) -> None:
+        """Article with resolvable disputes blocks level 3, regardless of unresolvable."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=20,
+            external_confirms=18,  # 90% > 70%
+            dispute_count=1,  # Has resolvable dispute
+            unresolvable_dispute_count=1,  # Also has unresolvable disputes
+        )
+        assert compute_confidence(fm) == 2
+
+    def test_level_2_at_exactly_70_percent_confirmation(self) -> None:
+        """Article at exactly 70% confirmation stays at level 2 (threshold is >=70%)."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=10,
+            external_confirms=7,  # 70.0% == threshold
+            dispute_count=0,
+        )
+        # The code uses ratio >= _CONFIRM_THRESHOLD (0.70), so 70% should reach level 3
+        assert compute_confidence(fm) == 3
+
+    def test_level_2_just_below_70_percent_confirmation(self) -> None:
+        """Article below 70% confirmation stays at level 2."""
+        fm = _fm(
+            sources=[_source(f"src-{i}") for i in range(2)],
+            research_claims_total=10,
+            external_confirms=6,  # 60% < 70% threshold
+            dispute_count=0,
+        )
+        assert compute_confidence(fm) == 2
