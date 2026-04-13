@@ -8,7 +8,7 @@ claims each query targets.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -58,6 +58,14 @@ class PlannerDeps:
     The ``research_gaps`` field was removed in the 2026-04-12 research
     restructure: gap-answering moved to :mod:`app.agents.research_gaps`,
     so the claim-verification planner no longer needs to know about gaps.
+
+    ``confirmed_footnote_urls`` lists external source URLs that have already
+    been used to confirm claims in previous research runs.  The planner uses
+    this to avoid generating redundant queries for already-confirmed claims.
+
+    ``gap_answers`` lists answer text extracted from the ``## Research Gaps``
+    section.  Each entry is treated as a new claim to verify so the planner
+    generates search queries for them.
     """
 
     settings: Settings
@@ -65,6 +73,8 @@ class PlannerDeps:
     article_body: str
     available_adapters: list[str]
     budget_hint: int
+    confirmed_footnote_urls: list[str] = field(default_factory=list)
+    gap_answers: list[str] = field(default_factory=list)
 
 
 def _build_planner_agent(settings: Settings) -> Agent[PlannerDeps, ResearchPlan]:
@@ -89,7 +99,25 @@ def plan_research(
         f"article_name: {deps.article_name}",
         f"available_adapters: {deps.available_adapters}",
         f"budget_hint: {deps.budget_hint}",
-        f"\narticle_body:\n{deps.article_body}",
     ]
+    if deps.confirmed_footnote_urls:
+        parts.append("\n## Already confirmed (skip these)")
+        parts.append(
+            "The following external sources have already confirmed claims in this article."
+        )
+        parts.append(
+            "Do NOT generate queries for claims that already cite these sources:"
+        )
+        for url in deps.confirmed_footnote_urls:
+            parts.append(f"- {url}")
+    if deps.gap_answers:
+        parts.append("\n## Gap answers to verify")
+        parts.append(
+            "The following gap answers were added by the research-gaps agent and need"
+        )
+        parts.append("verification. Treat each as a claim to extract and verify:")
+        for answer in deps.gap_answers:
+            parts.append(f"- {answer}")
+    parts.append(f"\narticle_body:\n{deps.article_body}")
     user = "\n".join(parts)
     return agent.run_sync(user, deps=deps).output

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import date, datetime
 from pathlib import Path
 
@@ -116,6 +117,47 @@ def _write_unverified(
         logger.debug("research: failed to write unverified claims: %s", exc)
 
 
+def _extract_confirmed_urls(body: str) -> list[str]:
+    """Extract URLs from footnotes that represent external confirmations.
+
+    Matches footnote definitions of the form::
+
+        [^1]: [Link text](https://example.com)
+
+    Returns the list of HTTP(S) URLs found.
+    """
+    urls: list[str] = []
+    for match in re.finditer(r"\[\^(\d+)\]:\s*\[.*?\]\((https?://[^\)]+)\)", body):
+        urls.append(match.group(2))
+    return urls
+
+
+def _extract_gap_answers(body: str) -> list[str]:
+    """Extract answered gap text from the ``## Research Gaps`` section.
+
+    Looks for ``**Q:** …`` lines followed by a non-empty answer line and
+    returns each answer.  Stops scanning when the next ``## `` heading is
+    reached.
+    """
+    answers: list[str] = []
+    in_gaps = False
+    capture_next = False
+    for line in body.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## Research Gaps"):
+            in_gaps = True
+            continue
+        if in_gaps and stripped.startswith("## "):
+            break  # next section — stop
+        if in_gaps and stripped.startswith("**Q:"):
+            capture_next = True
+            continue
+        if in_gaps and capture_next and stripped:
+            answers.append(stripped)
+            capture_next = False
+    return answers
+
+
 def run(
     settings: Settings,
     *,
@@ -145,6 +187,8 @@ def run(
         article_body=body,
         available_adapters=_available_adapters(settings),
         budget_hint=budget,
+        confirmed_footnote_urls=_extract_confirmed_urls(body),
+        gap_answers=_extract_gap_answers(body),
     )
     plan: ResearchPlan = plan_research(settings, deps)
     logger.info(
