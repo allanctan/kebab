@@ -21,15 +21,47 @@ strictly-downward layering rule documented in
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
-from urllib.parse import quote
+from pathlib import Path
+from urllib.parse import quote, urlparse
 
-from app.agents.ingest.inbox import stage_to_inbox
+from app.agents.ingest.inbox import inbox_path, stage_to_inbox
 from app.agents.ingest.registry import build_default_registry
 from app.config.config import Settings
 from app.core.sources.adapter import SourceAdapter
 
 logger = logging.getLogger(__name__)
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _inbox_filename(adapter_name: str, locator: str) -> str:
+    """Derive the expected inbox filename for a candidate.
+
+    Mirrors the naming convention used by the adapters:
+    - tavily: ``research_tavily_{url_slug}.html``
+    - wikipedia: ``research_wikipedia_{title_slug}.md``
+    """
+    if adapter_name == "wikipedia":
+        slug = _SLUG_RE.sub("-", locator.lower()).strip("-")[:60]
+        return f"research_wikipedia_{slug}.md"
+    parsed = urlparse(locator)
+    raw = (parsed.netloc + parsed.path).lower()
+    slug = _SLUG_RE.sub("-", raw).strip("-")[:60]
+    return f"research_tavily_{slug}.html"
+
+
+def _read_from_cache(
+    knowledge_dir: Path, adapter_name: str, locator: str
+) -> str | None:
+    """Return cached content from inbox if available, else None."""
+    filename = _inbox_filename(adapter_name, locator)
+    cached = inbox_path(knowledge_dir) / filename
+    if cached.exists():
+        logger.debug("searcher: cache hit for %s", filename)
+        return cached.read_bytes().decode("utf-8", errors="replace")
+    return None
 
 
 @dataclass(frozen=True)
@@ -77,15 +109,20 @@ def _fetch_results(
         else:
             url = locator if locator.startswith("http") else f"https://{locator}"
 
-        try:
-            artifact = adapter.fetch(candidate)
-            content_bytes = artifact.raw_path.read_bytes()
-            content = content_bytes.decode("utf-8", errors="replace")
-            filename = f"research_{artifact.raw_path.name}"
-            stage_to_inbox(settings.KNOWLEDGE_DIR, filename, content_bytes)
-        except Exception as exc:
-            logger.warning("searcher: fetch failed for %r (%s) — %s", title, url, exc)
-            continue
+        # Check inbox cache before fetching from the network.
+        cached = _read_from_cache(settings.KNOWLEDGE_DIR, adapter_name, locator)
+        if cached is not None:
+            content = cached
+        else:
+            try:
+                artifact = adapter.fetch(candidate)
+                content_bytes = artifact.raw_path.read_bytes()
+                content = content_bytes.decode("utf-8", errors="replace")
+                filename = f"research_{artifact.raw_path.name}"
+                stage_to_inbox(settings.KNOWLEDGE_DIR, filename, content_bytes)
+            except Exception as exc:
+                logger.warning("searcher: fetch failed for %r (%s) — %s", title, url, exc)
+                continue
 
         results.append(SourceContent(title=title, url=url, content=content))
 

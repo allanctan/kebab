@@ -486,3 +486,77 @@ class TestAuthoritativeSourcePriority:
         assert len(tavily.discover_calls) == 1
         assert tavily.discover_calls[0] is None
         assert len(wiki.discover_calls) == 0
+
+
+class TestInboxCache:
+    def test_uses_cached_content_instead_of_fetching(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """When inbox has a file for the URL, skip adapter.fetch and return cached content."""
+        from app.core.research.searcher import _inbox_filename
+
+        # Pre-populate the inbox cache
+        knowledge_dir = tmp_path / "knowledge"
+        inbox = knowledge_dir / "raw" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        locator = "https://britannica.com/science/plate-tectonics"
+        filename = _inbox_filename("tavily", locator)
+        (inbox / filename).write_text("cached page content")
+
+        # Adapter that tracks whether fetch was called
+        fetch_called: list[Candidate] = []
+        adapter = _StubAdapter(
+            candidates=[Candidate(
+                adapter="stub",
+                locator=locator,
+                title="Plate Tectonics",
+                tier_hint=4,
+            )],
+            raw_dir=tmp_path / "raw",
+        )
+        original_fetch = adapter.fetch
+
+        def tracking_fetch(c: Candidate) -> FetchedArtifact:
+            fetch_called.append(c)
+            return original_fetch(c)
+
+        adapter.fetch = tracking_fetch  # type: ignore[method-assign]
+
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: type("R", (), {"get": lambda self, n: adapter})(),
+        )
+        results = search(settings, "stub", "plate tectonics")
+
+        assert len(results) == 1
+        assert results[0].content == "cached page content"
+        assert fetch_called == [], "adapter.fetch should not be called when cache exists"
+
+    def test_fetches_when_no_cache(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """When inbox has no matching file, normal fetch + stage occurs."""
+        adapter = _StubAdapter(
+            candidates=[_candidate("https://example.com/article", "Test")],
+            raw_dir=tmp_path / "raw",
+        )
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: type("R", (), {"get": lambda self, n: adapter})(),
+        )
+        results = search(settings, "stub", "query")
+
+        assert len(results) == 1
+        assert results[0].content == "content for Test"
+
+    def test_inbox_filename_tavily(self) -> None:
+        from app.core.research.searcher import _inbox_filename
+
+        result = _inbox_filename("tavily", "https://britannica.com/science/plate-tectonics")
+        assert result == "research_tavily_britannica-com-science-plate-tectonics.html"
+
+    def test_inbox_filename_wikipedia(self) -> None:
+        from app.core.research.searcher import _inbox_filename
+
+        result = _inbox_filename("wikipedia", "Plate tectonics")
+        assert result == "research_wikipedia_plate-tectonics.md"
