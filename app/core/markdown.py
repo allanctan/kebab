@@ -296,12 +296,32 @@ def count_external_footnotes(tree: marko.block.Document) -> int:
     )
 
 
-def extract_disputes(tree: marko.block.Document) -> int:
-    """Count dispute entries in the ``## Disputes`` section."""
+def extract_disputes(tree: marko.block.Document) -> tuple[int, int]:
+    """Count dispute entries in the ``## Disputes`` section.
+
+    Returns:
+        (resolvable_count, unresolvable_count) — disputes marked with
+        ``<!-- unresolvable -->`` are counted separately.
+    """
     section = extract_section(tree, "Disputes")
     if not section:
-        return 0
-    return section.count("**Claim**:")
+        return 0, 0
+    lines = section.splitlines()
+    resolvable = 0
+    unresolvable = 0
+    pending_unresolvable = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == "<!-- unresolvable -->":
+            pending_unresolvable = True
+            continue
+        if "**Claim**:" in stripped:
+            if pending_unresolvable:
+                unresolvable += 1
+                pending_unresolvable = False
+            else:
+                resolvable += 1
+    return resolvable, unresolvable
 
 
 def next_footnote_number(tree: marko.block.Document) -> int:

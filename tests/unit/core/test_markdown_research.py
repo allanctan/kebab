@@ -37,13 +37,49 @@ class TestExtractDisputes:
             "  **External source**: [OpenStax](https://...)\n"
             "  **Contradiction**: Speeds vary.\n"
         )
-        assert extract_disputes(parse_body(body)) == 2
+        resolvable, unresolvable = extract_disputes(parse_body(body))
+        assert resolvable == 2
+        assert unresolvable == 0
 
     def test_zero_when_no_disputes_section(self) -> None:
-        assert extract_disputes(parse_body("# Article\n\nContent.")) == 0
+        resolvable, unresolvable = extract_disputes(parse_body("# Article\n\nContent."))
+        assert resolvable == 0
+        assert unresolvable == 0
 
     def test_zero_when_empty_disputes_section(self) -> None:
-        assert extract_disputes(parse_body("# Article\n\n## Disputes\n\n")) == 0
+        resolvable, unresolvable = extract_disputes(parse_body("# Article\n\n## Disputes\n\n"))
+        assert resolvable == 0
+        assert unresolvable == 0
+
+    def test_counts_resolvable_disputes_only(self) -> None:
+        body = (
+            "## Disputes\n\n"
+            "- **Claim**: \"Plates move slowly.\"\n"
+            "  **Section**: Intro\n\n"
+            "- **Claim**: \"Convection is the main driver.\"\n"
+            "  **Section**: Forces\n"
+        )
+        resolvable, unresolvable = extract_disputes(parse_body(body))
+        assert resolvable == 2
+        assert unresolvable == 0
+
+    def test_separates_unresolvable_disputes(self) -> None:
+        body = (
+            "## Disputes\n\n"
+            "- **Claim**: \"Plates move slowly.\"\n"
+            "  **Section**: Intro\n\n"
+            "<!-- unresolvable -->\n"
+            "- **Claim**: \"Convection is the main driver.\"\n"
+            "  **Section**: Forces\n"
+        )
+        resolvable, unresolvable = extract_disputes(parse_body(body))
+        assert resolvable == 1
+        assert unresolvable == 1
+
+    def test_returns_zero_zero_when_no_disputes(self) -> None:
+        resolvable, unresolvable = extract_disputes(parse_body("## Content\n\nBody.\n"))
+        assert resolvable == 0
+        assert unresolvable == 0
 
 
 class TestNextFootnoteNumber:

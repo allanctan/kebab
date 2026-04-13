@@ -243,7 +243,8 @@ def run(
     new_tree = parse_body(new_body)
     setattr(fm, "research_claims_total", len(plan.claims))
     setattr(fm, "external_confirms", count_external_footnotes(new_tree))
-    setattr(fm, "dispute_count", extract_disputes(new_tree))
+    resolvable, _unresolvable = extract_disputes(new_tree)
+    setattr(fm, "dispute_count", resolvable)
     setattr(fm, "researched_at", date.today().isoformat())
 
     write_article(path, fm, new_body)
