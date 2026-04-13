@@ -117,6 +117,41 @@ def _write_unverified(
         logger.debug("research: failed to write unverified claims: %s", exc)
 
 
+def _find_confirmed_claim_indices(
+    claims: list[ClaimEntry], body: str, confirmed_urls: list[str]
+) -> set[int]:
+    """Return indices of claims that already have an external footnote.
+
+    A claim is considered confirmed if its text appears in a sentence
+    that is followed by a footnote reference ``[^N]`` where footnote N
+    resolves to an external URL.
+    """
+    if not confirmed_urls:
+        return set()
+
+    # Build set of footnote numbers that are external
+    external_footnotes: set[str] = set()
+    for match in re.finditer(
+        r"\[\^(\d+)\]:\s*\[.*?\]\((https?://[^\)]+)\)", body
+    ):
+        external_footnotes.add(match.group(1))
+
+    confirmed: set[int] = set()
+    for idx, claim in enumerate(claims):
+        # Find the claim text in the body and check if it's near a footnote ref
+        pos = body.find(claim.text)
+        if pos < 0:
+            continue
+        # Look at the 20 chars after the claim for a footnote ref like [^2]
+        after = body[pos + len(claim.text) : pos + len(claim.text) + 20]
+        for fn_match in re.finditer(r"\[\^(\d+)\]", after):
+            if fn_match.group(1) in external_footnotes:
+                confirmed.add(idx)
+                break
+
+    return confirmed
+
+
 def _extract_confirmed_urls(body: str) -> list[str]:
     """Extract URLs from footnotes that represent external confirmations.
 
@@ -181,16 +216,39 @@ def run(
 
     fm, body, tree = read_article(path)
 
+    confirmed_urls = _extract_confirmed_urls(body)
     deps = PlannerDeps(
         settings=settings,
         article_name=fm.name,
         article_body=body,
         available_adapters=_available_adapters(settings),
         budget_hint=budget,
-        confirmed_footnote_urls=_extract_confirmed_urls(body),
+        confirmed_footnote_urls=confirmed_urls,
         gap_answers=_extract_gap_answers(body),
     )
     plan: ResearchPlan = plan_research(settings, deps)
+
+    # Code-enforce skip of already-confirmed claims. The LLM prompt asks
+    # it to skip them too, but LLMs are unreliable at following negative
+    # instructions. Build a set of confirmed claim indices and filter
+    # queries that only target confirmed claims.
+    confirmed_indices = _find_confirmed_claim_indices(plan.claims, body, confirmed_urls)
+    if confirmed_indices:
+        original_query_count = len(plan.queries)
+        plan = ResearchPlan(
+            claims=plan.claims,
+            queries=[
+                sq for sq in plan.queries
+                if not all(idx in confirmed_indices for idx in sq.target_claims)
+            ],
+        )
+        skipped = original_query_count - len(plan.queries)
+        if skipped:
+            logger.info(
+                "research: skipped %d queries targeting already-confirmed claims",
+                skipped,
+            )
+
     logger.info(
         "research: %d claims, %d queries for %r",
         len(plan.claims),
