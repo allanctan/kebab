@@ -27,6 +27,7 @@ from urllib.parse import quote
 from app.agents.ingest.inbox import stage_to_inbox
 from app.agents.ingest.registry import build_default_registry
 from app.config.config import Settings
+from app.core.sources.adapter import SourceAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -40,36 +41,31 @@ class SourceContent:
     content: str
 
 
-def search(
-    settings: Settings,
-    adapter_name: str,
+def _fetch_results(
+    adapter: SourceAdapter,
     query: str,
+    settings: Settings,
+    limit: int,
     *,
-    limit: int = 2,
+    include_domains: list[str] | None = None,
 ) -> list[SourceContent]:
-    """Discover via the named adapter, fetch up to ``limit`` results, return content.
+    """Discover via ``adapter``, fetch up to ``limit`` results, stage for provenance.
 
-    Stages each fetched artifact in ``raw/inbox/`` for provenance.
-    Unknown adapter names return ``[]`` with a warning. Per-candidate fetch
-    failures are logged and skipped — never propagated.
+    Internal helper used by :func:`search` to avoid repeating the discover→fetch
+    loop across the authoritative / wikipedia / general fallback chain.
 
-    For Wikipedia candidates the locator is the article title; the canonical
-    URL is constructed as ``https://en.wikipedia.org/wiki/<locator>``. For
-    other adapters the locator is treated as a URL (with ``https://`` added
-    if needed).
+    ``include_domains`` is only forwarded when ``adapter.name`` is ``"tavily"``
+    and the list is non-empty — the Tavily adapter is the only one that supports
+    this parameter.
     """
-    registry = build_default_registry(settings)
-    try:
-        adapter = registry.get(adapter_name)
-    except Exception:
-        logger.warning(
-            "searcher: unknown adapter %r — skipping query %r",
-            adapter_name,
-            query,
+    adapter_name = adapter.name
+    if include_domains and adapter_name == "tavily":
+        candidates = adapter.discover(
+            query, limit=max(limit + 1, 3), include_domains=include_domains  # type: ignore[call-arg] — TavilyAdapter accepts include_domains, not part of SourceAdapter Protocol
         )
-        return []
+    else:
+        candidates = adapter.discover(query, limit=max(limit + 1, 3))
 
-    candidates = adapter.discover(query, limit=max(limit + 1, 3))
     results: list[SourceContent] = []
 
     for candidate in candidates[:limit]:
@@ -88,14 +84,85 @@ def search(
             filename = f"research_{artifact.raw_path.name}"
             stage_to_inbox(settings.KNOWLEDGE_DIR, filename, content_bytes)
         except Exception as exc:
-            logger.warning(
-                "searcher: fetch failed for %r (%s) — %s", title, url, exc
-            )
+            logger.warning("searcher: fetch failed for %r (%s) — %s", title, url, exc)
             continue
 
         results.append(SourceContent(title=title, url=url, content=content))
 
     return results
+
+
+def search(
+    settings: Settings,
+    adapter_name: str,
+    query: str,
+    *,
+    limit: int = 2,
+    authoritative_sources: list[str] | None = None,
+) -> list[SourceContent]:
+    """Discover via the named adapter, fetch up to ``limit`` results, return content.
+
+    Stages each fetched artifact in ``raw/inbox/`` for provenance.
+    Unknown adapter names return ``[]`` with a warning. Per-candidate fetch
+    failures are logged and skipped — never propagated.
+
+    For Wikipedia candidates the locator is the article title; the canonical
+    URL is constructed as ``https://en.wikipedia.org/wiki/<locator>``. For
+    other adapters the locator is treated as a URL (with ``https://`` added
+    if needed).
+
+    When ``authoritative_sources`` is non-empty and ``adapter_name`` is
+    ``"tavily"``, the search follows a three-step fallback chain:
+
+    1. Tavily restricted to ``authoritative_sources`` (``include_domains``).
+    2. Wikipedia (if step 1 returns nothing).
+    3. General Tavily with no domain filter (if step 2 returns nothing).
+
+    For all other adapters or when ``authoritative_sources`` is ``None`` /
+    empty, the function behaves exactly as before (single adapter, no fallback).
+    """
+    registry = build_default_registry(settings)
+
+    try:
+        adapter = registry.get(adapter_name)
+    except Exception:
+        logger.warning(
+            "searcher: unknown adapter %r — skipping query %r",
+            adapter_name,
+            query,
+        )
+        return []
+
+    # Authoritative-source priority chain (tavily only).
+    if authoritative_sources and adapter_name == "tavily":
+        # Step 1: Tavily restricted to authoritative domains.
+        results = _fetch_results(
+            adapter,
+            query,
+            settings,
+            limit,
+            include_domains=authoritative_sources,
+        )
+        if results:
+            return results
+
+        # Step 2: Wikipedia fallback.
+        try:
+            wiki_adapter = registry.get("wikipedia")
+        except Exception:
+            wiki_adapter = None
+
+        if wiki_adapter is not None:
+            results = _fetch_results(wiki_adapter, query, settings, limit)
+            if results:
+                return results
+
+        # Step 3: General Tavily (no domain filter).
+        logger.info("searcher: falling back to general tavily for %r", query)
+        return _fetch_results(adapter, query, settings, limit)
+
+    # Default path: single adapter, no fallback.
+    return _fetch_results(adapter, query, settings, limit)
 
 
 __all__ = ["SourceContent", "search"]

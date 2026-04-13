@@ -65,12 +65,21 @@ class TavilyAdapter:
             self._fetcher = get_default_fetcher(self.settings)
         return self._fetcher
 
-    def discover(self, query: str, *, limit: int = 10) -> list[Candidate]:
+    def discover(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+        include_domains: list[str] | None = None,
+    ) -> list[Candidate]:
         """Search Tavily for ``query`` and return up to ``limit`` candidates.
 
         Raises :class:`AdapterError` when ``TAVILY_API_KEY`` is not configured.
         Each result becomes a :class:`Candidate` with the result URL as locator
         and the Tavily-provided title/snippet populated.
+
+        When ``include_domains`` is non-empty, Tavily restricts results to those
+        domains only — used by the authoritative-source priority fallback chain.
         """
         if not self.settings.TAVILY_API_KEY:
             raise AdapterError(
@@ -80,7 +89,10 @@ class TavilyAdapter:
         client = TavilyClient(api_key=self.settings.TAVILY_API_KEY)
         logger.info("tavily: searching %r (limit=%d)", query, limit)
 
-        response = client.search(query, max_results=limit)
+        if include_domains:
+            response = client.search(query, max_results=limit, include_domains=include_domains)
+        else:
+            response = client.search(query, max_results=limit)
         results: list[dict[str, object]] = response.get("results", [])
 
         candidates: list[Candidate] = []

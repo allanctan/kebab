@@ -104,7 +104,9 @@ class TestSourceContent:
 
 
 class TestSearch:
-    def test_unknown_adapter_returns_empty(self, monkeypatch: pytest.MonkeyPatch, settings: object) -> None:
+    def test_unknown_adapter_returns_empty(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object
+    ) -> None:
         monkeypatch.setattr(
             "app.core.research.searcher.build_default_registry",
             lambda _s: _FakeRegistry(adapter=_StubAdapter()),
@@ -166,7 +168,10 @@ class TestSearch:
         assert result[0].url == "https://en.wikipedia.org/wiki/Plate%20tectonics"
 
     def test_fetch_failure_logs_and_skips(
-        self, monkeypatch: pytest.MonkeyPatch, settings: object, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        settings: object,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         adapter = _ExplodingAdapter(candidates=[_candidate("a", "Title A")])
         monkeypatch.setattr(
@@ -208,3 +213,276 @@ class TestSearch:
         staged = list(inbox.iterdir())
         assert len(staged) == 1
         assert staged[0].name.startswith("research_")
+
+
+# ---------------------------------------------------------------------------
+# Stub adapter that records discover() calls for assertion
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _RecordingTavilyAdapter:
+    """Tavily-named adapter that records how discover() was called."""
+
+    name: ClassVar[str] = "tavily"
+    candidates: list[Candidate]
+    raw_dir: Path
+    default_tier: int = 4
+    # Records of include_domains per discover() call
+    discover_calls: list[list[str] | None] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.discover_calls is None:
+            self.discover_calls = []
+
+    def discover(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+        include_domains: list[str] | None = None,
+    ) -> list[Candidate]:
+        self.discover_calls.append(include_domains)
+        return list(self.candidates)
+
+    def fetch(self, candidate: Candidate) -> FetchedArtifact:
+        path = self.raw_dir / f"{candidate.locator.split('/')[-1]}.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"content for {candidate.title}".encode("utf-8"))
+        return FetchedArtifact(
+            raw_path=path,
+            source=Source(id=1, title=candidate.title, tier=4),
+            content_hash="deadbeef",
+        )
+
+
+@dataclass
+class _RecordingWikiAdapter:
+    """Wikipedia-named adapter that records discover() calls."""
+
+    name: ClassVar[str] = "wikipedia"
+    candidates: list[Candidate]
+    raw_dir: Path
+    default_tier: int = 3
+    discover_calls: list[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.discover_calls is None:
+            self.discover_calls = []
+
+    def discover(self, query: str, *, limit: int = 10) -> list[Candidate]:
+        self.discover_calls.append(query)
+        return list(self.candidates)
+
+    def fetch(self, candidate: Candidate) -> FetchedArtifact:
+        path = self.raw_dir / f"{candidate.locator}.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(f"wiki content for {candidate.title}".encode("utf-8"))
+        return FetchedArtifact(
+            raw_path=path,
+            source=Source(id=1, title=candidate.title, tier=3),
+            content_hash="cafebabe",
+        )
+
+
+@dataclass
+class _DualRegistry:
+    """Registry holding a tavily and a wikipedia adapter keyed by name."""
+
+    tavily: object
+    wikipedia: object
+
+    def get(self, name: str) -> object:
+        if name == "tavily":
+            return self.tavily
+        if name == "wikipedia":
+            return self.wikipedia
+        raise KeyError(name)
+
+    def names(self) -> list[str]:
+        return ["tavily", "wikipedia"]
+
+
+def _tavily_candidate(title: str = "Result") -> Candidate:
+    return Candidate(
+        adapter="tavily",
+        locator=f"https://example.com/{title}",
+        title=title,
+        tier_hint=4,
+    )
+
+
+def _wiki_candidate(title: str = "WikiResult") -> Candidate:
+    return Candidate(adapter="wikipedia", locator=title, title=title, tier_hint=3)
+
+
+@dataclass
+class _ProgressiveTavily:
+    """Tavily adapter that returns nothing on the first (domain-filtered) call,
+    then returns a result on the second (general) call.
+
+    ``raw_dir`` must be set before use.
+    """
+
+    name: ClassVar[str] = "tavily"
+    default_tier: int = 4
+    raw_dir: Path = None  # type: ignore[assignment]
+    # Records of include_domains per discover() call
+    discover_calls: list[list[str] | None] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.discover_calls is None:
+            self.discover_calls = []
+
+    def discover(
+        self,
+        query: str,
+        *,
+        limit: int = 10,
+        include_domains: list[str] | None = None,
+    ) -> list[Candidate]:
+        self.discover_calls.append(include_domains)
+        # First call (with domains) returns nothing; second call returns a result
+        if include_domains:
+            return []
+        return [_tavily_candidate("General Result")]
+
+    def fetch(self, candidate: Candidate) -> FetchedArtifact:
+        path = self.raw_dir / f"{candidate.locator.split('/')[-1]}.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"general content")
+        return FetchedArtifact(
+            raw_path=path,
+            source=Source(id=1, title=candidate.title, tier=4),
+            content_hash="deadbeef",
+        )
+
+
+class TestAuthoritativeSourcePriority:
+    """Tests for the authoritative-source fallback chain in search()."""
+
+    def test_uses_tavily_include_domains_when_authoritative_sources_provided(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """discover() should be called with include_domains on the first attempt."""
+        tavily = _RecordingTavilyAdapter(
+            candidates=[_tavily_candidate("Auth Result")],
+            raw_dir=tmp_path / "raw",
+        )
+        wiki = _RecordingWikiAdapter(candidates=[], raw_dir=tmp_path / "raw")
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        result = search(
+            settings,
+            "tavily",
+            "plate tectonics",
+            authoritative_sources=["britannica.com"],
+        )
+        assert len(result) == 1
+        assert result[0].title == "Auth Result"
+        assert tavily.discover_calls[0] == ["britannica.com"]
+
+    def test_no_fallback_when_authoritative_returns_results(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """Wikipedia and general Tavily should NOT be called when step 1 succeeds."""
+        tavily = _RecordingTavilyAdapter(
+            candidates=[_tavily_candidate("Auth Result")],
+            raw_dir=tmp_path / "raw",
+        )
+        wiki = _RecordingWikiAdapter(
+            candidates=[_wiki_candidate()], raw_dir=tmp_path / "raw"
+        )
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        search(settings, "tavily", "query", authoritative_sources=["britannica.com"])
+        assert len(tavily.discover_calls) == 1
+        assert len(wiki.discover_calls) == 0
+
+    def test_falls_back_to_wikipedia_when_authoritative_returns_nothing(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """When step 1 returns nothing, Wikipedia should be tried next."""
+        tavily = _RecordingTavilyAdapter(candidates=[], raw_dir=tmp_path / "raw")
+        wiki = _RecordingWikiAdapter(
+            candidates=[_wiki_candidate("Wiki Result")], raw_dir=tmp_path / "raw"
+        )
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        result = search(
+            settings, "tavily", "query", authoritative_sources=["britannica.com"]
+        )
+        assert len(result) == 1
+        assert result[0].title == "Wiki Result"
+        assert len(wiki.discover_calls) == 1
+        # Tavily with include_domains was tried first, general tavily was NOT needed
+        assert len(tavily.discover_calls) == 1
+
+    def test_falls_back_to_general_tavily_when_wiki_returns_nothing(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """When steps 1 and 2 return nothing, general Tavily (no domains) is tried."""
+        tavily = _ProgressiveTavily(raw_dir=tmp_path / "raw")
+        wiki = _RecordingWikiAdapter(candidates=[], raw_dir=tmp_path / "raw")
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        result = search(
+            settings, "tavily", "query", authoritative_sources=["britannica.com"]
+        )
+        assert len(result) == 1
+        assert result[0].title == "General Result"
+        # Called twice: once with include_domains, once without
+        assert len(tavily.discover_calls) == 2
+        assert tavily.discover_calls[0] == ["britannica.com"]
+        assert tavily.discover_calls[1] is None
+        assert len(wiki.discover_calls) == 1
+
+    def test_no_authoritative_sources_uses_adapter_directly(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """Backward-compat: no authoritative_sources → single adapter call, no fallback."""
+        tavily = _RecordingTavilyAdapter(
+            candidates=[_tavily_candidate("Direct Result")],
+            raw_dir=tmp_path / "raw",
+        )
+        wiki = _RecordingWikiAdapter(candidates=[], raw_dir=tmp_path / "raw")
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        result = search(settings, "tavily", "query")
+        assert len(result) == 1
+        assert result[0].title == "Direct Result"
+        # Should have called discover once with no include_domains
+        assert len(tavily.discover_calls) == 1
+        assert tavily.discover_calls[0] is None
+        assert len(wiki.discover_calls) == 0
+
+    def test_empty_authoritative_sources_uses_adapter_directly(
+        self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
+    ) -> None:
+        """authoritative_sources=[] behaves the same as None — no fallback chain."""
+        tavily = _RecordingTavilyAdapter(
+            candidates=[_tavily_candidate("Direct Result")],
+            raw_dir=tmp_path / "raw",
+        )
+        wiki = _RecordingWikiAdapter(candidates=[], raw_dir=tmp_path / "raw")
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _DualRegistry(tavily=tavily, wikipedia=wiki),
+        )
+        result = search(settings, "tavily", "query", authoritative_sources=[])
+        assert len(result) == 1
+        assert result[0].title == "Direct Result"
+        # Empty list is falsy — should behave identically to None: single call, no fallback
+        assert len(tavily.discover_calls) == 1
+        assert tavily.discover_calls[0] is None
+        assert len(wiki.discover_calls) == 0
