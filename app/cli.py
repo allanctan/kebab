@@ -198,6 +198,25 @@ def sync() -> None:
 # ---------- agents ----------
 
 
+@main.command("qa-generate")
+@click.argument("article_id", required=False)
+@click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
+@click.option("--domain", default=None, help="Filter by domain folder name.")
+def qa_generate_cmd(article_id: str | None, run_all: bool, domain: str | None) -> None:
+    """Generate grade-appropriate Q&A pairs from verified articles (Phase 3)."""
+    from app.agents.qa_generate import qa_generate
+
+    result = qa_generate.run(
+        env,
+        article_id=article_id if not run_all else None,
+        domain=domain,
+    )
+    click.echo(
+        f"qa-generate: updated {len(result.updated)} article(s), "
+        f"{result.pairs_added} pair(s) added, skipped {len(result.skipped)}"
+    )
+
+
 @main.command()
 @click.argument("article_id", required=False)
 @click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
@@ -205,7 +224,7 @@ def sync() -> None:
 @click.option("--once", is_flag=True, default=True, help="Run a single pass and exit.")
 @click.option("--watch", is_flag=True, help="Run continuously.")
 def qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
-    """Discover knowledge gaps in articles."""
+    """Discover knowledge gaps in articles (Phase 2)."""
     if watch:
         once = False
     result = qa_agent.run(
