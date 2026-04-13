@@ -74,8 +74,12 @@ def _run_qa(settings: Settings, article_id: str) -> qa_module.QaRunResult:
 
 
 def _run_research_gaps(settings: Settings, article_id: str) -> gaps_module.GapsResult:
-    """Run the research-gaps agent for a single article."""
-    return gaps_module.run(settings, article_id=article_id)
+    """Run the research-gaps agent for a single article.
+
+    Uses a higher budget (20) than the CLI default (5) because the
+    editorial loop needs to answer gaps faster than qa discovers them.
+    """
+    return gaps_module.run(settings, article_id=article_id, budget=20)
 
 
 def _run_research(settings: Settings, article_id: str) -> research_module.ResearchResult:

@@ -73,6 +73,7 @@ class QaDeps:
     existing_gaps: list[str]
     cited_sources: list[str]
     context_metadata: str
+    article_summary: str = ""
 
 
 @dataclass
@@ -101,12 +102,15 @@ def _default_proposer(settings: Settings, deps: QaDeps) -> GapDiscoveryResult:
         system_prompt=_GAP_PROMPT.read_text(encoding="utf-8"),
         retries=settings.LLM_MAX_RETRIES,
     )
-    user = (
-        f"article_name: {deps.article_name}\n"
-        f"existing_gaps: {deps.existing_gaps}\n"
-        f"context_metadata: {deps.context_metadata}\n\n"
-        f"body:\n{deps.body}"
-    )
+    parts = [
+        f"article_name: {deps.article_name}",
+        f"existing_gaps: {deps.existing_gaps}",
+        f"context_metadata: {deps.context_metadata}",
+    ]
+    if deps.article_summary:
+        parts.append(f"article_summary: {deps.article_summary}")
+    parts.append(f"\nbody:\n{deps.body}")
+    user = "\n".join(parts)
     return agent.run_sync(user, deps=deps).output
 
 
@@ -130,6 +134,7 @@ def _process_article(
     fm, body, tree = read_article(path)
     contexts = fm.model_dump().get("contexts", {})
     context_str = str(contexts) if contexts else "none"
+    summary = fm.model_dump().get("summary", "") or ""
     deps = QaDeps(
         settings=settings,
         article_id=fm.id,
@@ -138,6 +143,7 @@ def _process_article(
         existing_gaps=extract_research_gaps(tree),
         cited_sources=[src.title for src in fm.sources],
         context_metadata=context_str,
+        article_summary=summary,
     )
     if not deps.cited_sources:
         return (False, 0, "no cited sources — qa requires grounding")
