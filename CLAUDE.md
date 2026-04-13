@@ -328,6 +328,7 @@ app/
     images/     # Multimodal describer, deterministic figure filters, figure manifest
     sources/    # SourceAdapter protocol, source index, fetcher, provenance
     research/   # Shared plumbing for research-* agents (no LLM)
+    verticals.py # Load .kebab/<vertical>.yaml configs (shared by generate + editorial)
   models/       # Pydantic data models — no I/O, no business logic
   agents/       # All pipeline stages + autonomous agents
     ingest/         # PDF + web + adapters + registry
@@ -336,6 +337,7 @@ app/
     research/       # Claim verification (planner + verifier + writer)
     research_gaps/  # Standalone gap answering
     research_images/# Standalone Wikipedia image enrichment
+    editorial/      # Phase 2 supervisor (qa → gaps → research → chief editor)
     qa/             # Q&A pair enrichment + gap discovery
     lint/           # Health checks (no LLM)
     sync/           # Embed + upsert to Qdrant

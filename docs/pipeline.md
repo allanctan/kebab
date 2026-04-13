@@ -5,15 +5,20 @@ each pipeline stage from ingestion through research, explaining what each
 stage produces, what it consumes, where its code lives, and how the stages
 fit together.
 
-The full pipeline is:
+The full pipeline has three phases:
 
 ```
-ingest → organize → generate → research → research-gaps → research-images → qa → sync → lint
+Phase 1 — Build:       ingest → organize → generate
+Phase 2 — Enrich loop: editorial (supervises qa → research-gaps → research → chief editor)
+Phase 3 — Post:        qa-generate → research-images → sync → lint
 ```
+
+`kebab editorial` is the Phase 2 supervisor. It cycles qa → research-gaps
+→ research → chief editor judgment until the chief editor accepts or
+`--max-cycles` is reached.
 
 This guide covers `ingest` through the three `research-*` agents in
-detail. The post-research stages (qa, sync, lint) get a brief reference
-section at the end.
+detail, then the editorial supervisor, then post-research stages.
 
 ## Mental model
 
@@ -29,8 +34,8 @@ articles indexed in Qdrant. Two invariants hold across every stage:
    or local source path.
 
 Every stage is **idempotent and resumable** — running it twice produces
-the same result. This is what lets the operator (or a future supervisor
-agent) re-run any stage without worrying about double-writes.
+the same result. This is what lets the editorial supervisor re-run any
+stage without worrying about double-writes.
 
 ## Directory layout for stage code
 
@@ -43,6 +48,7 @@ app/
     research/       # Claim verification (planner + verifier + writer)
     research_gaps/  # Standalone gap answering
     research_images/# Standalone Wikipedia image enrichment
+    editorial/      # Phase 2 supervisor (qa → gaps → research → chief editor)
     qa/             # Q&A pair enrichment + gap discovery
     lint/           # Health checks (no LLM)
     sync/           # Embed + upsert to Qdrant
@@ -50,6 +56,7 @@ app/
     research/       # Shared adapter dispatch (no LLM)
     images/         # Multimodal describer + figure manifest
     sources/        # Adapter protocol, source index, fetcher
+    verticals.py    # Load .kebab/<vertical>.yaml configs
     markdown.py     # Read/write articles; section/footnote helpers
     store.py        # Qdrant wrapper
     llm/            # Model resolution, embeddings, token counting
@@ -700,6 +707,126 @@ articles with unanswered research gaps.
 
 ---
 
+## Stage 7: Editorial (Phase 2 supervisor)
+
+**Code:** `app/agents/editorial/`
+**CLI:** `kebab editorial [<id>] [--all] [--domain <name>] [--max-cycles 3]`
+**Inputs:** a curated article that has been through generate (Phase 1)
+**Outputs:** the same article with verified claims, resolved disputes,
+answered gaps, and editorial frontmatter
+
+### Architecture
+
+Three files, each one job:
+
+| File | Role | LLM? |
+|------|------|------|
+| `editorial.py` | Orchestrator: cycle loop + article dispatch | No |
+| `chief_editor.py` | Verdict agent: triage disputes, decide loop/accept | Yes |
+| `writer.py` | Apply claim rewrites and annotate unresolvable disputes | No |
+
+### Flow (one cycle)
+
+```
+1. qa.run(article_id)            → discover gaps, write to ## Research Gaps
+2. research_gaps.run(article_id)  → answer gaps (stay in ## Research Gaps)
+3. research.run(article_id)       → verify unconfirmed claims + gap answers
+                                    (authoritative sources first, Wikipedia fallback)
+4. chief_editor review            → triage disputes, decide loop or accept
+5. apply rewrites                 → rewrite claims where external source wins
+6. annotate unresolvable          → mark disputes for human review
+7. auto_sync                      → Qdrant stays current for resumability
+```
+
+If the chief editor says `"loop"` and cycles remain, go to step 1.
+If `"accept"` or max cycles reached, write final frontmatter and stop.
+
+### Chief editor decisions
+
+The chief editor reads the full article state (body, disputes, gaps,
+audit log, authoritative sources from the vertical YAML) and produces
+a `Verdict`:
+
+- **`ClaimRewrite`** — the external source is more authoritative;
+  rewrite the disputed claim in the body and remove the dispute entry.
+- **`UnresolvableDispute`** — opinion-based or no authoritative source;
+  keep in `## Disputes` with `<!-- unresolvable -->` marker for human
+  review.
+- **`decision: "loop" | "accept"`** — whether another cycle would
+  meaningfully improve the article.
+
+### Search strategy
+
+The research step uses a three-tier search priority:
+
+1. Tavily with `include_domains` (authoritative sources from the
+   vertical's `.kebab/<vertical>.yaml`)
+2. Wikipedia (fallback if no authoritative results)
+3. General Tavily (fallback if Wikipedia returns nothing)
+
+### Key invariants
+
+- **Cross-agent import exception.** The editorial agent imports `run()`
+  from `qa`, `research`, and `research_gaps`. This is a documented
+  supervisor exception — no other agent may import from siblings.
+- **Unresolvable disputes don't block confidence.** Disputes marked
+  `<!-- unresolvable -->` are tracked in `unresolvable_dispute_count`
+  and excluded from the `dispute_count == 0` gate for confidence level 3.
+- **Gap answers verified before promotion.** Gap answers stay in
+  `## Research Gaps` until the research step verifies them.
+- **Confirmed claims skipped.** The research planner excludes claims
+  that already have external confirmation footnotes, saving budget for
+  unverified work across cycles.
+
+### Models used
+
+- `EDITORIAL_MODEL` (default `gemini-pro`) — for the chief editor agent
+
+### Data shapes
+
+```python
+# app/agents/editorial/chief_editor.py
+class ClaimRewrite(BaseModel):
+    original_claim: str       # exact text in body
+    corrected_claim: str      # rewritten version
+    source_url: str           # authoritative source
+    reasoning: str
+
+class UnresolvableDispute(BaseModel):
+    claim: str
+    reasoning: str
+
+class Verdict(BaseModel):
+    decision: Literal["loop", "accept"]
+    rewrites: list[ClaimRewrite]
+    unresolvable: list[UnresolvableDispute]
+    unconfirmed_claims: list[str]
+    reasoning: str
+
+# app/agents/editorial/editorial.py
+@dataclass
+class EditorialResult:
+    article_id: str
+    cycles: int
+    decision: Literal["accept", "max_cycles_reached"]
+    claims_confirmed: int
+    claims_total: int
+    disputes_resolved: int
+    disputes_unresolvable: int
+    gaps_answered: int
+```
+
+### Frontmatter written
+
+```yaml
+editorial_cycles: 2
+editorial_decision: accept
+unresolvable_dispute_count: 1
+editorial_at: '2026-04-13'
+```
+
+---
+
 ## Post-research stages (brief reference)
 
 ### Q&A (`agents/qa/`)
@@ -732,12 +859,16 @@ articles with unanswered research gaps.
 ### First run
 
 ```bash
+# Phase 1 — Build
 kebab ingest pdf --input knowledge/raw/documents/
 kebab organize --domain Science --force
 kebab generate --domain Science
-kebab research --all
-kebab qa --once
-kebab research-gaps --all
+
+# Phase 2 — Enrich loop (editorial supervises qa + research-gaps + research)
+kebab editorial --domain Science
+
+# Phase 3 — Post-process
+kebab qa-generate --domain Science
 kebab research-images --all
 kebab sync
 kebab lint
@@ -749,15 +880,21 @@ kebab lint
 kebab ingest pdf --input new-file.pdf
 kebab organize --domain Science     # extends existing plan
 kebab generate --domain Science     # writes new articles, contexts, gaps
-kebab research --all
-kebab research-gaps --all
+kebab editorial --domain Science    # enrich loop for new + changed articles
 kebab research-images --all
 kebab sync
 ```
 
-The order of the three `research-*` commands matters: `research-images`
-needs `research` to have populated Wikipedia footnotes first, but
-`research-gaps` can run before or after `research-images`.
+### Manual Phase 2 (without editorial supervisor)
+
+The sub-agents can still be run individually for debugging or
+single-article work:
+
+```bash
+kebab qa SCI-ESC-003
+kebab research-gaps SCI-ESC-003
+kebab research SCI-ESC-003
+```
 
 ---
 
@@ -777,6 +914,7 @@ RESEARCH_JUDGE_MODEL=gemini-pro
 QA_MODEL=sonnet-4.6
 LINT_MODEL=gemini-flash
 FIGURE_MODEL=gemini-flash-lite
+EDITORIAL_MODEL=gemini-pro
 ```
 
 Model aliases are defined in `app/config/models.yaml` and resolved by
@@ -816,6 +954,10 @@ gaps_answered: 2
 gaps_researched_at: '2026-04-12'
 images_added: 3
 images_researched_at: '2026-04-12'
+editorial_cycles: 2
+editorial_decision: accept
+unresolvable_dispute_count: 0
+editorial_at: '2026-04-13'
 ---
 
 # Types of Plate Boundaries
@@ -858,6 +1000,8 @@ Each section is owned by a specific stage:
 | `frontmatter.research_*` | research |
 | `frontmatter.gaps_*` | research-gaps |
 | `frontmatter.images_*` | research-images |
+| `frontmatter.editorial_*` | editorial |
+| `frontmatter.unresolvable_dispute_count` | editorial |
 | Body prose + figures | generate (writer) |
 | Inline footnotes (`[^1]`) — local sources | generate |
 | Inline footnotes (`[^2]+`) — external | research |
@@ -866,6 +1010,8 @@ Each section is owned by a specific stage:
 | `## Research Gaps` (open questions) | qa |
 | `## Research Gaps` (answered Q/A) | research-gaps |
 | `## Disputes` | research |
+| `## Disputes` (`<!-- unresolvable -->` markers) | editorial |
+| Claim rewrites (disputed → corrected) | editorial |
 
-This split is the contract that lets the supervisor agent (future)
+This split is the contract that lets the editorial supervisor
 re-run any single stage without stepping on another stage's output.
