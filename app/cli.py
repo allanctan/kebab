@@ -326,19 +326,11 @@ def research_gaps(article_id: str | None, run_all: bool, domain: str | None, bud
     show_default=True,
     help="Max enrich cycles per article.",
 )
-@click.option(
-    "--budget",
-    type=int,
-    default=30,
-    show_default=True,
-    help="Total search queries for research-gaps across all cycles.",
-)
 def editorial(
     article_id: str | None,
     run_all: bool,
     domain: str | None,
     max_cycles: int,
-    budget: int,
 ) -> None:
     """Run the editorial enrich loop (qa -> research-gaps -> research -> chief editor)."""
     from app.agents.editorial import editorial as editorial_agent
@@ -349,7 +341,7 @@ def editorial(
             raise click.ClickException("no curated articles found")
         for aid in ids:
             click.echo(f"editorial {aid}:")
-            result = editorial_agent.run(env, article_id=aid, max_cycles=max_cycles, budget=budget)
+            result = editorial_agent.run(env, article_id=aid, max_cycles=max_cycles)
             click.echo(
                 f"  {result.cycles} cycle(s), decision={result.decision}, "
                 f"confirmed={result.claims_confirmed}/{result.claims_total}, "
@@ -358,7 +350,7 @@ def editorial(
             )
     elif article_id:
         result = editorial_agent.run(
-            env, article_id=article_id, max_cycles=max_cycles, budget=budget
+            env, article_id=article_id, max_cycles=max_cycles
         )
         click.echo(
             f"editorial {article_id}: {result.cycles} cycle(s), "
