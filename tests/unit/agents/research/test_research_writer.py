@@ -132,6 +132,38 @@ class TestApplyFindings:
         assert "**Category**: Dispute" in result  # default when no dispute_category set
         assert "Source says the opposite." in result
 
+    def test_dispute_on_research_gaps_claim_still_written(self) -> None:
+        """A dispute against a claim extracted from ## Research Gaps must
+        still appear in ## Disputes — gap-answer claims are not exempt."""
+        body = (
+            "# Article\n\nSome content.\n\n"
+            "## Research Gaps\n\n"
+            "- **Q: Where were fossils found?**\n"
+            "  **A:** Fossils in Africa, South America, and India.\n\n"
+            "[^1]: [Source](src.pdf)\n"
+        )
+        findings: list[FindingTuple] = [
+            (
+                ClaimEntry(
+                    text="Fossils in Africa, South America, and India.",
+                    section="Research Gaps",
+                    paragraph=1,
+                ),
+                FindingResult(
+                    outcome="dispute",
+                    reasoning="contradicts",
+                    evidence_quote="Africa and South America only.",
+                    contradiction="Source lists only Africa and South America.",
+                ),
+                "Wikipedia",
+                "https://en.wikipedia.org/wiki/Fossils",
+            ),
+        ]
+        result = apply_findings_to_article(body, findings)
+        assert "## Disputes" in result
+        assert "Fossils in Africa, South America, and India." in result
+        assert "Source lists only Africa and South America." in result
+
     def test_empty_findings_returns_body_unchanged(self) -> None:
         body = self._base_body()
         result = apply_findings_to_article(body, [])

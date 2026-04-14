@@ -166,9 +166,10 @@ def apply_findings_to_article(
     appends: dict[str, list[str]] = {}  # section -> sentences
 
     for claim, finding, source_title, source_url in findings:
-        if claim.section == "Research Gaps":
-            continue
-
+        # Claims extracted from any section (body or ## Research Gaps Q/A
+        # blocks) are treated uniformly. Confirms add a footnote to the
+        # claim's sentence; appends add a new sentence at the section end;
+        # disputes go to ## Disputes regardless of origin.
         if finding.outcome == "confirm":
             ref = _get_footnote(source_title, source_url)
             para_idx = _find_paragraph_containing(tree, claim.text)
