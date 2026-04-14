@@ -38,9 +38,12 @@ relevant to the topic but NOT answerable from the article body.
    - Real-world examples the body references but doesn't name.
 4. **Skip gaps that overlap with `existing_gaps`** — same intent in
    different wording counts as overlap. Check the list carefully.
-5. **Return at most 5 new gaps.** Prioritize the most important
-   ones — questions whose answers would most improve the article
-   for its target audience. Do not pad with trivial questions.
+5. **Return the gaps you judge most important for deepening the
+   article's coverage of its topic.** Prioritize questions whose
+   answers would genuinely improve the article for its target
+   audience. Don't pad with trivial questions, but don't artificially
+   limit yourself either — if the article has several meaningful
+   holes, surface them all.
 6. Each gap question must be specific enough to use as a search query.
 7. In `reasoning`, suggest the type of source that could answer the
    question (e.g., "peer-reviewed study", "curriculum document",
