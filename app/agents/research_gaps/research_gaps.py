@@ -33,6 +33,7 @@ from app.core.markdown import (
     write_article,
 )
 from app.core.research.searcher import search
+from app.core.verticals import resolve_vertical
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,12 @@ def run(
         logger.info("research-gaps: no unanswered gaps for %r — skipping", article_id)
         return GapsResult(article_id=article_id)
 
+    # Resolve vertical to get authoritative sources allowlist.
+    # Without this, search() falls back to general Tavily and pulls in
+    # Reddit/Quora/etc.
+    vertical = resolve_vertical(settings, fm)
+    authoritative = vertical.authoritative_sources if vertical else []
+
     # Planner needs a concrete hint — use gap count when budget is unlimited
     budget_hint = len(gaps) if budget is None else budget
     deps = QueryPlannerDeps(
@@ -161,7 +168,10 @@ def run(
         if gq.target_gap_idx < 0 or gq.target_gap_idx >= len(gaps):
             continue
 
-        sources = search(settings, gq.adapter, gq.query, limit=2)
+        sources = search(
+            settings, gq.adapter, gq.query, limit=2,
+            authoritative_sources=authoritative,
+        )
         queries_run += 1
 
         for src in sources:

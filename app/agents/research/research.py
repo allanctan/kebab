@@ -53,6 +53,7 @@ from app.core.markdown import (
     write_article,
 )
 from app.core.research.searcher import search
+from app.core.verticals import resolve_vertical
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,10 @@ def run(
 
     fm, body, tree = read_article(path)
 
+    # Resolve vertical to get authoritative sources allowlist for search.
+    vertical = resolve_vertical(settings, fm)
+    authoritative = vertical.authoritative_sources if vertical else []
+
     confirmed_urls = _extract_confirmed_urls(body)
     deps = PlannerDeps(
         settings=settings,
@@ -268,7 +273,10 @@ def run(
             logger.info("research: budget of %d queries reached", budget)
             break
 
-        sources = search(settings, sq.adapter, sq.query, limit=2)
+        sources = search(
+            settings, sq.adapter, sq.query, limit=2,
+            authoritative_sources=authoritative,
+        )
         queries_run += 1
 
         for src in sources:

@@ -149,11 +149,15 @@ def search(
     if needed).
 
     When ``authoritative_sources`` is non-empty and ``adapter_name`` is
-    ``"tavily"``, the search follows a three-step fallback chain:
+    ``"tavily"``, the search follows a strict two-step chain:
 
     1. Tavily restricted to ``authoritative_sources`` (``include_domains``).
     2. Wikipedia (if step 1 returns nothing).
-    3. General Tavily with no domain filter (if step 2 returns nothing).
+
+    If both steps return nothing, the function returns ``[]`` — it does
+    NOT fall back to general Tavily. This keeps low-quality sources
+    (Reddit, Quora, homework sites) out of gap answers and claim
+    verifications.
 
     For all other adapters or when ``authoritative_sources`` is ``None`` /
     empty, the function behaves exactly as before (single adapter, no fallback).
@@ -194,9 +198,13 @@ def search(
             if results:
                 return results
 
-        # Step 3: General Tavily (no domain filter).
-        logger.info("searcher: falling back to general tavily for %r", query)
-        return _fetch_results(adapter, query, settings, limit)
+        # No general-Tavily fallback — gap stays unanswered rather than
+        # accepting low-quality sources.
+        logger.info(
+            "searcher: no authoritative or Wikipedia results for %r — returning empty",
+            query,
+        )
+        return []
 
     # Default path: single adapter, no fallback.
     return _fetch_results(adapter, query, settings, limit)

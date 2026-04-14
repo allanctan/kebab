@@ -316,48 +316,6 @@ def _wiki_candidate(title: str = "WikiResult") -> Candidate:
     return Candidate(adapter="wikipedia", locator=title, title=title, tier_hint=3)
 
 
-@dataclass
-class _ProgressiveTavily:
-    """Tavily adapter that returns nothing on the first (domain-filtered) call,
-    then returns a result on the second (general) call.
-
-    ``raw_dir`` must be set before use.
-    """
-
-    name: ClassVar[str] = "tavily"
-    default_tier: int = 4
-    raw_dir: Path = None  # type: ignore[assignment]
-    # Records of include_domains per discover() call
-    discover_calls: list[list[str] | None] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.discover_calls is None:
-            self.discover_calls = []
-
-    def discover(
-        self,
-        query: str,
-        *,
-        limit: int = 10,
-        include_domains: list[str] | None = None,
-    ) -> list[Candidate]:
-        self.discover_calls.append(include_domains)
-        # First call (with domains) returns nothing; second call returns a result
-        if include_domains:
-            return []
-        return [_tavily_candidate("General Result")]
-
-    def fetch(self, candidate: Candidate) -> FetchedArtifact:
-        path = self.raw_dir / f"{candidate.locator.split('/')[-1]}.txt"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"general content")
-        return FetchedArtifact(
-            raw_path=path,
-            source=Source(id=1, title=candidate.title, tier=4),
-            content_hash="deadbeef",
-        )
-
-
 class TestAuthoritativeSourcePriority:
     """Tests for the authoritative-source fallback chain in search()."""
 
@@ -424,11 +382,12 @@ class TestAuthoritativeSourcePriority:
         # Tavily with include_domains was tried first, general tavily was NOT needed
         assert len(tavily.discover_calls) == 1
 
-    def test_falls_back_to_general_tavily_when_wiki_returns_nothing(
+    def test_returns_empty_when_auth_and_wiki_return_nothing(
         self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
     ) -> None:
-        """When steps 1 and 2 return nothing, general Tavily (no domains) is tried."""
-        tavily = _ProgressiveTavily(raw_dir=tmp_path / "raw")
+        """When steps 1 and 2 return nothing, search returns [] — no general
+        Tavily fallback. This keeps low-quality sources out of results."""
+        tavily = _RecordingTavilyAdapter(candidates=[], raw_dir=tmp_path / "raw")
         wiki = _RecordingWikiAdapter(candidates=[], raw_dir=tmp_path / "raw")
         monkeypatch.setattr(
             "app.core.research.searcher.build_default_registry",
@@ -437,12 +396,10 @@ class TestAuthoritativeSourcePriority:
         result = search(
             settings, "tavily", "query", authoritative_sources=["britannica.com"]
         )
-        assert len(result) == 1
-        assert result[0].title == "General Result"
-        # Called twice: once with include_domains, once without
-        assert len(tavily.discover_calls) == 2
+        assert result == []
+        # Called once with include_domains — no second call without filter
+        assert len(tavily.discover_calls) == 1
         assert tavily.discover_calls[0] == ["britannica.com"]
-        assert tavily.discover_calls[1] is None
         assert len(wiki.discover_calls) == 1
 
     def test_no_authoritative_sources_uses_adapter_directly(
