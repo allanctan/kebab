@@ -76,11 +76,11 @@ def _run_qa(settings: Settings, article_id: str) -> qa_module.QaRunResult:
 def _run_research_gaps(settings: Settings, article_id: str) -> gaps_module.GapsResult:
     """Run the research-gaps agent for a single article.
 
-    The editorial loop calls this each cycle. Cycles are the constraint
-    — each cycle lets research-gaps work through remaining unanswered
-    gaps using its default per-run budget.
+    Passes ``budget=None`` so each cycle attempts to answer every
+    unanswered gap. Cycles (``--max-cycles``) are the only constraint
+    on the editorial loop.
     """
-    return gaps_module.run(settings, article_id=article_id)
+    return gaps_module.run(settings, article_id=article_id, budget=None)
 
 
 def _run_research(settings: Settings, article_id: str) -> research_module.ResearchResult:

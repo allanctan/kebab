@@ -104,14 +104,16 @@ def run(
     settings: Settings,
     *,
     article_id: str,
-    budget: int = 5,
+    budget: int | None = 5,
 ) -> GapsResult:
     """Answer unanswered gaps in an article.
 
     Args:
         settings:   KEBAB runtime configuration.
         article_id: ID of the article whose gaps should be answered.
-        budget:     Maximum number of queries to execute.
+        budget:     Maximum number of queries to execute. Pass ``None``
+                    to attempt every unanswered gap (used by the editorial
+                    orchestrator — each cycle works through all gaps).
 
     Returns:
         :class:`GapsResult` summarising the run.
@@ -128,12 +130,14 @@ def run(
         logger.info("research-gaps: no unanswered gaps for %r — skipping", article_id)
         return GapsResult(article_id=article_id)
 
+    # Planner needs a concrete hint — use gap count when budget is unlimited
+    budget_hint = len(gaps) if budget is None else budget
     deps = QueryPlannerDeps(
         settings=settings,
         article_name=fm.name,
         gap_questions=gaps,
         available_adapters=_available_adapters(settings),
-        budget_hint=budget,
+        budget_hint=budget_hint,
     )
     plan: GapQueryPlan = plan_queries(settings, deps)
     logger.info(
@@ -149,7 +153,7 @@ def run(
     queries_run = 0
 
     for gq in plan.queries:
-        if queries_run >= budget:
+        if budget is not None and queries_run >= budget:
             logger.info("research-gaps: budget of %d queries reached", budget)
             break
         if gq.target_gap_idx in answered_idx:
