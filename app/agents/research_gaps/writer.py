@@ -30,12 +30,17 @@ class GapAnswer:
 
 
 def _find_gaps_list_items(tree: marko.block.Document) -> list[tuple[int, int]]:
-    """Return ``(parent_index, item_index)`` for each list item in ``## Research Gaps``.
+    """Return ``(parent_index, item_index)`` for each **unanswered** list item
+    in ``## Research Gaps``.
 
     Walks the tree to find the Research Gaps heading (level 2), then
-    collects all ``ListItem`` children from the first ``List`` node in
-    that section. Returns an empty list if the section or list doesn't
-    exist.
+    collects ``ListItem`` children from the first ``List`` node in that
+    section, excluding already-answered Q/A blocks (items whose text
+    starts with ``**Q:``). This alignment matches the filtered gap list
+    the caller passes to :func:`apply_answers_to_gaps` — each gap_idx
+    indexes into the unanswered-only list.
+
+    Returns an empty list if the section or list doesn't exist.
     """
     children = tree.children
     in_section = False
@@ -50,8 +55,13 @@ def _find_gaps_list_items(tree: marko.block.Document) -> list[tuple[int, int]]:
                 break
         if in_section and isinstance(node, marko.block.List):
             for j, item in enumerate(node.children):
-                if isinstance(item, marko.block.ListItem):
-                    items.append((i, j))
+                if not isinstance(item, marko.block.ListItem):
+                    continue
+                # Skip answered Q/A blocks — they start with **Q:
+                item_text = _node_text(item).strip()
+                if item_text.startswith("**Q:") or item_text.startswith("Q:"):
+                    continue
+                items.append((i, j))
             break  # Only the first list in the section
     return items
 
