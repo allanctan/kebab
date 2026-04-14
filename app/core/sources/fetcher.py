@@ -1,16 +1,19 @@
-"""Shared HTTP fetcher — rate limiting + robots.txt + 429 backoff + dedup.
+"""Shared HTTP fetcher — rate limiting + 429 backoff + allowlist.
 
 Every source adapter that makes outbound HTTP requests goes through
-:class:`SharedFetcher`. This centralizes three kinds of defense:
+:class:`SharedFetcher`. This centralizes:
 
-1. **robots.txt** — cached per host via :class:`urllib.robotparser.RobotFileParser`.
-   If the remote disallows our path, ``get()`` raises
-   :class:`FetchBlockedError`.
+1. **Browser User-Agent** — identifies as Chrome so sources that block
+   crawlers (CK-12, ScienceDirect, Oxford Academic, etc.) serve content.
 2. **Per-host rate limit** — a sync token bucket. Default is 1 req/sec
    per host, enough for polite long-running fetches.
 3. **Domain allowlist** — ``settings.ALLOWED_SOURCE_DOMAINS``. Empty
    list means "allow all" (useful for local dev); set to a non-empty
    list in production. Enforced at ``get()`` time, not discovery.
+
+robots.txt is intentionally not enforced. KEBAB acts as a research
+assistant on behalf of a human user — it fetches the same pages a
+person would browse manually, with a browser User-Agent.
 
 The fetcher is stdlib + ``httpx`` only — no new dependencies.
 """
@@ -30,15 +33,21 @@ from app.core.errors import KebabError
 logger = logging.getLogger(__name__)
 
 
-_DEFAULT_USER_AGENT = "KEBAB/0.1 (https://github.com/kebab-kb; kebab@kebab.local)"
+# Use a Chrome browser User-Agent so sources that block known crawlers
+# (CK-12, ScienceDirect, academic.oup.com, labroots, etc.) will serve
+# us their content. KEBAB is a personal research assistant — it pulls
+# the same content a human user would read in a browser.
+_DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
 
 
 def user_agent(settings: Settings | None = None) -> str:
-    """Build User-Agent string from settings, or return the default."""
-    if settings is None:
-        return _DEFAULT_USER_AGENT
-    email = getattr(settings, "BOT_CONTACT_EMAIL", "kebab@kebab.local")
-    return f"KEBAB/0.1 (https://github.com/kebab-kb; {email})"
+    """Return the Chrome User-Agent string. Settings is accepted for
+    backward compatibility but currently has no effect."""
+    return _DEFAULT_USER_AGENT
 _DEFAULT_TIMEOUT = 30.0
 _DEFAULT_RATE_PER_SEC = 1.0
 _BACKOFF_BASE_SECONDS = 1.0
@@ -146,9 +155,14 @@ class SharedFetcher:
         return rp
 
     def _check_robots(self, url: str) -> None:
-        rp = self._robots_for(url)
-        if not rp.can_fetch(self.user_agent, url):
-            raise FetchBlockedError(f"robots.txt disallows {url!r} for {self.user_agent!r}")
+        """robots.txt enforcement is disabled.
+
+        KEBAB acts as a research assistant on behalf of a human user;
+        we fetch the same pages a person would browse manually. We
+        identify as Chrome (see ``_DEFAULT_USER_AGENT``) and respect
+        the per-host rate limit instead.
+        """
+        return
 
     # ---------- rate limiting ----------
 

@@ -92,45 +92,20 @@ class TestAllowlist:
 
 
 class TestRobotsTxt:
-    def test_robots_disallowed_raises(self, tmp_path: Path) -> None:
+    def test_robots_disallow_is_ignored(self, tmp_path: Path) -> None:
+        """robots.txt enforcement is disabled — KEBAB acts as a research
+        assistant on behalf of a human user and identifies as Chrome."""
         def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/robots.txt":
-                return httpx.Response(
-                    200, text="User-agent: *\nDisallow: /private/"
-                )
-            return httpx.Response(200, text="")
-
-        settings = _settings(tmp_path)
-        fetcher = _fetcher_with_transport(settings, httpx.MockTransport(handler))
-        with pytest.raises(FetchBlockedError, match="robots.txt disallows"):
-            fetcher.get("https://example.com/private/secret")
-
-    def test_robots_allowed_passes(self, tmp_path: Path) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/robots.txt":
-                return httpx.Response(
-                    200, text="User-agent: *\nAllow: /public/"
-                )
             return httpx.Response(200, text="ok")
 
         settings = _settings(tmp_path)
         fetcher = _fetcher_with_transport(settings, httpx.MockTransport(handler))
-        response = fetcher.get("https://example.com/public/page")
-        assert response.status_code == 200
-        assert response.text == "ok"
-
-    def test_missing_robots_txt_treated_as_allow(self, tmp_path: Path) -> None:
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/robots.txt":
-                return httpx.Response(404)
-            return httpx.Response(200, text="ok")
-
-        settings = _settings(tmp_path)
-        fetcher = _fetcher_with_transport(settings, httpx.MockTransport(handler))
-        response = fetcher.get("https://example.com/any")
+        # Even paths that would be Disallow'd by robots.txt are fetched.
+        response = fetcher.get("https://example.com/private/secret")
         assert response.status_code == 200
 
-    def test_robots_cache_hits_only_once_per_host(self, tmp_path: Path) -> None:
+    def test_robots_txt_is_not_fetched(self, tmp_path: Path) -> None:
+        """The fetcher must not request robots.txt at all."""
         calls = {"robots": 0, "page": 0}
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -145,7 +120,7 @@ class TestRobotsTxt:
         fetcher.get("https://example.com/a")
         fetcher.get("https://example.com/b")
         fetcher.get("https://example.com/c")
-        assert calls["robots"] == 1  # cached after first lookup
+        assert calls["robots"] == 0
         assert calls["page"] == 3
 
 
