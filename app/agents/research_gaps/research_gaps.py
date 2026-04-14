@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -56,6 +57,47 @@ def _available_adapters(settings: Settings) -> list[str]:
     if getattr(settings, "TAVILY_API_KEY", ""):
         adapters.append("tavily")
     return adapters
+
+
+# Domains blocked from answering gaps — homework sites, content farms,
+# low-reliability Q&A aggregators, and social media.
+# Gap answers introduce new claims into the article; they must come from
+# trustworthy sources. These sites frequently contain user-generated or
+# AI-generated content with no editorial oversight.
+_BLOCKED_DOMAINS: frozenset[str] = frozenset({
+    "brainly.com",
+    "brainly.ph",
+    "brainly.in",
+    "quora.com",
+    "answers.com",
+    "chegg.com",
+    "coursehero.com",
+    "studocu.com",
+    "fiveable.me",
+    "vaia.com",
+    "studysmarter.com",
+    "studysmarter.us",
+    "reddit.com",
+    "medium.com",
+    "youtube.com",
+    "facebook.com",
+    "twitter.com",
+    "x.com",
+    "pinterest.com",
+    "tiktok.com",
+})
+
+
+def _is_blocked_domain(url: str) -> bool:
+    """Return True if the URL's domain is in the blocklist."""
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return False
+    # Strip leading "www."
+    if host.startswith("www."):
+        host = host[4:]
+    return host in _BLOCKED_DOMAINS
 
 
 def run(
@@ -119,6 +161,12 @@ def run(
         queries_run += 1
 
         for src in sources:
+            # Skip blocked domains — gap answers must come from trustworthy sources
+            if _is_blocked_domain(src.url):
+                logger.info(
+                    "research-gaps: skipping blocked domain source %s", src.url
+                )
+                continue
             classification = answer_question(
                 settings,
                 question=gaps[gq.target_gap_idx],
@@ -148,7 +196,12 @@ def run(
 
     new_body = apply_answers_to_gaps(body, gaps, answers) if answers else body
 
-    setattr(fm, "gaps_answered", len(answers))
+    # Accumulate gaps_answered across runs instead of overwriting.
+    # The editorial loop may call research-gaps multiple times; each run
+    # only reports new answers, but the cumulative count should reflect
+    # all gaps answered to date.
+    previous_answered = int(fm.model_dump().get("gaps_answered", 0) or 0)
+    setattr(fm, "gaps_answered", previous_answered + len(answers))
     setattr(fm, "gaps_researched_at", date.today().isoformat())
 
     write_article(path, fm, new_body)
