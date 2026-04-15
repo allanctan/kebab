@@ -25,6 +25,40 @@ class TestApplyRewrites:
         assert "Plates move at 2-15cm/year depending on the plate." in new_body
         assert "Plates move at 10cm/year on average." not in new_body
 
+    def test_removes_dispute_entry_in_research_writer_format(self) -> None:
+        """Research writer formats disputes WITHOUT a leading bullet:
+        ``**Claim**: "..."`` followed by ``**Category**:`` etc.,
+        separated by ``* * *``. The editorial writer must remove
+        these matching entries when applying a rewrite."""
+        body = (
+            "# Article\n\n"
+            "Plates move at 10cm/year on average.\n\n"
+            "## Disputes\n\n"
+            "**Claim**: \"Plates move at 10cm/year on average.\"\n\n"
+            "**Category**: Factual Error\n\n"
+            "**Section**: Intro, paragraph 1\n\n"
+            "**External source**: [Britannica](https://britannica.com/plates)\n\n"
+            "**Contradiction**: Source says 2-15cm/year.\n\n"
+            "**Reasoning**: Britannica gives a range.\n"
+            "## Sources\n"
+        )
+        rewrite = ClaimRewrite(
+            original_claim="Plates move at 10cm/year on average.",
+            corrected_claim="Plates move at 2-15cm/year depending on the plate.",
+            source_url="https://britannica.com/plates",
+            reasoning="Britannica gives a range.",
+        )
+        new_body = apply_rewrites(body, [rewrite])
+        assert "Plates move at 2-15cm/year depending on the plate." in new_body
+        # Body claim was rewritten
+        assert "Plates move at 10cm/year on average." not in new_body
+        # Dispute entry was removed from ## Disputes section
+        assert "**Category**: Factual Error" not in new_body
+        assert "**Contradiction**: Source says 2-15cm/year." not in new_body
+        # Section headings remain
+        assert "## Disputes" in new_body
+        assert "## Sources" in new_body
+
     def test_no_rewrites_returns_body_unchanged(self) -> None:
         body = "# Test\n\nSome content.\n"
         assert apply_rewrites(body, []) == body

@@ -48,10 +48,20 @@ def annotate_unresolvable(
 
 
 def _remove_dispute_entry(body: str, claim_text: str) -> str:
-    """Remove a single dispute entry from the ## Disputes section."""
+    """Remove a single dispute entry from the ## Disputes section.
+
+    Research writer formats disputes without a bullet prefix:
+    ``**Claim**: "..."`` followed by ``**Category**:``, ``**Section**:``,
+    etc., with a ``* * *`` separator between entries. This regex matches
+    that format and stops at the next entry separator, the next
+    ``**Claim**:``, a section heading, or end of string.
+    """
     escaped = re.escape(claim_text[:60])
-    # Match from "- **Claim**:" containing this claim text up to the next
-    # "- **Claim**:" or section heading or end of string
-    pattern = rf"- \*\*Claim\*\*:.*?{escaped}.*?(?=- \*\*Claim\*\*:|## |\Z)"
+    pattern = (
+        rf"\*\*Claim\*\*:[^\n]*{escaped}.*?"
+        rf"(?=\n\*\*Claim\*\*:|\n\* \* \*|\n## |\Z)"
+    )
     body = re.sub(pattern, "", body, count=1, flags=re.DOTALL)
+    # Clean up orphaned separator lines left behind
+    body = re.sub(r"\n\* \* \*\n+(?=## |\Z)", "\n", body)
     return body
