@@ -352,13 +352,14 @@ applied to the body, plus updated frontmatter metadata
 
 ### Architecture
 
-Four files, one job each:
+Five files, one job each:
 
 | File | Role | LLM? |
 |------|------|------|
-| `research.py` | Orchestrator: load → plan → search → verify → write back | No |
+| `research.py` | Orchestrator: load → plan → fetch → batch verify → write back | No |
 | `planner.py` | Extract claims and generate search queries | Yes |
-| `verifier.py` | `classify_finding` and `judge_dispute` agents | Yes |
+| `batch_verifier.py` | Verify all claims against all sources in one call | Yes |
+| `verifier.py` | Legacy per-pair `classify_finding` / `judge_dispute` (preserved, not called by orchestrator) | Yes |
 | `writer.py` | Apply confirmed/appended/disputed findings to the body | No |
 
 The shared adapter dispatch (`core/research/searcher.py`) is in core,
@@ -372,36 +373,30 @@ not in the agent — it's reused by `research_gaps` too.
    → ResearchPlan(claims=[ClaimEntry], queries=[SearchQuery])
 3. for each query in plan.queries (until budget):
        sources = core.research.searcher.search(settings, adapter, query, limit=2)
-       for src in sources:
-           for claim_idx in query.target_claims:
-               result = verifier.classify_finding(settings, claim, src.title, src.content)
-               if result.outcome == "dispute":
-                   if not verifier.judge_dispute(...).is_genuine:
-                       skip
-               findings.append((claim, result, src.title, src.url))
-4. new_body = writer.apply_findings_to_article(body, findings)
-5. Update frontmatter:
-       fm.research_claims_total = len(plan.claims)
-       fm.external_confirms = count_external_footnotes(new_body)
-       fm.dispute_count = extract_disputes(new_body)
-       fm.researched_at = today
-6. write_article(path, fm, new_body)
+       all_sources.extend(sources)
+4. deduplicate all_sources by URL
+5. batch_findings = batch_verifier.batch_verify(settings, BatchVerifierDeps(
+       article_body, claims, unique_sources, authoritative_domains))
+   → one LLM call: article + all claims + all sources → list[BatchFinding]
+6. findings = batch_findings_to_tuples(batch_findings, plan.claims)
+7. new_body = writer.apply_findings_to_article(body, findings)
+8. Update frontmatter + write_article
 ```
 
 ### Outcomes
 
-The verifier classifies each (claim, source) pair into one of three
-outcomes:
+The batch verifier classifies each claim into one of four outcomes:
 
-- **`confirm`** — source agrees. The writer appends a footnote citation
+- **`confirm`** — a source agrees. The writer appends a footnote citation
   to the claim's existing sentence: `Plates move...[^7]`.
-- **`append`** — source has new related information. The writer adds a
+- **`append`** — a source has new related information. The writer adds a
   new sentence at the end of the claim's section, marked
   `<!-- appended -->` with a footnote.
-- **`dispute`** — source contradicts the claim. The result goes through
-  a second LLM (`judge_dispute`) which strips out phrasing/scope
-  differences. Genuine contradictions land in `## Disputes` with both
-  the claim and the contradicting passage.
+- **`dispute`** — a source contradicts the claim. The batch verifier
+  classifies disputes directly into a 5-category taxonomy (factual_error,
+  misleading_simplification, contested_or_opinion, acceptable_simplification,
+  false_positive). Only categories 1-3 are surfaced to `## Disputes`.
+- **`unverified`** — no source addresses this claim.
 
 ### Key invariants
 
