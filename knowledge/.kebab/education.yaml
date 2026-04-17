@@ -1,0 +1,150 @@
+description: >
+  Educational content: textbooks, curriculum modules, learning materials,
+  lesson plans, school subjects including science, earth science, physics,
+  biology, chemistry, mathematics, english, social studies, history,
+  geography. Any K-12 or college academic material.
+
+generate_instruction: >
+  Write with pedagogical clarity. Structure the article as: introduction
+  defining the topic scope, then core content organized by concept, then
+  a brief summary of key points. Define technical terms on first use.
+  Use precise academic language — do not simplify for a specific grade level.
+
+authoritative_sources:
+  # Educational platforms and courseware
+  - openstax.org
+  - khanacademy.org
+  - ck12.org
+  - pbslearningmedia.org
+  - libretexts.org
+  - commonlit.org
+  - newsela.com
+  - edx.org
+  - coursera.org
+  - lumenlearning.com
+  - illustrativemathematics.org
+  - zearn.org
+  - desmos.com
+  - geogebra.org
+  - readingrockets.org
+  - mathsisfun.com
+  - purplemath.com
+  - nsta.org
+  - readworks.org
+  - betterlesson.com
+  # Government science and education agencies
+  - nasa.gov
+  - usgs.gov
+  - noaa.gov
+  - cdc.gov
+  - nih.gov
+  - epa.gov
+  - nps.gov
+  - energy.gov
+  - ed.gov
+  - census.gov
+  - loc.gov
+  - nist.gov
+  - si.edu
+  - fws.gov
+  - weather.gov
+  # Museums and cultural institutions
+  - amnh.org
+  - metmuseum.org
+  - nga.gov
+  - archives.gov
+  - nhm.ac.uk
+  - sciencemuseum.org.uk
+  - exploratorium.edu
+  - fieldmuseum.org
+  - calacademy.org
+  - pbs.org
+  - thehenryford.org
+  # Encyclopedias and reference
+  - britannica.com
+  - nationalgeographic.com
+  - smithsonianmag.com
+  - worldwildlife.org
+  - worldatlas.com
+  - encyclopedia.com
+  - howstuffworks.com
+  - merriam-webster.com
+  - bbc.co.uk
+  - infoplease.com
+  # Academic publishers and journals
+  - nature.com
+  - sciencedirect.com
+  - springer.com
+  - ncbi.nlm.nih.gov
+  - jstor.org
+  - wiley.com
+  - pnas.org
+  - science.org
+  - frontiersin.org
+  - academic.oup.com
+  # University educational portals
+  - mit.edu
+  - stanford.edu
+  - harvard.edu
+  - berkeley.edu
+  - cam.ac.uk
+  - ox.ac.uk
+  - open.edu
+  - hyperphysics.phy-astr.gsu.edu
+  - cornell.edu
+  - umn.edu
+  # Science news and communication
+  - sciencedaily.com
+  - livescience.com
+  - scientificamerican.com
+  - newscientist.com
+  - phys.org
+  - space.com
+  - earthsky.org
+  - sciencenews.org
+  - theconversation.com
+  - popsci.com
+  # International and subject-specific
+  - csiro.au
+  - royalsociety.org
+  - esa.int
+  - who.int
+  - iucn.org
+  - un.org
+  - worldbank.org
+  - earthathome.org
+  - geolsoc.org.uk
+  - acs.org
+  - floridamuseum.ufl.edu
+  - ucmp.berkeley.edu
+  - oceanexplorer.noaa.gov
+  - sciencecenter.org
+
+classification_fields:
+  grade:
+    type: int
+    range: [1, 12]
+    description: Recommended K-12 grade level
+  subject:
+    type: str
+    description: Academic subject (e.g. science, mathematics)
+  language:
+    type: str
+    default: en
+    description: ISO 639-1 language code
+  learning_objectives:
+    type: list
+    description: What the student should be able to do after studying this article
+  bloom_level:
+    type: enum
+    values: [remember, understand, apply, analyze, evaluate, create]
+    default: understand
+    description: Highest Bloom's revised taxonomy level
+  dok_level:
+    type: enum
+    values: [1, 2, 3, 4]
+    default: 2
+    description: Webb's Depth of Knowledge
+  concept_tags:
+    type: list
+    description: Key technical terms and domain vocabulary introduced in the article
