@@ -1,10 +1,9 @@
 """Research agent — claim verification orchestrator.
 
-Loads an article, runs the planner, executes the search plan via the
-shared :mod:`app.core.research.searcher`, classifies each finding via the
-verifier (with dispute judging for genuine contradictions), applies the
-findings to the article body via the writer, and updates frontmatter
-with the run's metadata.
+Loads an article, runs the planner, fetches sources for each planned query via
+the shared :mod:`app.core.research.searcher`, batch-verifies all claims in a
+single LLM call, applies the findings to the article body via the writer, and
+updates frontmatter with the run's metadata.
 
 Replaces the previous ``app/agents/research/agent.py`` from the
 2026-04-12 research restructure. Compared to the old orchestrator:
@@ -33,13 +32,13 @@ from app.agents.research.planner import (
     ResearchPlan,
     plan_research,
 )
-from app.agents.research.synthesizer import merge_appends
-from app.agents.research.verifier import (
-    FindingResult,
-    FindingTuple,
-    classify_finding,
-    judge_dispute,
+from app.agents.research.batch_verifier import (
+    BatchVerifierDeps,
+    batch_findings_to_tuples,
+    batch_verify,
 )
+from app.agents.research.synthesizer import merge_appends
+from app.agents.research.verifier import SURFACED_CATEGORIES
 from app.agents.research.writer import apply_findings_to_article
 from app.config.config import Settings
 from app.core.audit import log_event
@@ -52,7 +51,7 @@ from app.core.markdown import (
     read_article,
     write_article,
 )
-from app.core.research.searcher import search
+from app.core.research.searcher import SourceContent, search
 from app.core.verticals import resolve_vertical
 
 logger = logging.getLogger(__name__)
@@ -261,79 +260,98 @@ def run(
         article_id,
     )
 
-    findings: list[FindingTuple] = []
-    confirmed_claims: set[int] = set()
-    appended_claims: set[int] = set()
-    disputed_claims: set[int] = set()
-    finding_summaries: list[str] = []
-
+    # --- Fetch all sources across all queries ---
+    all_sources: list[SourceContent] = []
     queries_run = 0
     for sq in plan.queries:
         if queries_run >= budget:
             logger.info("research: budget of %d queries reached", budget)
             break
-
         sources = search(
             settings, sq.adapter, sq.query, limit=2,
             authoritative_sources=authoritative,
         )
         queries_run += 1
+        all_sources.extend(sources)
 
-        for src in sources:
-            for claim_idx in sq.target_claims:
-                if claim_idx >= len(plan.claims):
-                    continue
-                claim: ClaimEntry = plan.claims[claim_idx]
+    # Deduplicate sources by URL
+    seen_urls: set[str] = set()
+    unique_sources: list[SourceContent] = []
+    for src in all_sources:
+        if src.url not in seen_urls:
+            unique_sources.append(src)
+            seen_urls.add(src.url)
 
-                result: FindingResult = classify_finding(
-                    settings, claim, src.title, src.content
+    logger.info(
+        "research: fetched %d unique sources for %d claims",
+        len(unique_sources),
+        len(plan.claims),
+    )
+
+    # --- Batch verify all claims against all sources ---
+    if unique_sources:
+        batch_deps = BatchVerifierDeps(
+            settings=settings,
+            article_name=fm.name,
+            article_body=body,
+            claims=plan.claims,
+            sources=unique_sources,
+            authoritative_domains=authoritative,
+        )
+        batch_findings = batch_verify(settings, batch_deps)
+    else:
+        batch_findings = []
+
+    # Convert to FindingTuples for the existing writer
+    findings = batch_findings_to_tuples(batch_findings, plan.claims)
+
+    # Log audit events and track confirmed/appended/disputed sets
+    confirmed_claims: set[int] = set()
+    appended_claims: set[int] = set()
+    disputed_claims: set[int] = set()
+
+    for bf in batch_findings:
+        if bf.outcome == "unverified" or bf.claim_idx < 0 or bf.claim_idx >= len(plan.claims):
+            continue
+        claim = plan.claims[bf.claim_idx]
+        if bf.outcome == "confirm":
+            confirmed_claims.add(bf.claim_idx)
+            log_event(
+                path, stage="research", action="confirm",
+                article_id=article_id,
+                claim=claim.text, section=claim.section,
+                source_title=bf.source_title, source_url=bf.source_url,
+            )
+        elif bf.outcome == "append":
+            appended_claims.add(bf.claim_idx)
+            log_event(
+                path, stage="research", action="append",
+                article_id=article_id,
+                claim=claim.text, section=claim.section,
+                new_sentence=bf.new_sentence or "",
+                source_title=bf.source_title, source_url=bf.source_url,
+            )
+        elif bf.outcome == "dispute":
+            if bf.dispute_category and bf.dispute_category not in SURFACED_CATEGORIES:
+                log_event(
+                    path, stage="research", action="dispute_suppressed",
+                    article_id=article_id,
+                    claim=claim.text, section=claim.section,
+                    category=bf.dispute_category,
+                    reasoning=bf.reasoning,
+                    source_title=bf.source_title, source_url=bf.source_url,
                 )
-
-                if result.outcome == "dispute":
-                    judgment = judge_dispute(settings, claim, result, src.content)
-                    if not judgment.is_surfaced:
-                        log_event(
-                            path, stage="research", action="dispute_suppressed",
-                            article_id=article_id,
-                            claim=claim.text, section=claim.section,
-                            category=judgment.category,
-                            reasoning=judgment.reasoning,
-                            source_title=src.title, source_url=src.url,
-                        )
-                        continue
-                    # Stamp the category on the finding so the writer can show it
-                    result = result.model_copy(update={"dispute_category": judgment.category})
-
-                findings.append((claim, result, src.title, src.url))
-
-                if result.outcome == "confirm":
-                    confirmed_claims.add(claim_idx)
-                    log_event(
-                        path, stage="research", action="confirm",
-                        article_id=article_id,
-                        claim=claim.text, section=claim.section,
-                        source_title=src.title, source_url=src.url,
-                    )
-                elif result.outcome == "append":
-                    appended_claims.add(claim_idx)
-                    log_event(
-                        path, stage="research", action="append",
-                        article_id=article_id,
-                        claim=claim.text, section=claim.section,
-                        new_sentence=result.new_sentence or "",
-                        source_title=src.title, source_url=src.url,
-                    )
-                elif result.outcome == "dispute":
-                    disputed_claims.add(claim_idx)
-                    log_event(
-                        path, stage="research", action="dispute",
-                        article_id=article_id,
-                        claim=claim.text, section=claim.section,
-                        category=result.dispute_category or "",
-                        contradiction=result.contradiction or "",
-                        reasoning=result.reasoning,
-                        source_title=src.title, source_url=src.url,
-                    )
+            else:
+                disputed_claims.add(bf.claim_idx)
+                log_event(
+                    path, stage="research", action="dispute",
+                    article_id=article_id,
+                    claim=claim.text, section=claim.section,
+                    category=bf.dispute_category or "",
+                    contradiction=bf.contradiction or "",
+                    reasoning=bf.reasoning,
+                    source_title=bf.source_title, source_url=bf.source_url,
+                )
 
     # Synthesize multiple appends per section into one cohesive statement.
     # Build a footnote_refs map so the synthesizer knows which [^N] markers
@@ -387,7 +405,7 @@ def run(
         confirms=len(confirmed_claims),
         appends=len(appended_claims),
         disputes=len(disputed_claims),
-        findings=finding_summaries,
+        findings=[],
     )
 
 

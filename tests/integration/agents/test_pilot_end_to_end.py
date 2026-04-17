@@ -113,13 +113,18 @@ def _stub_research_planner(_settings, _deps):
     )
 
 
-def _stub_research_searcher(_adapter, _query, _settings):
-    return [("Wikipedia: Test", "https://en.wikipedia.org/wiki/Test", "Test confirms the claim.")]
-
-
-def _stub_research_classifier(_settings, _claim, _source_title, _source_content):
-    from app.agents.research.verifier import FindingResult
-    return FindingResult(outcome="confirm", reasoning="confirmed", evidence_quote="Test confirms.")
+def _stub_batch_verify_confirm(_settings: object, _deps: object) -> list[object]:
+    from app.agents.research.batch_verifier import BatchFinding
+    return [
+        BatchFinding(
+            claim_idx=0,
+            outcome="confirm",
+            source_title="Wikipedia: Test",
+            source_url="https://en.wikipedia.org/wiki/Test",
+            evidence_quote="Test confirms the claim.",
+            reasoning="confirmed",
+        )
+    ]
 
 
 def _stub_qa(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
@@ -210,7 +215,7 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
             )
         ],
     )
-    monkeypatch.setattr(research_stage, "classify_finding", _stub_research_classifier)
+    monkeypatch.setattr(research_stage, "batch_verify", _stub_batch_verify_confirm)
 
     research_stage.run(settings, article_id=fm_pre.id)
 

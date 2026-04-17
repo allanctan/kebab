@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 from app.agents.research import research as research_stage
+from app.agents.research.batch_verifier import BatchFinding
 from app.agents.research.planner import ClaimEntry, ResearchPlan, SearchQuery
-from app.agents.research.verifier import DisputeJudgment, FindingResult
 from app.config.config import Settings
 from app.core.markdown import read_article, write_article
 from app.core.research import searcher as searcher_module
@@ -67,8 +67,8 @@ def settings(tmp_path: Path) -> Settings:
 
 
 # ---------------------------------------------------------------------------
-# Stubs — injected via monkeypatch since the new orchestrator has no
-# callable swap-points on run().
+# Stubs — injected via monkeypatch since the orchestrator has no callable
+# swap-points on run().  We stub plan_research, search, and batch_verify.
 # ---------------------------------------------------------------------------
 
 
@@ -91,7 +91,9 @@ def _stub_plan_research(_settings: Settings, _deps: object) -> ResearchPlan:
     )
 
 
-def _stub_search(_settings: Settings, _adapter: str, _query: str, **_kw: object) -> list[searcher_module.SourceContent]:
+def _stub_search(
+    _settings: Settings, _adapter: str, _query: str, **_kw: object
+) -> list[searcher_module.SourceContent]:
     return [
         searcher_module.SourceContent(
             title="Wikipedia: Plate tectonics",
@@ -101,41 +103,46 @@ def _stub_search(_settings: Settings, _adapter: str, _query: str, **_kw: object)
     ]
 
 
-def _stub_classify_confirm(
-    _settings: Settings, _claim: object, _source_title: str, _source_content: str
-) -> FindingResult:
-    return FindingResult(
-        outcome="confirm",
-        reasoning="Source confirms convection drives plates.",
-        evidence_quote="Convection currents in the mantle drive plate movement.",
-    )
+def _stub_batch_verify_confirm(
+    _settings: Settings, _deps: object
+) -> list[BatchFinding]:
+    return [
+        BatchFinding(
+            claim_idx=0,
+            outcome="confirm",
+            source_title="Wikipedia: Plate tectonics",
+            source_url="https://en.wikipedia.org/wiki/Plate_tectonics",
+            evidence_quote="Convection currents in the mantle drive plate movement.",
+            reasoning="Source confirms convection drives plates.",
+        )
+    ]
 
 
-def _stub_classify_dispute(
-    _settings: Settings, _claim: object, _source_title: str, _source_content: str
-) -> FindingResult:
-    return FindingResult(
-        outcome="dispute",
-        reasoning="Source contradicts.",
-        evidence_quote="Slab pull is dominant.",
-        contradiction="Source says slab pull, not convection, is primary.",
-    )
+def _stub_batch_verify_dispute(
+    _settings: Settings, _deps: object
+) -> list[BatchFinding]:
+    return [
+        BatchFinding(
+            claim_idx=0,
+            outcome="dispute",
+            source_title="Wikipedia: Plate tectonics",
+            source_url="https://en.wikipedia.org/wiki/Plate_tectonics",
+            evidence_quote="Slab pull is dominant.",
+            contradiction="Source says slab pull, not convection, is primary.",
+            dispute_category="factual_error",
+            reasoning="Source contradicts claim.",
+        )
+    ]
 
 
-def _stub_judge_genuine(*_a: object, **_kw: object) -> DisputeJudgment:
-    return DisputeJudgment(
-        category="factual_error",
-        reasoning="Real contradiction.",
-        summary="Slab pull vs convection.",
-    )
-
-
-def _patch_pipeline(monkeypatch: pytest.MonkeyPatch, *, classify, judge=None) -> None:
+def _patch_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    batch_verify_stub: object,
+) -> None:
     monkeypatch.setattr(research_stage, "plan_research", _stub_plan_research)
     monkeypatch.setattr(research_stage, "search", _stub_search)
-    monkeypatch.setattr(research_stage, "classify_finding", classify)
-    if judge is not None:
-        monkeypatch.setattr(research_stage, "judge_dispute", judge)
+    monkeypatch.setattr(research_stage, "batch_verify", batch_verify_stub)
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +154,7 @@ def _patch_pipeline(monkeypatch: pytest.MonkeyPatch, *, classify, judge=None) ->
 def test_research_enriches_article_with_confirm(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _patch_pipeline(monkeypatch, classify=_stub_classify_confirm)
+    _patch_pipeline(monkeypatch, batch_verify_stub=_stub_batch_verify_confirm)
 
     result = research_stage.run(settings, article_id="SCI-001")
 
@@ -163,7 +170,7 @@ def test_research_enriches_article_with_confirm(
 def test_research_article_not_found(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _patch_pipeline(monkeypatch, classify=_stub_classify_confirm)
+    _patch_pipeline(monkeypatch, batch_verify_stub=_stub_batch_verify_confirm)
     result = research_stage.run(settings, article_id="NONEXISTENT")
     assert result.findings == []
     assert result.claims_total == 0
@@ -173,11 +180,7 @@ def test_research_article_not_found(
 def test_research_with_dispute(
     settings: Settings, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _patch_pipeline(
-        monkeypatch,
-        classify=_stub_classify_dispute,
-        judge=_stub_judge_genuine,
-    )
+    _patch_pipeline(monkeypatch, batch_verify_stub=_stub_batch_verify_dispute)
 
     result = research_stage.run(settings, article_id="SCI-001")
 
