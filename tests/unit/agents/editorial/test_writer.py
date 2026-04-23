@@ -59,6 +59,39 @@ class TestApplyRewrites:
         assert "## Disputes" in new_body
         assert "## Sources" in new_body
 
+    def test_removes_dispute_by_source_url_when_claim_text_differs(self) -> None:
+        """When the chief editor paraphrases the claim, the dispute entry
+        should still be removed by matching on the source URL."""
+        body = (
+            "# Article\n\n"
+            "Lystrosaurus fossils found across multiple continents.\n\n"
+            "## Disputes\n\n"
+            "**Claim**: \"Fossils of the land-dwelling reptile Lystrosaurus "
+            "have been found on Antarctica, South America, and Africa.\"\n\n"
+            "**Category**: Factual Error\n\n"
+            "**Section**: Evidence 2, paragraph 2\n\n"
+            "**External source**: [Lystrosaurus](https://en.wikipedia.org/wiki/Lystrosaurus)\n\n"
+            "**Contradiction**: Source excludes South America.\n\n"
+            "**Reasoning**: South America not listed.\n"
+            "## Sources\n"
+        )
+        # Chief editor uses DIFFERENT wording than the dispute entry
+        rewrite = ClaimRewrite(
+            original_claim="Lystrosaurus fossils found across multiple continents.",
+            corrected_claim="Lystrosaurus fossils found in Antarctica, India, and Africa.",
+            source_url="https://en.wikipedia.org/wiki/Lystrosaurus",
+            reasoning="Wikipedia excludes South America.",
+        )
+        new_body = apply_rewrites(body, [rewrite])
+        # Body was rewritten
+        assert "Lystrosaurus fossils found in Antarctica, India, and Africa." in new_body
+        # Dispute entry removed via URL match (claim text didn't match)
+        assert "**Category**: Factual Error" not in new_body
+        assert "Source excludes South America" not in new_body
+        # Sections remain
+        assert "## Disputes" in new_body
+        assert "## Sources" in new_body
+
     def test_no_rewrites_returns_body_unchanged(self) -> None:
         body = "# Test\n\nSome content.\n"
         assert apply_rewrites(body, []) == body
