@@ -128,3 +128,41 @@ def test_lint_writes_json_report(settings: Settings, store: Store) -> None:
     assert result.output_path.exists()
     assert result.report.articles_scanned == 2
     assert sum(result.report.counts.values()) == len(result.report.issues)
+
+
+@pytest.mark.integration
+def test_lint_surfaces_uncovered_competencies(
+    settings: Settings, store: Store, tmp_path: Path
+) -> None:
+    """When a coverage JSON exists, lint reports per-spine uncovered LCs."""
+    import json
+
+    curriculum_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "curriculum"
+    curriculum_dir.mkdir(parents=True)
+    coverage = {
+        "name": "test-spine",
+        "generated_at": "2026-05-22",
+        "total_competencies": 3,
+        "covered": 1,
+        "uncovered": 2,
+        "by_subject": {},
+        "competencies": {
+            "LC-1": ["SCI-BIO-001"],   # covered
+            "LC-2": [],                # uncovered
+            "LC-3": [],                # uncovered
+        },
+    }
+    (curriculum_dir / "test-spine.coverage.json").write_text(
+        json.dumps(coverage), encoding="utf-8"
+    )
+
+    result = lint_agent.run(settings, store=store, today=_today)
+    assert "test-spine" in result.report.uncovered_competencies
+    assert result.report.uncovered_competencies["test-spine"] == ["LC-2", "LC-3"]
+
+
+@pytest.mark.integration
+def test_lint_no_uncovered_when_no_spine(settings: Settings, store: Store) -> None:
+    """Without a coverage JSON, uncovered_competencies stays empty."""
+    result = lint_agent.run(settings, store=store, today=_today)
+    assert result.report.uncovered_competencies == {}

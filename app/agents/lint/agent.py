@@ -63,6 +63,10 @@ class LintReport(BaseModel):
     issues: list[LintIssue] = Field(..., description="Every issue found.")
     counts: dict[str, int] = Field(..., description="Issue count by code.")
     articles_scanned: int = Field(..., description="Number of articles inspected.")
+    uncovered_competencies: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description="Per-spine list of LC codes with zero covering articles.",
+    )
 
 
 @dataclass
@@ -178,7 +182,30 @@ def run(
     for issue in issues:
         counts[issue.code] = counts.get(issue.code, 0) + 1
 
-    report = LintReport(issues=issues, counts=counts, articles_scanned=scanned)
+    # Curriculum coverage — read any .coverage.json under .kebab/curriculum/
+    # and surface uncovered LCs as a per-spine list. No coverage files = no
+    # report key. Spine must be (re-)built via `kebab curriculum coverage`.
+    uncovered_by_spine: dict[str, list[str]] = {}
+    curriculum_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "curriculum"
+    if curriculum_dir.exists():
+        for cov_path in sorted(curriculum_dir.glob("*.coverage.json")):
+            try:
+                cov = json.loads(cov_path.read_text(encoding="utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("lint: skipping unparseable %s — %s", cov_path, exc)
+                continue
+            spine_name = cov.get("name") or cov_path.stem.removesuffix(".coverage")
+            comps = cov.get("competencies") or {}
+            uncovered = sorted(code for code, arts in comps.items() if not arts)
+            if uncovered:
+                uncovered_by_spine[spine_name] = uncovered
+
+    report = LintReport(
+        issues=issues,
+        counts=counts,
+        articles_scanned=scanned,
+        uncovered_competencies=uncovered_by_spine,
+    )
     out_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab"
     out_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
