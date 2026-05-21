@@ -26,9 +26,9 @@ def test_get_entry_returns_model_entry() -> None:
     entry = model_presets.get_entry("gemini-flash")
     assert entry is not None
     assert entry.provider == "google-gla"
-    assert entry.model == "gemini-2.5-flash"
+    assert entry.model == "gemini-3-flash-preview"
     assert entry.is_custom_endpoint is False
-    assert entry.model_string == "google-gla:gemini-2.5-flash"
+    assert entry.model_string == "google-gla:gemini-3-flash-preview"
 
 
 def test_get_entry_unknown_returns_none() -> None:
@@ -36,8 +36,8 @@ def test_get_entry_unknown_returns_none() -> None:
 
 
 def test_resolve_alias_native_returns_model_string() -> None:
-    assert model_presets.resolve_alias("gemini-flash") == "google-gla:gemini-2.5-flash"
-    assert model_presets.resolve_alias("gemini-pro") == "google-gla:gemini-2.5-pro"
+    assert model_presets.resolve_alias("gemini-flash") == "google-gla:gemini-3-flash-preview"
+    assert model_presets.resolve_alias("gemini-pro") == "google-gla:gemini-3.1-pro-preview"
 
 
 def test_resolve_alias_unknown_raises_with_known_list() -> None:

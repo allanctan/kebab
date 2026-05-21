@@ -56,7 +56,7 @@ def test_resolve_model_dollar_ref_expands(monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_resolve_model_alias_dispatches_to_presets() -> None:
     # `gemini-flash` is defined in app/config/models.yaml.
-    assert llm.resolve_model("gemini-flash") == "google-gla:gemini-2.5-flash"
+    assert llm.resolve_model("gemini-flash") == "google-gla:gemini-3-flash-preview"
 
 
 def test_register_decorator_adds_factory() -> None:
