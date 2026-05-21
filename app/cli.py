@@ -521,6 +521,103 @@ def list_articles(domain: str | None, min_confidence: int, sort_by: str) -> None
     click.echo(f"\n{len(articles)} article(s)")
 
 
+# ---------- curriculum ----------
+
+
+@main.group("curriculum")
+def curriculum_group() -> None:
+    """Ingest curriculum guides and report article ↔ competency coverage."""
+
+
+@curriculum_group.command("ingest")
+@click.argument(
+    "xlsx_path",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path),
+)
+@click.option(
+    "--name",
+    required=True,
+    help="Spine name (e.g. 'matatag-g10-draft'). Becomes the spine filename.",
+)
+@click.option(
+    "--curriculum",
+    "curriculum_name",
+    default="MATATAG",
+    show_default=True,
+    help="Curriculum framework name written into the spine.",
+)
+@click.option(
+    "--grade",
+    "grade_filter",
+    default=None,
+    help="If set, keep only competencies for this grade (e.g. '10').",
+)
+def curriculum_ingest(
+    xlsx_path: Path,
+    name: str,
+    curriculum_name: str,
+    grade_filter: str | None,
+) -> None:
+    """Parse XLSX into knowledge/.kebab/curriculum/<name>.yaml."""
+    from app.agents.curriculum import ingest_xlsx
+
+    result = ingest_xlsx(
+        env,
+        xlsx_path=xlsx_path,
+        name=name,
+        curriculum=curriculum_name,
+        grade_filter=grade_filter,
+    )
+    click.echo(
+        f"curriculum ingest: wrote {result.spine_path} "
+        f"({result.total_competencies} competencies"
+        + (f", grade={result.grade_filter}" if result.grade_filter else "")
+        + ")"
+    )
+
+
+@curriculum_group.command("coverage")
+@click.option("--name", required=True, help="Spine name to build coverage for.")
+def curriculum_coverage(name: str) -> None:
+    """Walk curated/ and build the reverse LC → articles index."""
+    from app.agents.curriculum import build_coverage
+
+    coverage = build_coverage(env, name=name)
+    click.echo(
+        f"curriculum coverage: {coverage.covered}/{coverage.total_competencies} "
+        f"competencies covered ({coverage.uncovered} uncovered)"
+    )
+
+
+@curriculum_group.command("status")
+@click.option("--name", required=True, help="Spine name to report on.")
+@click.option(
+    "--subject",
+    default=None,
+    help="Filter to a single subject.",
+)
+def curriculum_status(name: str, subject: str | None) -> None:
+    """Print coverage summary by subject (reads existing coverage JSON)."""
+    from app.agents.curriculum.coverage import load_coverage
+
+    coverage = load_coverage(env, name)
+    click.echo(f"Curriculum: {name}  (generated {coverage.generated_at})")
+    click.echo(
+        f"Overall:   {coverage.covered}/{coverage.total_competencies} covered "
+        f"({coverage.uncovered} uncovered)"
+    )
+    click.echo()
+    click.echo(f"{'Subject':<28s} {'Total':>6s} {'Covered':>8s} {'Uncovered':>10s}")
+    click.echo("-" * 56)
+    items = sorted(coverage.by_subject.items())
+    for subj, stats in items:
+        if subject and subj != subject:
+            continue
+        click.echo(
+            f"{subj:<28s} {stats.total:>6d} {stats.covered:>8d} {stats.uncovered:>10d}"
+        )
+
+
 # ---------- evals ----------
 
 

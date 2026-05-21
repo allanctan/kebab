@@ -21,6 +21,7 @@ dependencies = [
     "google-genai>=1.70.0",
     "tavily-python>=0.7.23",
     "marko>=2.2.2",
+    "openpyxl>=3.1.5",
 ]
 
 [project.scripts]

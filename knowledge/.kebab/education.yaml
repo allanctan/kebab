@@ -148,3 +148,16 @@ classification_fields:
   concept_tags:
     type: list
     description: Key technical terms and domain vocabulary introduced in the article
+  competency_codes:
+    type: list
+    description: >
+      DepEd curriculum learning-competency codes this article covers
+      (e.g., "SCI10-PT-I-2", "EN10LIT-I-2c"). Tagged against the spine
+      named in `curriculum`. Empty list means uncovered; lint surfaces it.
+  curriculum:
+    type: str
+    default: ""
+    description: >
+      Name of the curriculum spine this article is tagged against
+      (e.g., "matatag-g10-draft"). Matches a file under
+      knowledge/.kebab/curriculum/. Empty string means no spine tagging.
