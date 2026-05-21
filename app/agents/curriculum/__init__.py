@@ -17,3 +17,7 @@ from app.agents.curriculum.curriculum import (
 from app.agents.curriculum.coverage import (
     build_coverage as build_coverage,
 )
+from app.agents.curriculum.tagger import (
+    ArticleTagOutcome as ArticleTagOutcome,
+    tag_articles as tag_articles,
+)

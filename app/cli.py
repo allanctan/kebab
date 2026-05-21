@@ -403,6 +403,10 @@ def lint() -> None:
     )
     for code, count in sorted(report.counts.items()):
         click.echo(f"  {code}: {count}")
+    if report.uncovered_competencies:
+        click.echo()
+        for spine_name, codes in sorted(report.uncovered_competencies.items()):
+            click.echo(f"  uncovered_competencies[{spine_name}]: {len(codes)}")
 
 
 # ---------- utilities ----------
@@ -587,6 +591,43 @@ def curriculum_coverage(name: str) -> None:
         f"curriculum coverage: {coverage.covered}/{coverage.total_competencies} "
         f"competencies covered ({coverage.uncovered} uncovered)"
     )
+
+
+@curriculum_group.command("tag")
+@click.option(
+    "--name",
+    required=True,
+    help="Spine name to tag against (e.g. 'matatag-g10-draft').",
+)
+@click.option("--domain", default=None, help="Restrict to articles under curated/<domain>/.")
+@click.option(
+    "--article-id",
+    default=None,
+    help="Tag a single article by ID; overrides --domain.",
+)
+def curriculum_tag(name: str, domain: str | None, article_id: str | None) -> None:
+    """Use the LLM to tag curated articles with competency_codes."""
+    from app.agents.curriculum import tag_articles
+
+    outcomes = tag_articles(
+        env,
+        name=name,
+        domain=domain,
+        article_id=article_id,
+    )
+    if not outcomes:
+        click.echo("curriculum tag: no articles found")
+        return
+    tagged = sum(1 for o in outcomes if o.skipped_reason is None)
+    click.echo(f"curriculum tag: processed {len(outcomes)} article(s), {tagged} tagged")
+    for o in outcomes:
+        if o.skipped_reason:
+            click.echo(f"  - {o.article_id}: skipped ({o.skipped_reason})")
+            continue
+        delta = set(o.new_codes) ^ set(o.previous_codes)
+        change = f" (Δ {len(delta)})" if delta else ""
+        codes = ", ".join(o.new_codes) if o.new_codes else "(none)"
+        click.echo(f"  - {o.article_id}: {codes}{change}")
 
 
 @curriculum_group.command("status")
