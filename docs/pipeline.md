@@ -20,6 +20,50 @@ Phase 3 — Post:        qa-generate → research-images → sync → lint
 This guide covers `ingest` through the three `research-*` agents in
 detail, then the editorial supervisor, then post-research stages.
 
+## Pipeline diagram
+
+```mermaid
+flowchart TD
+    Start([raw PDF / web]) --> Ingest[ingest<br/><i>raw/ → processed/</i>]
+    Ingest --> Organize[organize<br/><i>plan.json + stub articles</i>]
+    Organize --> Generate[generate<br/><i>contexts → gaps → write</i>]
+    Generate --> Editorial
+
+    subgraph Editorial["Phase 2 — editorial supervisor"]
+        direction TB
+        QA[qa<br/><i>discover gaps</i>] --> RGaps[research-gaps<br/><i>answer gaps</i>]
+        RGaps --> Research[research<br/><i>verify claims</i>]
+        Research --> Chief{chief editor}
+        Chief -->|loop| QA
+    end
+
+    Chief -->|accept| QAGen[qa-generate<br/><i>grade-level Q&A</i>]
+    QAGen --> RImages[research-images<br/><i>Wikipedia figures</i>]
+    RImages --> Sync[sync<br/><i>embed → Qdrant</i>]
+    Sync --> Lint[lint<br/><i>health checks</i>]
+    Lint --> End([curated KB ready])
+
+    classDef phase1 fill:#e3f2fd,stroke:#1976d2,color:#0d47a1
+    classDef phase2 fill:#f3e5f5,stroke:#7b1fa2,color:#4a148c
+    classDef phase3 fill:#fff3e0,stroke:#f57c00,color:#e65100
+    classDef terminal fill:#f5f5f5,stroke:#666,color:#333
+
+    class Ingest,Organize,Generate phase1
+    class QA,RGaps,Research,Chief phase2
+    class QAGen,RImages,Sync,Lint phase3
+    class Start,End terminal
+```
+
+Notes:
+
+- **Phase 1** runs left to right, no iteration. Each command extends or
+  re-writes the curated tree.
+- **Phase 2** is the only place that loops. The chief editor re-enters
+  qa as many times as `--max-cycles` allows; one cycle per article.
+- **Phase 3** runs once after editorial accepts. None of the post stages
+  modify article claims — they decorate (`research-images`), grade
+  (`qa-generate`), index (`sync`), or report (`lint`).
+
 ## Mental model
 
 KEBAB transforms raw source material into curated, verified markdown
