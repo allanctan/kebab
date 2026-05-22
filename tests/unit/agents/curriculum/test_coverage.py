@@ -96,6 +96,30 @@ class TestBuildCoverage:
         assert coverage.uncovered == 3
         assert all(arts == [] for arts in coverage.competencies.values())
 
+    def test_ignores_codes_outside_the_spine(
+        self, sample_xlsx: Path, tmp_path: Path
+    ) -> None:
+        """Articles tagged with codes from a sibling spine must not pollute coverage."""
+        settings = _mk_settings(tmp_path)
+        # Build G10 spine — fixture only has G10 rows, so G7 codes are outside.
+        ingest_xlsx(
+            settings, xlsx_path=sample_xlsx, name="g10-spine", grade_filter="10"
+        )
+        curated = Path(settings.CURATED_DIR) / "Knowledge" / "Science"
+        # Article tags ONE valid G10 code plus a foreign G7 code
+        _write_article(
+            curated / "mixed.md",
+            "SCI-001",
+            ["SCI10-PT-I-1", "SCI7-ESS-I-2"],
+        )
+
+        coverage = build_coverage(settings, name="g10-spine")
+        # Only the spine code is counted
+        assert coverage.covered == 1
+        assert "SCI10-PT-I-1" in coverage.competencies
+        # Foreign code does NOT appear as a key
+        assert "SCI7-ESS-I-2" not in coverage.competencies
+
     def test_load_coverage_round_trips(
         self, sample_xlsx: Path, tmp_path: Path
     ) -> None:

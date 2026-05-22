@@ -70,10 +70,12 @@ def build_coverage(
             reverse[code].append(article_id)
 
     # Initialize every spine LC as an empty list so consumers can iterate
-    # the full curriculum and see "no articles" cleanly.
+    # the full curriculum and see "no articles" cleanly. Codes outside the
+    # spine are silently ignored — they belong to a sibling spine.
     competencies: dict[str, list[str]] = {c.code: [] for c in spine.competencies}
-    for code, ids in reverse.items():
-        competencies[code] = sorted(set(ids))
+    for code in competencies:
+        if code in reverse:
+            competencies[code] = sorted(set(reverse[code]))
 
     # Per-subject roll-up
     by_subject: dict[str, SubjectCoverage] = {}
