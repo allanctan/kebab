@@ -62,16 +62,28 @@ class SourceIndex(BaseModel):
 def _pattern_to_regex(pattern: str) -> re.Pattern[str]:
     """Convert a path pattern with ``{field}`` placeholders to a regex.
 
-    Example: ``raw/documents/grade_{grade}/{subject}/{filename}``
-    becomes a regex that captures named groups ``grade``, ``subject``,
-    ``filename``.
+    Each ``{field}`` captures a single path segment (``[^/]+``) — except
+    ``{filename}``, which is treated as "everything that follows" and
+    captures across path separators (``.+``). This lets a single pattern
+    extract metadata from deeply-nested trees, e.g.::
+
+        pattern: raw/documents/{subject}/Grade {grade}/{filename}
+        path:    raw/documents/Science/Grade 10/K-12 Materials/Q1/Foo.pdf
+        → {subject: "Science", grade: "10"} (filename dropped by caller)
+
+    The ``filename`` group is intentionally dropped from the extracted
+    metadata in :func:`extract_path_metadata`, so its greedy behavior
+    affects matching but not stored fields.
     """
-    # Escape everything except {field} placeholders.
     parts: list[str] = []
     last = 0
     for match in re.finditer(r"\{(\w+)\}", pattern):
         parts.append(re.escape(pattern[last : match.start()]))
-        parts.append(f"(?P<{match.group(1)}>[^/]+)")
+        name = match.group(1)
+        # `filename` captures the remainder of the path (multi-segment);
+        # all other placeholders are single-segment.
+        regex_fragment = ".+" if name == "filename" else "[^/]+"
+        parts.append(f"(?P<{name}>{regex_fragment})")
         last = match.end()
     parts.append(re.escape(pattern[last:]))
     return re.compile("^" + "".join(parts) + "$")

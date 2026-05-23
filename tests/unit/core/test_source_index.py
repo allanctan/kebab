@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from app.core.sources.index import load_index, register_source, save_index
+from app.core.sources.index import (
+    extract_path_metadata,
+    load_index,
+    register_source,
+    save_index,
+)
 
 
 class TestSourceIndex:
@@ -79,3 +84,58 @@ class TestSourceIndex:
         register_source(index, stem="my_stem", raw_path="a.pdf", title="A", tier=1, checksum="1", adapter="pdf")
         assert index.get_by_stem("my_stem").id == 1
         assert index.get_by_stem("nonexistent") is None
+
+
+class TestExtractPathMetadata:
+    """Path-pattern metadata extraction.
+
+    The ``{filename}`` placeholder is special — it captures the remainder
+    of the path (multi-segment) rather than a single segment. All other
+    placeholders match a single segment.
+    """
+
+    PATTERN = "raw/documents/{subject}/Grade {grade}/{filename}"
+
+    def test_extracts_subject_and_grade_at_expected_depth(self) -> None:
+        meta = extract_path_metadata(
+            "raw/documents/Science/Grade 10/Foo.pdf", self.PATTERN
+        )
+        assert meta == {"subject": "Science", "grade": "10"}
+
+    def test_filename_captures_nested_subdirs(self) -> None:
+        """The {filename} placeholder must span path separators."""
+        meta = extract_path_metadata(
+            "raw/documents/Science/Grade 10/K-12 Materials/1ST QUARTER/Mod.pdf",
+            self.PATTERN,
+        )
+        assert meta == {"subject": "Science", "grade": "10"}
+
+    def test_subject_with_spaces_matches_single_segment(self) -> None:
+        meta = extract_path_metadata(
+            "raw/documents/Culture, Society and Politics/Grade 12/UCSP M1.pdf",
+            self.PATTERN,
+        )
+        assert meta == {"subject": "Culture, Society and Politics", "grade": "12"}
+
+    def test_non_matching_path_returns_empty(self) -> None:
+        meta = extract_path_metadata(
+            "raw/inbox/research_wikipedia_foo.md", self.PATTERN
+        )
+        assert meta == {}
+
+    def test_none_pattern_returns_empty(self) -> None:
+        assert extract_path_metadata("raw/documents/Science/Grade 10/F.pdf", None) == {}
+
+    def test_filename_dropped_from_result(self) -> None:
+        """The 'filename' capture group is intentionally omitted."""
+        meta = extract_path_metadata(
+            "raw/documents/Science/Grade 10/Foo.pdf", self.PATTERN
+        )
+        assert "filename" not in meta
+
+    def test_single_segment_placeholder_still_strict(self) -> None:
+        """Non-filename placeholders must not span /."""
+        pattern = "raw/{subject}/file.pdf"
+        # subject can't be "a/b" — must be single segment
+        meta = extract_path_metadata("raw/a/b/file.pdf", pattern)
+        assert meta == {}

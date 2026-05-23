@@ -54,8 +54,11 @@ If your PDFs are organized by grade and subject, set `SOURCE_PATH_PATTERN`
 in `.env` so ingest extracts metadata automatically:
 
 ```env
-# Matches: raw/documents/grade_10/science/filename.pdf
-SOURCE_PATH_PATTERN=raw/documents/grade_{grade}/{subject}/{filename}
+# Matches: raw/documents/Science/Grade 10/<any nested subdirs>/filename.pdf
+# `{filename}` matches multi-segment (the rest of the path), so nested
+# trees like "Grade 10/K-12 Materials/1ST QUARTER/Module1.pdf" still extract
+# grade + subject. Other placeholders match a single path segment.
+SOURCE_PATH_PATTERN=raw/documents/{subject}/Grade {grade}/{filename}
 ```
 
 This passes `grade` and `subject` to the generate stage, which writes

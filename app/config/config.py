@@ -233,7 +233,10 @@ class Settings(BaseSettings):
         default=None,
         description="Pattern to extract metadata from raw source paths. "
         "Use {field_name} placeholders, e.g. "
-        "'raw/documents/grade_{grade}/{subject}/{filename}'. "
+        "'raw/documents/{subject}/Grade {grade}/{filename}'. "
+        "Each placeholder matches a single path segment, except "
+        "{filename} which matches the remainder of the path "
+        "(multi-segment) and is dropped from the extracted metadata. "
         "Extracted fields are stored in the source index metadata.",
     )
 
