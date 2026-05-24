@@ -7,6 +7,7 @@ from pathlib import Path
 from app.config.config import Settings
 from app.core.markdown import write_article
 from app.models.frontmatter import FrontmatterSchema
+from app.models.source import Source
 from app.agents.organize.agent import HierarchyNode, HierarchyPlan, _slugify
 
 
@@ -24,12 +25,15 @@ def _resolve_md_path(
     parents_by_id = {n.id: n for n in plan.nodes}
     domain: str | None = None
     subdomain: str | None = None
+    topic: str | None = None
     cursor: HierarchyNode | None = node
     while cursor is not None and cursor.parent_id is not None:
         cursor = parents_by_id.get(cursor.parent_id)
         if cursor is None:
             break
-        if cursor.level_type == "subdomain":
+        if cursor.level_type == "topic":
+            topic = cursor.name
+        elif cursor.level_type == "subdomain":
             subdomain = cursor.name
         elif cursor.level_type == "domain":
             domain = cursor.name
@@ -38,6 +42,8 @@ def _resolve_md_path(
     base = Path(settings.CURATED_DIR) / domain
     if subdomain:
         base = base / subdomain
+    if topic:
+        base = base / topic
     return base / f"{_slugify(node.name)}.md"
 
 
@@ -53,10 +59,17 @@ def _resolve_all_paths(settings: Settings, plan: HierarchyPlan) -> HierarchyPlan
     return HierarchyPlan(nodes=resolved_nodes)
 
 
-def _materialize_stubs(plan: HierarchyPlan) -> tuple[list[Path], list[Path]]:
+def _materialize_stubs(
+    plan: HierarchyPlan,
+    sources_lookup: dict[int, Source] | None = None,
+) -> tuple[list[Path], list[Path]]:
     """Create empty markdown stubs for every article node.
 
     Returns ``(created, existing)`` — existing files are never overwritten.
+
+    When ``sources_lookup`` is provided, each article's frontmatter ``sources``
+    list is populated from the article node's ``source_files`` IDs (resolved
+    via the lookup). Sources missing from the lookup are silently dropped.
     """
     created: list[Path] = []
     existing: list[Path] = []
@@ -68,11 +81,17 @@ def _materialize_stubs(plan: HierarchyPlan) -> tuple[list[Path], list[Path]]:
             existing.append(path)
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
+        sources: list[Source] = []
+        if sources_lookup is not None:
+            for source_id in node.source_files:
+                src = sources_lookup.get(source_id)
+                if src is not None:
+                    sources.append(src)
         fm = FrontmatterSchema(
             id=node.id,
             name=node.name,
             type="article",
-            sources=[],
+            sources=sources,
         )
         body = f"# {node.name}\n\n> {node.description}\n\nTODO: write this article.\n"
         write_article(path, fm, body)

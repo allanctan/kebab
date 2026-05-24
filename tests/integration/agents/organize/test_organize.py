@@ -130,7 +130,7 @@ def test_organize_creates_article_stubs(settings: Settings) -> None:
     result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
     assert len(result.created) == 2
     assert all(path.exists() for path in result.created)
-    light = settings.CURATED_DIR / "Science" / "Biology" / "light-reactions.md"
+    light = settings.CURATED_DIR / "Science" / "Biology" / "Photosynthesis" / "light-reactions.md"
     assert light.exists()
     body = light.read_text(encoding="utf-8")
     assert "SCI-BIO-001" in body
@@ -147,7 +147,7 @@ def test_organize_skips_non_article_nodes(settings: Settings) -> None:
 @pytest.mark.integration
 def test_organize_does_not_overwrite_existing(settings: Settings) -> None:
     organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
-    light = settings.CURATED_DIR / "Science" / "Biology" / "light-reactions.md"
+    light = settings.CURATED_DIR / "Science" / "Biology" / "Photosynthesis" / "light-reactions.md"
     light.write_text("---\nid: X\nname: Custom\ntype: article\nsources: []\n---\nedited\n", encoding="utf-8")
     result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
     assert light in result.existing
@@ -164,7 +164,7 @@ def test_organize_persists_plan_with_paths(settings: Settings) -> None:
     assert all(n.md_path is not None for n in article_nodes)
     light_node = next(n for n in article_nodes if n.id == "SCI-BIO-001")
     assert light_node.md_path is not None
-    assert light_node.md_path.endswith("Science/Biology/light-reactions.md")
+    assert light_node.md_path.endswith("Science/Biology/Photosynthesis/light-reactions.md")
 
 
 @pytest.mark.integration
