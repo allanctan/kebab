@@ -7,6 +7,8 @@ in the 2026-04-12 research restructure.
 
 from __future__ import annotations
 
+import pytest
+
 from app.agents.research.planner import ClaimEntry
 from app.agents.research.verifier import (
     DisputeJudgment,
@@ -95,6 +97,41 @@ class TestApplyFindings:
         result = apply_findings_to_article(body, findings)
         assert "[^2]" in result
         assert "https://en.wikipedia.org/wiki/Topic" in result
+
+    def test_confirm_with_unmatched_claim_text_creates_no_orphan_footnote(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When planner's claim text isn't found in any body paragraph
+        (e.g., LLM rephrased it), the writer must NOT create a footnote
+        definition that points at no inline citation."""
+        body = self._base_body()
+        findings: list[FindingTuple] = [
+            (
+                ClaimEntry(
+                    # This phrasing does NOT appear in _base_body; planner
+                    # rephrased "Existing content about plates" → simulates
+                    # the real-world mismatch between extraction and body.
+                    text="Plates exist as described in detail",
+                    section="Topic",
+                    paragraph=1,
+                ),
+                FindingResult(outcome="confirm", reasoning="agrees", evidence_quote="x"),
+                "Wikipedia: Topic",
+                "https://en.wikipedia.org/wiki/Topic",
+            ),
+        ]
+        with caplog.at_level("WARNING", logger="app.agents.research.writer"):
+            result = apply_findings_to_article(body, findings)
+        # No new footnote definition should appear (URL not added to body)
+        assert "https://en.wikipedia.org/wiki/Topic" not in result
+        # Original [^1] footnote (if any) is preserved; no orphan [^2] line
+        # No new ## Sources section because no new fdef was created
+        assert "Plates exist" not in result  # planner-extracted text is not in body either
+        # Caller is warned at WARNING level
+        assert any(
+            "not found in any paragraph" in r.message and "orphan" in r.message
+            for r in caplog.records
+        )
 
     def test_append_adds_sentence_with_footnote(self) -> None:
         body = self._base_body()

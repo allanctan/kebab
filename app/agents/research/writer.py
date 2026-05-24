@@ -171,15 +171,20 @@ def apply_findings_to_article(
         # claim's sentence; appends add a new sentence at the section end;
         # disputes go to ## Disputes regardless of origin.
         if finding.outcome == "confirm":
-            ref = _get_footnote(source_title, source_url)
+            # Locate the paragraph first. Only allocate a footnote if we can
+            # actually insert the inline marker — otherwise we'd leave an
+            # orphan footnote definition pointing at no inline citation.
             para_idx = _find_paragraph_containing(tree, claim.text)
-            if para_idx is not None:
-                _insert_ref_in_paragraph(tree, para_idx, claim.text, ref)
-            else:
-                logger.debug(
-                    "writer: claim %r not found in any paragraph — skipping confirm ref",
-                    claim.text[:60],
+            if para_idx is None:
+                logger.warning(
+                    "writer: claim %r not found in any paragraph "
+                    "(planner extracted text doesn't match body) — "
+                    "skipping confirm; no orphan footnote created",
+                    claim.text[:80],
                 )
+                continue
+            ref = _get_footnote(source_title, source_url)
+            _insert_ref_in_paragraph(tree, para_idx, claim.text, ref)
 
         elif finding.outcome == "append" and finding.new_sentence:
             ref = _get_footnote(source_title, source_url)

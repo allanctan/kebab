@@ -107,9 +107,19 @@ def _stub_contexts_proposer(
 
 def _stub_research_planner(_settings, _deps):
     from app.agents.research.planner import ClaimEntry, ResearchPlan, SearchQuery
+    # Claim text must exactly match a substring of the generated body
+    # (see _stub_generate). The writer only inserts inline footnote refs
+    # for claims it can locate in a paragraph — orphan footnotes are
+    # no longer created.
     return ResearchPlan(
-        claims=[ClaimEntry(text="test claim", section="Intro", paragraph=1)],
-        queries=[SearchQuery(query="test", adapter="wikipedia", target_claims=[0])],
+        claims=[
+            ClaimEntry(
+                text="Plants convert light energy into chemical energy stored in glucose",
+                section="Intro",
+                paragraph=1,
+            )
+        ],
+        queries=[SearchQuery(query="photosynthesis", adapter="wikipedia", target_claims=[0])],
     )
 
 
