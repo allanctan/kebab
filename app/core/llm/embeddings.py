@@ -23,6 +23,12 @@ from app.core.errors import ConfigError, KebabError
 logger = logging.getLogger(__name__)
 
 
+# Gemini's gemini-embedding-001 caps each batchEmbedContents request at 100
+# inputs. embed_batch() splits larger lists into chunks of this size and
+# concatenates the results preserving input order.
+_MAX_BATCH_SIZE = 100
+
+
 class _EmbedClient(Protocol):
     def embed_content(self, *, model: str, contents: list[str]) -> Any: ...
 
@@ -51,13 +57,25 @@ def embed(text: str, settings: Settings) -> list[float]:
 def embed_batch(texts: list[str], settings: Settings) -> list[list[float]]:
     """Return embeddings for a batch of strings, preserving order.
 
-    Empty input list → empty output. The genai SDK handles batching, so
-    we forward the whole list in one call. ``output_dimensionality`` is
-    forwarded from :data:`Settings.EMBEDDING_DIM` — ``gemini-embedding-001``
-    supports Matryoshka reduction down to any dim <= 3072.
+    Empty input list → empty output. Inputs larger than
+    :data:`_MAX_BATCH_SIZE` are split into chunks; one provider call per
+    chunk, results concatenated in order.
     """
     if not texts:
         return []
+    vectors: list[list[float]] = []
+    for start in range(0, len(texts), _MAX_BATCH_SIZE):
+        chunk = texts[start : start + _MAX_BATCH_SIZE]
+        vectors.extend(_embed_single_batch(chunk, settings))
+    return vectors
+
+
+def _embed_single_batch(texts: list[str], settings: Settings) -> list[list[float]]:
+    """One provider API call. Caller guarantees ``len(texts) <= _MAX_BATCH_SIZE``.
+
+    ``output_dimensionality`` is forwarded from :data:`Settings.EMBEDDING_DIM` —
+    ``gemini-embedding-001`` supports Matryoshka reduction down to any dim <= 3072.
+    """
     from google.genai import types  # noqa: PLC0415 — lazy import, namespace pkg
 
     client = _client(settings.GOOGLE_API_KEY)

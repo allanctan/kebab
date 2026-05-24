@@ -122,3 +122,53 @@ def test_embed_raises_on_count_mismatch(
     _patch_client(monkeypatch, [[0.1]])
     with pytest.raises(KebabError, match="returned 1 embeddings"):
         embeddings.embed_batch(["a", "b"], settings)
+
+
+def test_embed_batch_chunks_large_inputs(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings
+) -> None:
+    """Inputs > _MAX_BATCH_SIZE split into multiple provider calls, order preserved."""
+    # 250 inputs at _MAX_BATCH_SIZE=100 → 3 chunks of 100, 100, 50
+    n = 250
+    inputs = [f"text-{i}" for i in range(n)]
+    expected_vectors = [[float(i)] for i in range(n)]
+
+    class _ChunkingModels:
+        """Fake that returns exactly the chunk it was sent, in order."""
+
+        def __init__(self) -> None:
+            self.calls: list[list[str]] = []
+            self._cursor = 0
+
+        def embed_content(
+            self, *, model: str, contents: list[str], config: object | None = None
+        ) -> _FakeResponse:
+            self.calls.append(list(contents))
+            chunk = expected_vectors[self._cursor : self._cursor + len(contents)]
+            self._cursor += len(contents)
+            return _FakeResponse(chunk)
+
+    class _ChunkingClient:
+        def __init__(self) -> None:
+            self.models = _ChunkingModels()
+
+    client = _ChunkingClient()
+    monkeypatch.setattr(embeddings, "_client", lambda _k: client)
+
+    result = embeddings.embed_batch(inputs, settings)
+    assert result == expected_vectors
+    assert [len(c) for c in client.models.calls] == [100, 100, 50]
+
+
+def test_embed_batch_exactly_at_chunk_boundary_uses_one_call(
+    monkeypatch: pytest.MonkeyPatch, settings: Settings
+) -> None:
+    """Exactly _MAX_BATCH_SIZE inputs → single provider call (no empty trailing chunk)."""
+    n = embeddings._MAX_BATCH_SIZE
+    inputs = [f"text-{i}" for i in range(n)]
+    expected_vectors = [[float(i)] for i in range(n)]
+    client = _patch_client(monkeypatch, expected_vectors)
+
+    result = embeddings.embed_batch(inputs, settings)
+    assert result == expected_vectors
+    assert len(client.models.calls) == 1
