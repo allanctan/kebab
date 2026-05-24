@@ -58,6 +58,24 @@ class _ExplodingAdapter:
 
 
 @dataclass
+class _DiscoverExplodingAdapter:
+    """Adapter whose discover always raises — simulates rate limit / 5xx."""
+
+    name: ClassVar[str] = "stub"
+    default_tier: int = 3
+
+    def discover(self, query: str, *, limit: int = 10) -> list[Candidate]:
+        from httpx import HTTPStatusError, Request, Response
+
+        request = Request("GET", "https://example.test/api")
+        response = Response(429, request=request)
+        raise HTTPStatusError("Too Many Requests", request=request, response=response)
+
+    def fetch(self, candidate: Candidate) -> FetchedArtifact:
+        raise RuntimeError("should never be called")
+
+
+@dataclass
 class _FakeRegistry:
     adapter: object
     known_names: tuple[str, ...] = ("stub",)
@@ -166,6 +184,23 @@ class TestSearch:
         result = search(settings, "wikipedia", "plate tectonics")
         assert len(result) == 1
         assert result[0].url == "https://en.wikipedia.org/wiki/Plate%20tectonics"
+
+    def test_discover_failure_returns_empty_and_logs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        settings: object,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Rate-limit / 5xx on discover must NOT crash the research run."""
+        adapter = _DiscoverExplodingAdapter()
+        monkeypatch.setattr(
+            "app.core.research.searcher.build_default_registry",
+            lambda _s: _FakeRegistry(adapter=adapter),
+        )
+        with caplog.at_level("WARNING", logger="app.core.research.searcher"):
+            result = search(settings, "stub", "query")
+        assert result == []
+        assert any("discover failed" in r.message for r in caplog.records)
 
     def test_fetch_failure_logs_and_skips(
         self,

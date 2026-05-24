@@ -91,12 +91,24 @@ def _fetch_results(
     this parameter.
     """
     adapter_name = adapter.name
-    if include_domains and adapter_name == "tavily":
-        candidates = adapter.discover(
-            query, limit=max(limit + 1, 3), include_domains=include_domains  # type: ignore[call-arg] — TavilyAdapter accepts include_domains, not part of SourceAdapter Protocol
+    try:
+        if include_domains and adapter_name == "tavily":
+            candidates = adapter.discover(
+                query, limit=max(limit + 1, 3), include_domains=include_domains  # type: ignore[call-arg] — TavilyAdapter accepts include_domains, not part of SourceAdapter Protocol
+            )
+        else:
+            candidates = adapter.discover(query, limit=max(limit + 1, 3))
+    except Exception as exc:  # noqa: BLE001 — keep research run alive on transient adapter errors
+        # Adapter-level discovery failures (rate limits, 5xx, network) must not
+        # kill the entire research run. Log and return no candidates; the next
+        # query (or article) gets a fresh attempt.
+        logger.warning(
+            "searcher: discover failed via %s for %r — %s",
+            adapter_name,
+            query,
+            exc,
         )
-    else:
-        candidates = adapter.discover(query, limit=max(limit + 1, 3))
+        return []
 
     results: list[SourceContent] = []
 
