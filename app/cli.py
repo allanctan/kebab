@@ -74,7 +74,9 @@ def ingest_pdf(input_path: Path, force: bool) -> None:
         result = pdf_ingest.ingest(env, input_path, force=force)
         suffix = " (cached)" if result.skipped else ""
         error_note = (
-            f" ({result.labeler_errors} labeler errors)" if result.labeler_errors else ""
+            f" ({result.labeler_errors} labeler errors)"
+            if result.labeler_errors
+            else ""
         )
         click.echo(
             f"ingested {result.original.name}{suffix}: {result.chars} chars, "
@@ -102,7 +104,6 @@ def ingest_retry_errors(stem: str) -> None:
     )
 
 
-
 @ingest.command("web")
 @click.option("--url", required=True)
 @click.option(
@@ -119,7 +120,9 @@ def ingest_web_cmd(url: str, force: bool) -> None:
 
 
 @main.command()
-@click.option("--domain", default="Knowledge", show_default=True, help="Top-level domain hint.")
+@click.option(
+    "--domain", default="Knowledge", show_default=True, help="Top-level domain hint."
+)
 @click.option(
     "--force",
     is_flag=True,
@@ -144,10 +147,18 @@ def organize(domain: str, force: bool) -> None:
 
 @main.command()
 @click.argument("article_id", required=False)
-@click.option("--domain", default=None, help="Domain to generate for. Omit to run all domains.")
-@click.option("--all", "generate_all", is_flag=True, help="Generate all articles in the domain.")
-@click.option("--force", is_flag=True, default=False, help="Regenerate even if already written.")
-def generate(article_id: str | None, domain: str | None, generate_all: bool, force: bool) -> None:
+@click.option(
+    "--domain", default=None, help="Domain to generate for. Omit to run all domains."
+)
+@click.option(
+    "--all", "generate_all", is_flag=True, help="Generate all articles in the domain."
+)
+@click.option(
+    "--force", is_flag=True, default=False, help="Regenerate even if already written."
+)
+def generate(
+    article_id: str | None, domain: str | None, generate_all: bool, force: bool
+) -> None:
     """Find gaps, generate articles, classify contexts, write summaries."""
     from app.agents.organize import list_domains
 
@@ -155,9 +166,13 @@ def generate(article_id: str | None, domain: str | None, generate_all: bool, for
         # Single article — need to find which domain it's in
         domains = list_domains(env)
         if not domains:
-            raise click.ClickException("no plans found — run `kebab organize --domain <name>` first")
+            raise click.ClickException(
+                "no plans found — run `kebab organize --domain <name>` first"
+            )
         for d in domains:
-            result = generate_stage.run(env, domain=d, article_id=article_id, force=True)
+            result = generate_stage.run(
+                env, domain=d, article_id=article_id, force=True
+            )
             if result.articles_written > 0:
                 click.echo(
                     f"generate {article_id}: {result.articles_written} written, "
@@ -172,7 +187,9 @@ def generate(article_id: str | None, domain: str | None, generate_all: bool, for
         else:
             domains = list_domains(env)
             if not domains:
-                raise click.ClickException("no plans found — run `kebab organize --domain <name>` first")
+                raise click.ClickException(
+                    "no plans found — run `kebab organize --domain <name>` first"
+                )
         for d in domains:
             click.echo(f"--- {d} ---")
             result = generate_stage.run(env, domain=d, force=force)
@@ -223,7 +240,9 @@ def qa_generate_cmd(article_id: str | None, run_all: bool, domain: str | None) -
 @click.option("--domain", default=None, help="Filter by domain folder name.")
 @click.option("--once", is_flag=True, default=True, help="Run a single pass and exit.")
 @click.option("--watch", is_flag=True, help="Run continuously.")
-def qa(article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool) -> None:
+def qa(
+    article_id: str | None, run_all: bool, domain: str | None, once: bool, watch: bool
+) -> None:
     """Discover knowledge gaps in articles (Phase 2)."""
     if watch:
         once = False
@@ -264,8 +283,12 @@ def _iter_article_ids(domain: str | None) -> list[str]:
 @click.argument("article_id", required=False)
 @click.option("--all", "run_all", is_flag=True, help="Research all articles.")
 @click.option("--domain", default=None, help="Filter by domain folder name.")
-@click.option("--budget", type=int, default=10, show_default=True, help="Max queries per article.")
-def research(article_id: str | None, run_all: bool, domain: str | None, budget: int) -> None:
+@click.option(
+    "--budget", type=int, default=10, show_default=True, help="Max queries per article."
+)
+def research(
+    article_id: str | None, run_all: bool, domain: str | None, budget: int
+) -> None:
     """Verify an article's claims against external sources."""
     from app.agents.research import research as research_agent
 
@@ -294,8 +317,19 @@ def research(article_id: str | None, run_all: bool, domain: str | None, budget: 
 @click.argument("article_id", required=False)
 @click.option("--all", "run_all", is_flag=True, help="Run on all articles.")
 @click.option("--domain", default=None, help="Filter by domain folder name.")
-@click.option("--budget", type=int, default=5, show_default=True, help="Max queries per article.")
-def research_gaps(article_id: str | None, run_all: bool, domain: str | None, budget: int) -> None:
+@click.option(
+    "--budget", type=int, default=5, show_default=True, help="Max queries per article."
+)
+@click.option(
+    "--no-ai",
+    "no_ai",
+    is_flag=True,
+    default=False,
+    help="Skip AI-synthesis path; use strict factual-only flow.",
+)
+def research_gaps(
+    article_id: str | None, run_all: bool, domain: str | None, budget: int, no_ai: bool
+) -> None:
     """Answer unanswered questions in the Research Gaps section of an article."""
     from app.agents.research_gaps import research_gaps as gaps_agent
 
@@ -304,10 +338,10 @@ def research_gaps(article_id: str | None, run_all: bool, domain: str | None, bud
         if not ids:
             raise click.ClickException("no curated articles found")
         for aid in ids:
-            result = gaps_agent.run(env, article_id=aid, budget=budget)
+            result = gaps_agent.run(env, article_id=aid, budget=budget, no_ai=no_ai)
             click.echo(f"  {aid}: {result.answered}/{result.gaps_total} gaps answered")
     elif article_id:
-        result = gaps_agent.run(env, article_id=article_id, budget=budget)
+        result = gaps_agent.run(env, article_id=article_id, budget=budget, no_ai=no_ai)
         click.echo(
             f"research-gaps {article_id}: {result.answered}/{result.gaps_total} gaps answered"
         )
@@ -349,9 +383,7 @@ def editorial(
                 f"unresolvable={result.disputes_unresolvable}"
             )
     elif article_id:
-        result = editorial_agent.run(
-            env, article_id=article_id, max_cycles=max_cycles
-        )
+        result = editorial_agent.run(env, article_id=article_id, max_cycles=max_cycles)
         click.echo(
             f"editorial {article_id}: {result.cycles} cycle(s), "
             f"decision={result.decision}, "
@@ -487,13 +519,27 @@ def tree(domain: str) -> None:
     for subdomain in sorted(by_subdomain, key=lambda x: x or ""):
         click.echo(f"{domain} / {subdomain or '(none)'}")
         for article in sorted(by_subdomain[subdomain], key=lambda a: a.id):
-            click.echo(f"  - {article.id}  {article.name}  [c{article.confidence_level}]")
+            click.echo(
+                f"  - {article.id}  {article.name}  [c{article.confidence_level}]"
+            )
 
 
 @main.command("list")
 @click.option("--domain", default=None, help="Filter by domain.")
-@click.option("--min-confidence", type=int, default=0, show_default=True, help="Minimum confidence level.")
-@click.option("--sort", "sort_by", type=click.Choice(["id", "name", "confidence", "domain"]), default="id", show_default=True)
+@click.option(
+    "--min-confidence",
+    type=int,
+    default=0,
+    show_default=True,
+    help="Minimum confidence level.",
+)
+@click.option(
+    "--sort",
+    "sort_by",
+    type=click.Choice(["id", "name", "confidence", "domain"]),
+    default="id",
+    show_default=True,
+)
 def list_articles(domain: str | None, min_confidence: int, sort_by: str) -> None:
     """List all indexed articles with key fields."""
     store = _store(env)
@@ -599,7 +645,9 @@ def curriculum_coverage(name: str) -> None:
     required=True,
     help="Spine name to tag against (e.g. 'matatag-g10-draft').",
 )
-@click.option("--domain", default=None, help="Restrict to articles under curated/<domain>/.")
+@click.option(
+    "--domain", default=None, help="Restrict to articles under curated/<domain>/."
+)
 @click.option(
     "--article-id",
     default=None,
@@ -667,7 +715,9 @@ def eval_group() -> None:
     """Run eval suites (pydantic-evals)."""
 
 
-def _print_eval_summary(suite_name: str, aggregate: dict[str, float], output_path: Path) -> None:
+def _print_eval_summary(
+    suite_name: str, aggregate: dict[str, float], output_path: Path
+) -> None:
     from evals.run import compare_to_baseline
 
     click.echo(f"{suite_name}: {output_path}")
@@ -734,9 +784,13 @@ def eval_figure_filter(include_unreviewed: bool) -> None:
                 f"precision={cm.precision:.3f}"
             )
     if result.report.false_positives:
-        click.echo(f"  {len(result.report.false_positives)} false positives (useful wrongly dropped)")
+        click.echo(
+            f"  {len(result.report.false_positives)} false positives (useful wrongly dropped)"
+        )
     if result.report.false_negatives:
-        click.echo(f"  {len(result.report.false_negatives)} false negatives (decorative wrongly kept)")
+        click.echo(
+            f"  {len(result.report.false_negatives)} false negatives (decorative wrongly kept)"
+        )
     _print_eval_summary("figure_filter", result.aggregate, result.output_path)
 
 

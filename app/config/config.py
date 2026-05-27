@@ -176,6 +176,42 @@ class Settings(BaseSettings):
         default="gemini-pro",
         description="Model for editorial chief editor (editorial agent).",
     )
+    GAP_CATEGORIZER_MODEL: str = Field(
+        default="gemini-flash",
+        description=(
+            "Model for classifying research-gap questions into one of "
+            "(factual / conceptual / pedagogical / open_ended / "
+            "local_cultural). Small, cheap call — default keeps cost low."
+        ),
+    )
+    AI_ANSWERER_MODEL: str = Field(
+        default="opus-4.7",
+        description=(
+            "Model that generates AI-synthesized answers for "
+            "conceptual/pedagogical/local_cultural-fallback gaps. Defaults "
+            "to Claude Opus for defensible synthesis; set to a cheaper "
+            "alias for cost-conscious runs."
+        ),
+    )
+    AI_VERIFIER_MODEL: str = Field(
+        default="gemini-pro",
+        description=(
+            "Cross-family model that verifies AI-answerer output before "
+            "writing it to the article. SHOULD be from a different provider "
+            "family than AI_ANSWERER_MODEL — Gemini Pro by default since "
+            "Opus is Anthropic. Same-family verification defeats the "
+            "cross-check purpose."
+        ),
+    )
+    GAP_PARALLELISM: int = Field(
+        default=4,
+        description=(
+            "Max number of gaps processed in parallel within an article. "
+            "Each in-flight gap may issue up to 2 LLM calls (answerer + "
+            "verifier) plus optional HTTP fetches. Tune down if you hit "
+            "Bedrock TPS or Google rate limits."
+        ),
+    )
 
     LLM_VERIFICATION_MODELS: list[str] = Field(
         default_factory=lambda: ["$GEMINI_MODEL", "$FAST_MODEL"],

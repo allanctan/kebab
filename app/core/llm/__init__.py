@@ -1,7 +1,13 @@
 from app.core.llm.resolve import resolve_model, build_endpoint_model
-from app.core.llm.model_registry import resolve_alias, list_aliases, get_entry, reload_registry
+from app.core.llm.model_registry import (
+    resolve_alias,
+    list_aliases,
+    get_entry,
+    reload_registry,
+)
 from app.core.llm.tokens import count_tokens
 from app.core.llm.embeddings import embed
+from app.core.llm.labels import short_model_label
 from app.core.images.image_describer import describe_image
 
 __all__ = [
@@ -13,5 +19,6 @@ __all__ = [
     "reload_registry",
     "count_tokens",
     "embed",
+    "short_model_label",
     "describe_image",
 ]

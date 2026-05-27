@@ -1,9 +1,23 @@
 """Apply gap answers to a curated article body via AST manipulation.
 
 Finds the ``## Research Gaps`` section in the AST, locates each answered
-gap by its list-item index (not by text matching), and replaces it with
-a Q/A block. Fixes bug #3 from the code review — position-based instead
-of the fragile ``body.replace(old_line, ...)``.
+gap by its list-item index (not by text matching), and rewrites it
+according to ``GapAnswer.source_kind``:
+
+- ``external``           → ``**Q:** … **A:** … (Source: [title](url))``
+- ``ai_article``         → ``**Q:** … **A:** … (AI synthesis from article body
+                            — answered by X, verified by Y — verify before
+                            classroom use)``
+- ``ai_general``         → ``**Q:** … **A:** … (AI synthesis — answered by X,
+                            verified by Y — verify before classroom use)``
+- ``discussion``         → bullet with italic ``*(open-ended discussion
+                            prompt — no factual answer)*``
+- ``no_source``          → bullet with italic ``*(no authoritative source
+                            found — consider for class research project)*``
+- ``verifier_rejected``  → bullet with italic ``*(no defensible AI answer
+                            — verifier flagged: <reason>)*``
+- ``verifier_low_confidence`` → bullet with italic ``*(no answer —
+                            verifier confidence low on this claim)*``
 """
 
 from __future__ import annotations
@@ -11,6 +25,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from typing import Literal
 
 import marko.block
 
@@ -18,29 +33,37 @@ from app.core.markdown import _node_text, parse_body, render_body
 
 logger = logging.getLogger(__name__)
 
+SourceKind = Literal[
+    "external",
+    "ai_article",
+    "ai_general",
+    "discussion",
+    "no_source",
+    "verifier_rejected",
+    "verifier_low_confidence",
+]
+
 
 @dataclass
 class GapAnswer:
-    """One answered gap, ready to be written into the body."""
+    """One processed gap. ``source_kind`` controls how the writer renders it."""
 
     gap_idx: int
     answer_text: str
-    source_title: str
-    source_url: str
+    source_kind: SourceKind = "external"
+    # For source_kind == "external"
+    source_title: str = ""
+    source_url: str = ""
+    # For source_kind in {"ai_article", "ai_general"}
+    answerer_model: str = ""
+    verifier_model: str = ""
+    # For source_kind == "verifier_rejected"
+    rejection_reason: str = ""
 
 
 def _find_gaps_list_items(tree: marko.block.Document) -> list[tuple[int, int]]:
-    """Return ``(parent_index, item_index)`` for each **unanswered** list item
-    in ``## Research Gaps``.
-
-    Walks the tree to find the Research Gaps heading (level 2), then
-    collects ``ListItem`` children from the first ``List`` node in that
-    section, excluding already-answered Q/A blocks (items whose text
-    starts with ``**Q:``). This alignment matches the filtered gap list
-    the caller passes to :func:`apply_answers_to_gaps` — each gap_idx
-    indexes into the unanswered-only list.
-
-    Returns an empty list if the section or list doesn't exist.
+    """Return ``(parent_index, item_index)`` for each unanswered list item
+    in ``## Research Gaps``. Skips already-answered Q/A blocks.
     """
     children = tree.children
     in_section = False
@@ -57,13 +80,61 @@ def _find_gaps_list_items(tree: marko.block.Document) -> list[tuple[int, int]]:
             for j, item in enumerate(node.children):
                 if not isinstance(item, marko.block.ListItem):
                     continue
-                # Skip answered Q/A blocks — they start with **Q:
                 item_text = _node_text(item).strip()
                 if item_text.startswith("**Q:") or item_text.startswith("Q:"):
                     continue
                 items.append((i, j))
-            break  # Only the first list in the section
+            break
     return items
+
+
+def _render_qa_block(question: str, answer: str, trailing: str) -> str:
+    clean = re.sub(r"\[\^\d+\]", "", answer).strip()
+    return f"**Q: {question}**\n  **A:** {clean} {trailing}".rstrip()
+
+
+def _render_bullet_note(question: str, italic_note: str) -> str:
+    return f"{question} {italic_note}"
+
+
+def _build_replacement(question: str, ans: GapAnswer) -> str:
+    """Return the markdown for the list item that replaces this gap."""
+    if ans.source_kind == "external":
+        trailing = f"(Source: [{ans.source_title}]({ans.source_url}))"
+        return _render_qa_block(question, ans.answer_text, trailing)
+    if ans.source_kind == "ai_article":
+        trailing = (
+            f"(AI synthesis from article body — answered by "
+            f"{ans.answerer_model}, verified by {ans.verifier_model}"
+            f" — verify before classroom use)"
+        )
+        return _render_qa_block(question, ans.answer_text, trailing)
+    if ans.source_kind == "ai_general":
+        trailing = (
+            f"(AI synthesis — answered by {ans.answerer_model}, verified "
+            f"by {ans.verifier_model} — verify before classroom use)"
+        )
+        return _render_qa_block(question, ans.answer_text, trailing)
+    if ans.source_kind == "discussion":
+        return _render_bullet_note(
+            question, "*(open-ended discussion prompt — no factual answer)*"
+        )
+    if ans.source_kind == "no_source":
+        return _render_bullet_note(
+            question,
+            "*(no authoritative source found — consider for class research project)*",
+        )
+    if ans.source_kind == "verifier_rejected":
+        reason = ans.rejection_reason[:60].rstrip(".")
+        return _render_bullet_note(
+            question, f"*(no defensible AI answer — verifier flagged: {reason})*"
+        )
+    if ans.source_kind == "verifier_low_confidence":
+        return _render_bullet_note(
+            question, "*(no answer — verifier confidence low on this claim)*"
+        )
+    # Unknown kind — leave the bullet untouched
+    return question
 
 
 def apply_answers_to_gaps(
@@ -71,41 +142,37 @@ def apply_answers_to_gaps(
     gaps: list[str],
     answers: list[GapAnswer],
 ) -> str:
-    """Rewrite answered gap list-items as Q/A blocks.
-
-    Finds each gap by its list-item index in the ``## Research Gaps``
-    section (AST-based, not text-matching). Unanswered gaps are left
-    untouched.
-    """
+    """Rewrite gap list-items per ``GapAnswer.source_kind``."""
     if not answers:
         return body
 
     tree = parse_body(body)
     list_items = _find_gaps_list_items(tree)
 
-    for answer in answers:
-        if answer.gap_idx < 0 or answer.gap_idx >= len(gaps):
+    for ans in answers:
+        if ans.gap_idx < 0 or ans.gap_idx >= len(gaps):
             continue
-        if answer.gap_idx >= len(list_items):
+        if ans.gap_idx >= len(list_items):
             logger.debug(
                 "gaps writer: gap_idx %d out of range (%d items) — skipping",
-                answer.gap_idx,
+                ans.gap_idx,
                 len(list_items),
             )
             continue
 
-        question = gaps[answer.gap_idx]
-        clean = re.sub(r"\[\^\d+\]", "", answer.answer_text).strip()
-        answered_md = (
-            f"**Q: {question}**\n"
-            f"  **A:** {clean} (Source: [{answer.source_title}]({answer.source_url}))"
-        )
-
-        parent_idx, item_idx = list_items[answer.gap_idx]
+        parent_idx, item_idx = list_items[ans.gap_idx]
         list_node = tree.children[parent_idx]
-        # Re-parse the answered markdown as list-item content
-        snippet = parse_body(f"- {answered_md}\n")
-        # The snippet should contain a List with one ListItem
+        original_item = list_node.children[item_idx]  # type: ignore[index]
+        original_text = _node_text(original_item).strip()
+        # For Q/A block kinds use the gaps list question (which may differ
+        # from original_text when the caller normalises question phrasing).
+        # For bullet-note kinds preserve the exact original body text.
+        if ans.source_kind in {"external", "ai_article", "ai_general"}:
+            question = gaps[ans.gap_idx]
+        else:
+            question = original_text
+        replacement_md = _build_replacement(question, ans)
+        snippet = parse_body(f"- {replacement_md}\n")
         for snode in snippet.children:
             if isinstance(snode, marko.block.List) and snode.children:
                 new_item = snode.children[0]
@@ -115,4 +182,4 @@ def apply_answers_to_gaps(
     return render_body(tree)
 
 
-__all__ = ["GapAnswer", "apply_answers_to_gaps"]
+__all__ = ["GapAnswer", "SourceKind", "apply_answers_to_gaps"]

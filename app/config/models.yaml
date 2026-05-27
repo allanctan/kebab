@@ -41,6 +41,10 @@ models:
     provider: bedrock
     model: us.anthropic.claude-sonnet-4-6
 
+  - alias: opus-4.7
+    provider: bedrock
+    model: us.anthropic.claude-opus-4-7
+
   - alias: haiku-4.5
     provider: bedrock
     model: us.anthropic.claude-haiku-4-5-20251001-v1:0
