@@ -20,6 +20,8 @@ class VerificationRecord(BaseModel):
     """Result of a single LLM verification pass, stored in frontmatter."""
 
     model: str = Field(..., description="Verifier model identifier, e.g. 'gpt-4o'.")
-    passed: bool = Field(..., description="Whether the model judged the article grounded.")
+    passed: bool = Field(
+        ..., description="Whether the model judged the article grounded."
+    )
     date: _date = Field(..., description="Date the verification ran.")
     notes: str | None = Field(default=None, description="Optional model notes.")

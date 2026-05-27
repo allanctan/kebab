@@ -52,13 +52,10 @@ class QaGroundedBatch(BaseModel):
 class GroundedJudge:
     settings: Settings
 
-    def judge(
-        self, pairs: list[tuple[str, str, list[str]]]
-    ) -> QaGroundedBatch:
+    def judge(self, pairs: list[tuple[str, str, list[str]]]) -> QaGroundedBatch:
         agent = build_judge_agent(QaGroundedBatch, _SYSTEM_PROMPT, self.settings)
         prompt = "\n\n".join(
-            f"{i}: Q={q!r}, A={a!r}, sources={s!r}"
-            for i, (q, a, s) in enumerate(pairs)
+            f"{i}: Q={q!r}, A={a!r}, sources={s!r}" for i, (q, a, s) in enumerate(pairs)
         )
         return agent.run_sync(prompt).output
 

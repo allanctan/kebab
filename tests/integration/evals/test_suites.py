@@ -35,7 +35,9 @@ def settings() -> Settings:
 def _all_grounded(claims: list[str], _sources) -> GroundingBatch:
     return GroundingBatch(
         verdicts=[
-            ClaimVerdict(claim_index=i, reasoning="ok", is_grounded=True, evidence_quote="q")
+            ClaimVerdict(
+                claim_index=i, reasoning="ok", is_grounded=True, evidence_quote="q"
+            )
             for i, _ in enumerate(claims)
         ]
     )

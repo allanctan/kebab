@@ -29,7 +29,10 @@ def _canned_plan() -> HierarchyPlan:
     return HierarchyPlan(
         nodes=[
             HierarchyNode(
-                id="SCI", name="Science", level_type="domain", description="natural sciences"
+                id="SCI",
+                name="Science",
+                level_type="domain",
+                description="natural sciences",
             ),
             HierarchyNode(
                 id="SCI-BIO",
@@ -64,7 +67,9 @@ def settings(tmp_path: Path) -> Settings:
     processed = knowledge / "processed" / "documents"
     (processed / "openstax").mkdir(parents=True)
     (processed / "deped").mkdir(parents=True)
-    (processed / "openstax" / "text.md").write_text("Photosynthesis text.", encoding="utf-8")
+    (processed / "openstax" / "text.md").write_text(
+        "Photosynthesis text.", encoding="utf-8"
+    )
     (processed / "deped" / "text.md").write_text("Respiration text.", encoding="utf-8")
 
     # Register sources in the index — organize requires this since the
@@ -75,12 +80,22 @@ def settings(tmp_path: Path) -> Settings:
     index = SourceIndex(
         sources=[
             SourceEntry(
-                id=1, stem="openstax", raw_path="raw/documents/openstax.pdf",
-                title="OpenStax Biology", tier=1, checksum="aaa", adapter="local_pdf",
+                id=1,
+                stem="openstax",
+                raw_path="raw/documents/openstax.pdf",
+                title="OpenStax Biology",
+                tier=1,
+                checksum="aaa",
+                adapter="local_pdf",
             ),
             SourceEntry(
-                id=2, stem="deped", raw_path="raw/documents/deped.pdf",
-                title="DepEd Science", tier=1, checksum="bbb", adapter="local_pdf",
+                id=2,
+                stem="deped",
+                raw_path="raw/documents/deped.pdf",
+                title="DepEd Science",
+                tier=1,
+                checksum="bbb",
+                adapter="local_pdf",
             ),
         ],
         next_id=3,

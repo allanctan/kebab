@@ -20,12 +20,20 @@ from app.agents.research.research import (
 def _stub_plan() -> ResearchPlan:
     return ResearchPlan(
         claims=[
-            ClaimEntry(text="Plates move due to convection", section="Causes", paragraph=1),
+            ClaimEntry(
+                text="Plates move due to convection", section="Causes", paragraph=1
+            ),
             ClaimEntry(text="Slab pull is a mechanism", section="Causes", paragraph=2),
         ],
         queries=[
-            SearchQuery(query="plate tectonics convection", adapter="wikipedia", target_claims=[0]),
-            SearchQuery(query="slab pull mechanism", adapter="openstax", target_claims=[1]),
+            SearchQuery(
+                query="plate tectonics convection",
+                adapter="wikipedia",
+                target_claims=[0],
+            ),
+            SearchQuery(
+                query="slab pull mechanism", adapter="openstax", target_claims=[1]
+            ),
         ],
     )
 
@@ -223,7 +231,9 @@ class TestPlanResearchPromptContent:
         plan_research(None, deps, agent=mock_agent)
         assert "article_name: Test Article" in captured[0]
 
-    def test_prompt_excludes_confirmed_section_when_empty(self, mocker: pytest.fixture) -> None:
+    def test_prompt_excludes_confirmed_section_when_empty(
+        self, mocker: pytest.fixture
+    ) -> None:
         captured: list[str] = []
 
         def fake_run_sync(prompt: str, *, deps: PlannerDeps) -> object:
@@ -240,7 +250,9 @@ class TestPlanResearchPromptContent:
         plan_research(None, deps, agent=mock_agent)
         assert "Already confirmed" not in captured[0]
 
-    def test_prompt_excludes_gap_answers_section_when_empty(self, mocker: pytest.fixture) -> None:
+    def test_prompt_excludes_gap_answers_section_when_empty(
+        self, mocker: pytest.fixture
+    ) -> None:
         captured: list[str] = []
 
         def fake_run_sync(prompt: str, *, deps: PlannerDeps) -> object:
@@ -257,7 +269,9 @@ class TestPlanResearchPromptContent:
         plan_research(None, deps, agent=mock_agent)
         assert "Gap answers to verify" not in captured[0]
 
-    def test_prompt_includes_confirmed_section_with_urls(self, mocker: pytest.fixture) -> None:
+    def test_prompt_includes_confirmed_section_with_urls(
+        self, mocker: pytest.fixture
+    ) -> None:
         captured: list[str] = []
 
         def fake_run_sync(prompt: str, *, deps: PlannerDeps) -> object:
@@ -270,13 +284,17 @@ class TestPlanResearchPromptContent:
 
         mock_agent = mocker.MagicMock()
         mock_agent.run_sync.side_effect = fake_run_sync
-        deps = self._make_deps(confirmed_footnote_urls=["https://en.wikipedia.org/wiki/Foo"])
+        deps = self._make_deps(
+            confirmed_footnote_urls=["https://en.wikipedia.org/wiki/Foo"]
+        )
         plan_research(None, deps, agent=mock_agent)
         prompt = captured[0]
         assert "Already confirmed (skip these)" in prompt
         assert "- https://en.wikipedia.org/wiki/Foo" in prompt
 
-    def test_prompt_includes_gap_answers_section_with_answers(self, mocker: pytest.fixture) -> None:
+    def test_prompt_includes_gap_answers_section_with_answers(
+        self, mocker: pytest.fixture
+    ) -> None:
         captured: list[str] = []
 
         def fake_run_sync(prompt: str, *, deps: PlannerDeps) -> object:

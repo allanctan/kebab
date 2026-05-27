@@ -45,7 +45,8 @@ def run(
     cases = _load_dataset()
     judge = InjectionDetectionJudge(settings)
     triples = [
-        (c["article_id"], bool(c["injected"]), bool(c["verifier_passed"])) for c in cases
+        (c["article_id"], bool(c["injected"]), bool(c["verifier_passed"]))
+        for c in cases
     ]
     batch = judge.judge(triples)
     aggregate = InjectionDetectionJudge.aggregate(batch)
@@ -61,4 +62,6 @@ def run(
     }
     out_path = RESULTS_DIR / f"{timestamp}.json"
     out_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
-    return VerificationSuiteResult(batch=batch, aggregate=aggregate, output_path=out_path)
+    return VerificationSuiteResult(
+        batch=batch, aggregate=aggregate, output_path=out_path
+    )

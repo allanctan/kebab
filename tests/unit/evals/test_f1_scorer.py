@@ -34,7 +34,9 @@ def _fig(
 
 
 def test_tp_when_filter_drops_decorative() -> None:
-    report = F1Scorer().score([_fig(ground_truth="decorative", predicted="decorative", rule="tiny")])
+    report = F1Scorer().score(
+        [_fig(ground_truth="decorative", predicted="decorative", rule="tiny")]
+    )
     assert report.matrix.true_positives == 1
     assert report.matrix.false_positives == 0
     assert report.matrix.true_negatives == 0
@@ -42,7 +44,9 @@ def test_tp_when_filter_drops_decorative() -> None:
 
 
 def test_fp_when_filter_drops_useful() -> None:
-    report = F1Scorer().score([_fig(ground_truth="useful", predicted="decorative", rule="repeated")])
+    report = F1Scorer().score(
+        [_fig(ground_truth="useful", predicted="decorative", rule="repeated")]
+    )
     assert report.matrix.false_positives == 1
     assert len(report.false_positives) == 1
 
@@ -119,11 +123,17 @@ def test_empty_input_yields_zero_metrics() -> None:
 
 def test_per_rule_breakdown_tracks_each_rule() -> None:
     figures = [
-        _fig(ground_truth="decorative", predicted="decorative", rule="tiny"),      # tiny TP
-        _fig(ground_truth="decorative", predicted="decorative", rule="tiny"),      # tiny TP
-        _fig(ground_truth="useful", predicted="decorative", rule="repeated"),      # repeated FP
-        _fig(ground_truth="decorative", predicted="decorative", rule="repeated"),  # repeated TP
-        _fig(ground_truth="decorative", predicted="decorative", rule="ribbon"),    # ribbon TP
+        _fig(ground_truth="decorative", predicted="decorative", rule="tiny"),  # tiny TP
+        _fig(ground_truth="decorative", predicted="decorative", rule="tiny"),  # tiny TP
+        _fig(
+            ground_truth="useful", predicted="decorative", rule="repeated"
+        ),  # repeated FP
+        _fig(
+            ground_truth="decorative", predicted="decorative", rule="repeated"
+        ),  # repeated TP
+        _fig(
+            ground_truth="decorative", predicted="decorative", rule="ribbon"
+        ),  # ribbon TP
     ]
     report = F1Scorer().score(figures)
     assert report.per_rule["tiny"].true_positives == 2
@@ -161,7 +171,9 @@ def test_metrics_dict_has_eval_prefix() -> None:
 
 
 def test_matrix_divide_by_zero_is_zero_not_error() -> None:
-    m = ConfusionMatrix(true_positives=0, false_positives=0, true_negatives=0, false_negatives=0)
+    m = ConfusionMatrix(
+        true_positives=0, false_positives=0, true_negatives=0, false_negatives=0
+    )
     assert m.precision == 0.0
     assert m.recall == 0.0
     assert m.f1 == 0.0

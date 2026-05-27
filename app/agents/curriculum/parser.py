@@ -81,9 +81,7 @@ def parse_xlsx(
 
     wb = openpyxl.load_workbook(xlsx_path, read_only=True, data_only=True)
     if sheet_name not in wb.sheetnames:
-        raise KeyError(
-            f"sheet {sheet_name!r} not in workbook (have: {wb.sheetnames})"
-        )
+        raise KeyError(f"sheet {sheet_name!r} not in workbook (have: {wb.sheetnames})")
 
     ws = wb[sheet_name]
     rows = ws.iter_rows(values_only=True)

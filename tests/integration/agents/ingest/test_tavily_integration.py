@@ -67,8 +67,7 @@ def test_tavily_include_domains_returns_results(settings: Settings) -> None:
     for c in candidates:
         domain = c.locator.split("/")[2] if "/" in c.locator else c.locator
         assert any(
-            auth in domain
-            for auth in ("britannica.com", "nationalgeographic.com")
+            auth in domain for auth in ("britannica.com", "nationalgeographic.com")
         ), f"Result {c.locator} is not from a requested domain"
 
 
@@ -117,9 +116,7 @@ def test_tavily_include_domains_education_sources(settings: Settings) -> None:
 
     # At least some of the authoritative sources should return results
     total = sum(results_by_source.values())
-    assert total >= 1, (
-        f"No authoritative source returned results: {results_by_source}"
-    )
+    assert total >= 1, f"No authoritative source returned results: {results_by_source}"
 
     # Log which sources work (useful for debugging)
     for source, count in results_by_source.items():

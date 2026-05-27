@@ -95,7 +95,8 @@ def _build_article(
     extras = fm.model_dump()
     description = extras.get("description") or body.strip().splitlines()[0:1]
     description_text = (
-        description if isinstance(description, str)
+        description
+        if isinstance(description, str)
         else (description[0] if description else fm.name)
     )
     keywords = extras.get("keywords") or []
@@ -103,7 +104,9 @@ def _build_article(
     parent_ids = extras.get("parent_ids") or []
     depth = extras.get("depth")
     if depth is None:
-        depth = max(len(path.relative_to(path.parents[len(path.parents) - 1]).parts) - 1, 0)
+        depth = max(
+            len(path.relative_to(path.parents[len(path.parents) - 1]).parts) - 1, 0
+        )
     return Article(
         id=fm.id,
         name=fm.name,
@@ -144,12 +147,16 @@ def run(
             continue
         token_count = count_tokens(body)
         if token_count > settings.MAX_TOKENS_PER_ARTICLE:
-            msg = f"body exceeds {settings.MAX_TOKENS_PER_ARTICLE} tokens ({token_count})"
+            msg = (
+                f"body exceeds {settings.MAX_TOKENS_PER_ARTICLE} tokens ({token_count})"
+            )
             logger.warning("skip %s: %s", path, msg)
             skipped.append((path, msg))
             continue
         domain, subdomain = _domain_from_path(path, root)
-        article = _build_article(fm, body, tree, path=path, domain=domain, subdomain=subdomain)
+        article = _build_article(
+            fm, body, tree, path=path, domain=domain, subdomain=subdomain
+        )
         articles.append(article)
         embed_texts.append(_embed_text(fm, body))
         touched_domains.add(domain)
@@ -160,7 +167,9 @@ def run(
 
     vectors = embed_fn(embed_texts, settings)
     if len(vectors) != len(articles):
-        raise SyncError(f"embed returned {len(vectors)} vectors for {len(articles)} articles")
+        raise SyncError(
+            f"embed returned {len(vectors)} vectors for {len(articles)} articles"
+        )
 
     # Idempotency: clear all touched domains, then upsert. The deterministic
     # point ID would also handle re-runs, but the explicit delete catches

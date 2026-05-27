@@ -113,10 +113,18 @@ def _entry_to_figure_bytes(
         bytes=b"",
         width=int(entry.get("width", 0)),
         height=int(entry.get("height", 0)),
-        rect_width=float(entry["rect_width"]) if entry.get("rect_width") is not None else None,
-        rect_height=float(entry["rect_height"]) if entry.get("rect_height") is not None else None,
-        page_width=float(entry["page_width"]) if entry.get("page_width") is not None else None,
-        page_height=float(entry["page_height"]) if entry.get("page_height") is not None else None,
+        rect_width=float(entry["rect_width"])
+        if entry.get("rect_width") is not None
+        else None,
+        rect_height=float(entry["rect_height"])
+        if entry.get("rect_height") is not None
+        else None,
+        page_width=float(entry["page_width"])
+        if entry.get("page_width") is not None
+        else None,
+        page_height=float(entry["page_height"])
+        if entry.get("page_height") is not None
+        else None,
         content_hash=str(entry.get("hash", "")),
         dominant_color_usage=float(dominant) if dominant is not None else None,
     )
@@ -171,9 +179,7 @@ def run(
         doc = str(entry["doc"])
         # The filter's `decide()` takes a dict keyed on bare hash; scope to this doc.
         per_doc_counts = {
-            h: count
-            for (d, h), count in counts_per_doc.items()
-            if d == doc
+            h: count for (d, h), count in counts_per_doc.items() if d == doc
         }
         decision = decide(fig, per_doc_counts, settings)
         predicted = "decorative" if not decision.keep else "useful"

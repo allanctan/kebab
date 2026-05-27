@@ -28,4 +28,6 @@ def list_inbox(knowledge_dir: Path) -> list[Path]:
     inbox = inbox_path(knowledge_dir)
     if not inbox.exists():
         return []
-    return sorted(p for p in inbox.iterdir() if p.is_file() and not p.name.endswith(".meta.json"))
+    return sorted(
+        p for p in inbox.iterdir() if p.is_file() and not p.name.endswith(".meta.json")
+    )

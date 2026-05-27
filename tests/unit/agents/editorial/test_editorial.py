@@ -245,7 +245,9 @@ class TestEditorialOrchestrator:
         mock_apply.assert_not_called()
         mock_write.assert_called_once()
 
-    def test_resumes_mid_cycle_skipping_completed_stages(self, mocker, mock_env) -> None:
+    def test_resumes_mid_cycle_skipping_completed_stages(
+        self, mocker, mock_env
+    ) -> None:
         """When qa and research-gaps already ran, only research + chief editor execute."""
         _patch_common(mocker)
         # Override: qa and research-gaps already completed

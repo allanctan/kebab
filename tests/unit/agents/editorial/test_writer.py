@@ -10,7 +10,7 @@ class TestApplyRewrites:
             "# Plate Tectonics\n\n"
             "Plates move at 10cm/year on average.\n\n"
             "## Disputes\n\n"
-            "- **Claim**: \"Plates move at 10cm/year on average.\"\n"
+            '- **Claim**: "Plates move at 10cm/year on average."\n'
             "  **Section**: Plate Tectonics, paragraph 1\n"
             "  **External source**: [Britannica](https://britannica.com/plates)\n"
             "  **Contradiction**: Source says 2-15cm/year.\n\n"
@@ -34,7 +34,7 @@ class TestApplyRewrites:
             "# Article\n\n"
             "Plates move at 10cm/year on average.\n\n"
             "## Disputes\n\n"
-            "**Claim**: \"Plates move at 10cm/year on average.\"\n\n"
+            '**Claim**: "Plates move at 10cm/year on average."\n\n'
             "**Category**: Factual Error\n\n"
             "**Section**: Intro, paragraph 1\n\n"
             "**External source**: [Britannica](https://britannica.com/plates)\n\n"
@@ -66,8 +66,8 @@ class TestApplyRewrites:
             "# Article\n\n"
             "Lystrosaurus fossils found across multiple continents.\n\n"
             "## Disputes\n\n"
-            "**Claim**: \"Fossils of the land-dwelling reptile Lystrosaurus "
-            "have been found on Antarctica, South America, and Africa.\"\n\n"
+            '**Claim**: "Fossils of the land-dwelling reptile Lystrosaurus '
+            'have been found on Antarctica, South America, and Africa."\n\n'
             "**Category**: Factual Error\n\n"
             "**Section**: Evidence 2, paragraph 2\n\n"
             "**External source**: [Lystrosaurus](https://en.wikipedia.org/wiki/Lystrosaurus)\n\n"
@@ -84,7 +84,9 @@ class TestApplyRewrites:
         )
         new_body = apply_rewrites(body, [rewrite])
         # Body was rewritten
-        assert "Lystrosaurus fossils found in Antarctica, India, and Africa." in new_body
+        assert (
+            "Lystrosaurus fossils found in Antarctica, India, and Africa." in new_body
+        )
         # Dispute entry removed via URL match (claim text didn't match)
         assert "**Category**: Factual Error" not in new_body
         assert "Source excludes South America" not in new_body
@@ -112,9 +114,9 @@ class TestApplyRewrites:
         body = (
             "Claim one is wrong. Claim two is also wrong.\n\n"
             "## Disputes\n\n"
-            "- **Claim**: \"Claim one is wrong.\"\n"
+            '- **Claim**: "Claim one is wrong."\n'
             "  **Section**: Intro\n\n"
-            "- **Claim**: \"Claim two is also wrong.\"\n"
+            '- **Claim**: "Claim two is also wrong."\n'
             "  **Section**: Intro\n"
         )
         rewrites = [
@@ -142,7 +144,7 @@ class TestAnnotateUnresolvable:
     def test_adds_unresolvable_marker(self) -> None:
         body = (
             "## Disputes\n\n"
-            "- **Claim**: \"Convection is the primary driver.\"\n"
+            '- **Claim**: "Convection is the primary driver."\n'
             "  **Section**: Forces\n"
         )
         dispute = UnresolvableDispute(
@@ -163,9 +165,9 @@ class TestAnnotateUnresolvable:
     def test_multiple_unresolvable_annotated(self) -> None:
         body = (
             "## Disputes\n\n"
-            "- **Claim**: \"First disputed claim.\"\n"
+            '- **Claim**: "First disputed claim."\n'
             "  **Section**: Intro\n\n"
-            "- **Claim**: \"Second disputed claim.\"\n"
+            '- **Claim**: "Second disputed claim."\n'
             "  **Section**: Body\n"
         )
         disputes = [

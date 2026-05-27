@@ -47,7 +47,9 @@ class ClassifierDeps:
     source_content: str
 
 
-def _build_classifier_agent(settings: Settings) -> Agent[ClassifierDeps, GapClassification]:
+def _build_classifier_agent(
+    settings: Settings,
+) -> Agent[ClassifierDeps, GapClassification]:
     return Agent(
         model=resolve_model(settings.RESEARCH_EXECUTOR_MODEL),
         deps_type=ClassifierDeps,
@@ -78,7 +80,9 @@ def answer_question(
         f"source_title: {source_title}\n\n"
         f"source_content:\n{source_content[:8000]}"
     )
-    logger.debug("classify gap input — question: %r | source: %r", question[:80], source_title)
+    logger.debug(
+        "classify gap input — question: %r | source: %r", question[:80], source_title
+    )
     result = agent.run_sync(user, deps=deps).output
     logger.debug(
         "classify gap output — answered=%s | reasoning: %s",

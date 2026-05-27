@@ -64,11 +64,13 @@ DisputeCategory = Literal[
 ]
 
 # Categories 1-3 are surfaced to the teacher; 4-5 are suppressed.
-SURFACED_CATEGORIES: frozenset[str] = frozenset({
-    "factual_error",
-    "misleading_simplification",
-    "contested_or_opinion",
-})
+SURFACED_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "factual_error",
+        "misleading_simplification",
+        "contested_or_opinion",
+    }
+)
 
 
 class DisputeJudgment(BaseModel):

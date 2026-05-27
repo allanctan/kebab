@@ -143,7 +143,9 @@ class TestWikipediaFetch:
         )
         client = _mock_client()
         client.get.return_value = _extracts_response(
-            page_id="45833", title="Photosynthesis", extract=extract_text,
+            page_id="45833",
+            title="Photosynthesis",
+            extract=extract_text,
         )
         adapter = WikipediaAdapter(settings=settings, _client=client)
 
@@ -153,7 +155,9 @@ class TestWikipediaFetch:
         assert artifact.raw_path.suffix == ".md"
         assert artifact.raw_path.name.startswith("wikipedia_")
         assert artifact.raw_path.read_text(encoding="utf-8") == extract_text
-        sidecar_path = artifact.raw_path.parent / (artifact.raw_path.name + ".meta.json")
+        sidecar_path = artifact.raw_path.parent / (
+            artifact.raw_path.name + ".meta.json"
+        )
         assert sidecar_path.exists()
         assert artifact.license == "CC-BY-SA-3.0"
         assert artifact.source.license == "CC-BY-SA-3.0"
@@ -164,8 +168,11 @@ class TestWikipediaFetch:
         settings = _settings(tmp_path)
         adapter = WikipediaAdapter(settings=settings)
         wrong_candidate = Candidate(
-            adapter="tavily", locator="Photosynthesis", title="Photosynthesis",
-            snippet=None, tier_hint=4,
+            adapter="tavily",
+            locator="Photosynthesis",
+            title="Photosynthesis",
+            snippet=None,
+            tier_hint=4,
         )
         with pytest.raises(AdapterError, match="tavily"):
             adapter.fetch(wrong_candidate)
@@ -182,8 +189,11 @@ class TestWikipediaFetch:
         adapter = WikipediaAdapter(settings=settings, _client=client)
 
         candidate = Candidate(
-            adapter="wikipedia", locator="Nonexistent", title="Nonexistent",
-            snippet=None, tier_hint=4,
+            adapter="wikipedia",
+            locator="Nonexistent",
+            title="Nonexistent",
+            snippet=None,
+            tier_hint=4,
         )
         with pytest.raises(AdapterError, match="not found"):
             adapter.fetch(candidate)
@@ -192,13 +202,18 @@ class TestWikipediaFetch:
         settings = _settings(tmp_path)
         client = _mock_client()
         client.get.return_value = _extracts_response(
-            page_id="99999", title="Empty Article", extract="   ",
+            page_id="99999",
+            title="Empty Article",
+            extract="   ",
         )
         adapter = WikipediaAdapter(settings=settings, _client=client)
 
         candidate = Candidate(
-            adapter="wikipedia", locator="Empty Article", title="Empty Article",
-            snippet=None, tier_hint=4,
+            adapter="wikipedia",
+            locator="Empty Article",
+            title="Empty Article",
+            snippet=None,
+            tier_hint=4,
         )
         with pytest.raises(AdapterError, match="empty extract"):
             adapter.fetch(candidate)
@@ -211,7 +226,9 @@ class TestWikipediaFetch:
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "query": {
-                "redirects": [{"from": "Divergent plate boundary", "to": "Divergent boundary"}],
+                "redirects": [
+                    {"from": "Divergent plate boundary", "to": "Divergent boundary"}
+                ],
                 "pages": {
                     "12345": {
                         "pageid": 12345,
@@ -229,14 +246,19 @@ class TestWikipediaFetch:
         artifact = adapter.fetch(candidate)
 
         assert artifact.raw_path.exists()
-        assert "divergent boundary" in artifact.raw_path.read_text(encoding="utf-8").lower()
+        assert (
+            "divergent boundary"
+            in artifact.raw_path.read_text(encoding="utf-8").lower()
+        )
         assert artifact.source.title == "Divergent boundary"
 
     def test_wikipedia_fetch_sets_correct_url(self, tmp_path: Path) -> None:
         settings = _settings(tmp_path)
         client = _mock_client()
         client.get.return_value = _extracts_response(
-            page_id="45833", title="Photosynthesis", extract="Photosynthesis is...",
+            page_id="45833",
+            title="Photosynthesis",
+            extract="Photosynthesis is...",
         )
         adapter = WikipediaAdapter(settings=settings, _client=client)
 

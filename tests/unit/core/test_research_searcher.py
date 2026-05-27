@@ -498,12 +498,14 @@ class TestInboxCache:
         # Adapter that tracks whether fetch was called
         fetch_called: list[Candidate] = []
         adapter = _StubAdapter(
-            candidates=[Candidate(
-                adapter="stub",
-                locator=locator,
-                title="Plate Tectonics",
-                tier_hint=4,
-            )],
+            candidates=[
+                Candidate(
+                    adapter="stub",
+                    locator=locator,
+                    title="Plate Tectonics",
+                    tier_hint=4,
+                )
+            ],
             raw_dir=tmp_path / "raw",
         )
         original_fetch = adapter.fetch
@@ -522,7 +524,9 @@ class TestInboxCache:
 
         assert len(results) == 1
         assert results[0].content == "cached page content"
-        assert fetch_called == [], "adapter.fetch should not be called when cache exists"
+        assert fetch_called == [], (
+            "adapter.fetch should not be called when cache exists"
+        )
 
     def test_fetches_when_no_cache(
         self, monkeypatch: pytest.MonkeyPatch, settings: object, tmp_path: Path
@@ -544,7 +548,9 @@ class TestInboxCache:
     def test_inbox_filename_tavily(self) -> None:
         from app.core.research.searcher import _inbox_filename
 
-        result = _inbox_filename("tavily", "https://britannica.com/science/plate-tectonics")
+        result = _inbox_filename(
+            "tavily", "https://britannica.com/science/plate-tectonics"
+        )
         assert result == "research_tavily_britannica-com-science-plate-tectonics.html"
 
     def test_inbox_filename_wikipedia(self) -> None:

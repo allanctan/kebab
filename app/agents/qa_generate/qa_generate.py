@@ -95,9 +95,7 @@ def _generate(settings: Settings, deps: QaGenerateDeps) -> list[QaPair]:
 
 def _append_pairs(body: str, pairs: list[QaPair]) -> str:
     """Append Q&A pairs at the correct position in the article."""
-    new_block = "\n".join(
-        f"**Q: {pair.question}**\n{pair.answer}\n" for pair in pairs
-    )
+    new_block = "\n".join(f"**Q: {pair.question}**\n{pair.answer}\n" for pair in pairs)
     return insert_section_ordered(body, "Q&A", new_block)
 
 
@@ -119,7 +117,11 @@ def run(
         target = find_article_by_id(settings.CURATED_DIR, article_id)
         paths = [target] if target else []
     else:
-        root = Path(settings.CURATED_DIR) / domain if domain else Path(settings.CURATED_DIR)
+        root = (
+            Path(settings.CURATED_DIR) / domain
+            if domain
+            else Path(settings.CURATED_DIR)
+        )
         paths = sorted(root.rglob("*.md")) if root.exists() else []
 
     updated: list[Path] = []
@@ -169,7 +171,9 @@ def run(
 
         for pair in fresh:
             log_event(
-                path, stage="qa-generate", action="qa_added",
+                path,
+                stage="qa-generate",
+                action="qa_added",
                 article_id=fm.id,
                 question=pair.question,
                 answer=pair.answer,
@@ -177,4 +181,6 @@ def run(
 
         logger.info("qa-generate: %s +%d pair(s)", path.name, len(fresh))
 
-    return QaGenerateRunResult(updated=updated, pairs_added=pairs_added, skipped=skipped)
+    return QaGenerateRunResult(
+        updated=updated, pairs_added=pairs_added, skipped=skipped
+    )

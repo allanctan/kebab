@@ -33,7 +33,9 @@ class _FakeClient:
 
 @pytest.fixture
 def settings() -> Settings:
-    return Settings(GOOGLE_API_KEY="test-key", FIGURE_MODEL="google-gla:gemini-2.5-flash-lite")
+    return Settings(
+        GOOGLE_API_KEY="test-key", FIGURE_MODEL="google-gla:gemini-2.5-flash-lite"
+    )
 
 
 def _patch_client(monkeypatch: pytest.MonkeyPatch, response_text: str) -> _FakeClient:
@@ -84,7 +86,9 @@ def test_describe_image_wraps_api_errors(
         def generate_content(self, *, model: str, contents: Any) -> Any:
             raise RuntimeError("400 INVALID_ARGUMENT")  # permanent, no retry
 
-    monkeypatch.setattr(multimodal, "_client", lambda _key: type("C", (), {"models": _Boom()})())
+    monkeypatch.setattr(
+        multimodal, "_client", lambda _key: type("C", (), {"models": _Boom()})()
+    )
     monkeypatch.setattr(multimodal, "_BACKOFF_BASE", 0.0)
     with pytest.raises(KebabError, match="multimodal call failed"):
         multimodal.describe_image(b"x", "image/png", settings, width=200, height=200)
@@ -200,6 +204,8 @@ def test_describe_image_preserves_real_descriptions(
 ) -> None:
     _patch_client(monkeypatch, "A decorative wreath around a photo.")
     # "decorative" as a word inside a real description must NOT trigger the sentinel.
-    result = multimodal.describe_image(b"x", "image/png", settings, width=200, height=200)
+    result = multimodal.describe_image(
+        b"x", "image/png", settings, width=200, height=200
+    )
     assert result != "DECORATIVE"
     assert "wreath" in result

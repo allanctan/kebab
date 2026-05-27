@@ -16,9 +16,7 @@ from app.core.sources.fetcher import (
 )
 
 
-def _settings(
-    tmp_path: Path, *, allowed: list[str] | None = None
-) -> Settings:
+def _settings(tmp_path: Path, *, allowed: list[str] | None = None) -> Settings:
     return Settings(
         KNOWLEDGE_DIR=tmp_path,
         QDRANT_PATH=None,
@@ -95,6 +93,7 @@ class TestRobotsTxt:
     def test_robots_disallow_is_ignored(self, tmp_path: Path) -> None:
         """robots.txt enforcement is disabled — KEBAB acts as a research
         assistant on behalf of a human user and identifies as Chrome."""
+
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, text="ok")
 

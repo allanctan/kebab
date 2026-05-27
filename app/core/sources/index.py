@@ -28,8 +28,12 @@ class SourceEntry(BaseModel):
     title: str = Field(..., description="Human-readable title.")
     tier: int = Field(..., description="Publisher authority tier (1-5).")
     checksum: str = Field(..., description="SHA256 hex digest of raw bytes.")
-    adapter: str = Field(..., description="Name of the adapter that fetched this source.")
-    retrieved_at: datetime | None = Field(default=None, description="When the source was fetched.")
+    adapter: str = Field(
+        ..., description="Name of the adapter that fetched this source."
+    )
+    retrieved_at: datetime | None = Field(
+        default=None, description="When the source was fetched."
+    )
     metadata: dict[str, str] = Field(
         default_factory=dict,
         description="Key-value metadata extracted from the source path pattern.",

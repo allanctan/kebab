@@ -48,6 +48,8 @@ def user_agent(settings: Settings | None = None) -> str:
     """Return the Chrome User-Agent string. Settings is accepted for
     backward compatibility but currently has no effect."""
     return _DEFAULT_USER_AGENT
+
+
 _DEFAULT_TIMEOUT = 30.0
 _DEFAULT_RATE_PER_SEC = 1.0
 _BACKOFF_BASE_SECONDS = 1.0
@@ -73,12 +75,16 @@ class _Bucket:
     rate_per_sec: float
     next_allowed_at: float = 0.0
 
-    def wait(self, now_fn: Callable[[], float], sleep_fn: Callable[[float], None]) -> None:
+    def wait(
+        self, now_fn: Callable[[], float], sleep_fn: Callable[[float], None]
+    ) -> None:
         now = now_fn()
         if now < self.next_allowed_at:
             sleep_fn(self.next_allowed_at - now)
             now = now_fn()
-        self.next_allowed_at = max(self.next_allowed_at, now) + (1.0 / self.rate_per_sec)
+        self.next_allowed_at = max(self.next_allowed_at, now) + (
+            1.0 / self.rate_per_sec
+        )
 
 
 @dataclass

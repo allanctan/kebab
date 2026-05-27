@@ -131,9 +131,7 @@ def _find_confirmed_claim_indices(
 
     # Build set of footnote numbers that are external
     external_footnotes: set[str] = set()
-    for match in re.finditer(
-        r"\[\^(\d+)\]:\s*\[.*?\]\((https?://[^\)]+)\)", body
-    ):
+    for match in re.finditer(r"\[\^(\d+)\]:\s*\[.*?\]\((https?://[^\)]+)\)", body):
         external_footnotes.add(match.group(1))
 
     confirmed: set[int] = set()
@@ -242,7 +240,8 @@ def run(
         plan = ResearchPlan(
             claims=plan.claims,
             queries=[
-                sq for sq in plan.queries
+                sq
+                for sq in plan.queries
                 if not all(idx in confirmed_indices for idx in sq.target_claims)
             ],
         )
@@ -268,7 +267,10 @@ def run(
             logger.info("research: budget of %d queries reached", budget)
             break
         sources = search(
-            settings, sq.adapter, sq.query, limit=2,
+            settings,
+            sq.adapter,
+            sq.query,
+            limit=2,
             authoritative_sources=authoritative,
         )
         queries_run += 1
@@ -311,46 +313,66 @@ def run(
     disputed_claims: set[int] = set()
 
     for bf in batch_findings:
-        if bf.outcome == "unverified" or bf.claim_idx < 0 or bf.claim_idx >= len(plan.claims):
+        if (
+            bf.outcome == "unverified"
+            or bf.claim_idx < 0
+            or bf.claim_idx >= len(plan.claims)
+        ):
             continue
         claim = plan.claims[bf.claim_idx]
         if bf.outcome == "confirm":
             confirmed_claims.add(bf.claim_idx)
             log_event(
-                path, stage="research", action="confirm",
+                path,
+                stage="research",
+                action="confirm",
                 article_id=article_id,
-                claim=claim.text, section=claim.section,
-                source_title=bf.source_title, source_url=bf.source_url,
+                claim=claim.text,
+                section=claim.section,
+                source_title=bf.source_title,
+                source_url=bf.source_url,
             )
         elif bf.outcome == "append":
             appended_claims.add(bf.claim_idx)
             log_event(
-                path, stage="research", action="append",
+                path,
+                stage="research",
+                action="append",
                 article_id=article_id,
-                claim=claim.text, section=claim.section,
+                claim=claim.text,
+                section=claim.section,
                 new_sentence=bf.new_sentence or "",
-                source_title=bf.source_title, source_url=bf.source_url,
+                source_title=bf.source_title,
+                source_url=bf.source_url,
             )
         elif bf.outcome == "dispute":
             if bf.dispute_category and bf.dispute_category not in SURFACED_CATEGORIES:
                 log_event(
-                    path, stage="research", action="dispute_suppressed",
+                    path,
+                    stage="research",
+                    action="dispute_suppressed",
                     article_id=article_id,
-                    claim=claim.text, section=claim.section,
+                    claim=claim.text,
+                    section=claim.section,
                     category=bf.dispute_category,
                     reasoning=bf.reasoning,
-                    source_title=bf.source_title, source_url=bf.source_url,
+                    source_title=bf.source_title,
+                    source_url=bf.source_url,
                 )
             else:
                 disputed_claims.add(bf.claim_idx)
                 log_event(
-                    path, stage="research", action="dispute",
+                    path,
+                    stage="research",
+                    action="dispute",
                     article_id=article_id,
-                    claim=claim.text, section=claim.section,
+                    claim=claim.text,
+                    section=claim.section,
                     category=bf.dispute_category or "",
                     contradiction=bf.contradiction or "",
                     reasoning=bf.reasoning,
-                    source_title=bf.source_title, source_url=bf.source_url,
+                    source_title=bf.source_title,
+                    source_url=bf.source_url,
                 )
 
     # Synthesize multiple appends per section into one cohesive statement.
@@ -388,15 +410,12 @@ def run(
     # Write unverified claims file — overwritten each run.
     # Claims that got no finding (confirm/append/dispute) are unverified.
     verified = confirmed_claims | appended_claims | disputed_claims
-    unverified = [
-        plan.claims[i]
-        for i in range(len(plan.claims))
-        if i not in verified
-    ]
+    unverified = [plan.claims[i] for i in range(len(plan.claims)) if i not in verified]
     _write_unverified(settings, path, unverified)
 
     # Auto-sync to Qdrant (updates confidence_level)
     from app.agents.sync import auto_sync
+
     auto_sync(settings, "research")
 
     return ResearchResult(

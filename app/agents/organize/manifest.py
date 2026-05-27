@@ -47,7 +47,9 @@ def _build_manifest(settings: Settings) -> list[tuple[str, str]]:
             stem = md_file.stem
             entry = index.get_by_stem(stem)
             if entry is None:
-                logger.debug("organize: skipping web source %s — not in source index", stem)
+                logger.debug(
+                    "organize: skipping web source %s — not in source index", stem
+                )
                 continue
             snippet = md_file.read_text(encoding="utf-8")[:_MANIFEST_SNIPPET_CHARS]
             label = f"[{entry.id}] {entry.title}"

@@ -205,7 +205,9 @@ class TestOpenStaxFetch:
         assert "CC-BY-4.0" in content
 
         # Sidecar was written alongside the raw file
-        sidecar_path = artifact.raw_path.parent / (artifact.raw_path.name + ".meta.json")
+        sidecar_path = artifact.raw_path.parent / (
+            artifact.raw_path.name + ".meta.json"
+        )
         assert sidecar_path.exists()
 
         sidecar_data = json.loads(sidecar_path.read_text(encoding="utf-8"))

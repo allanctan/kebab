@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.core.markdown import extract_faq, extract_section, parse_body, read_article, write_article
+from app.core.markdown import (
+    extract_faq,
+    extract_section,
+    parse_body,
+    read_article,
+    write_article,
+)
 from app.models.frontmatter import FrontmatterSchema
 from app.models.source import Source
 

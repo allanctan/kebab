@@ -25,7 +25,9 @@ from app.core.errors import ConfigError
 
 logger = logging.getLogger(__name__)
 
-_REGISTRY_PATH = Path(__file__).resolve().parent.parent.parent / "config" / "models.yaml"
+_REGISTRY_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "config" / "models.yaml"
+)
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,9 @@ def _load_registry() -> dict[str, ModelEntry]:
     registry: dict[str, ModelEntry] = {}
     for row in rows:
         if not isinstance(row, dict):
-            raise ConfigError(f"models.yaml: each entry must be a mapping, got {type(row)}")
+            raise ConfigError(
+                f"models.yaml: each entry must be a mapping, got {type(row)}"
+            )
         try:
             entry = ModelEntry(
                 alias=row["alias"],

@@ -26,12 +26,16 @@ def _stub_query_embed(text: str, _settings: Settings) -> list[float]:
 
 
 @pytest.fixture
-def populated_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Settings, Store]:
+def populated_index(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Settings, Store]:
     knowledge_dir = tmp_path / "knowledge"
     biology = knowledge_dir / "curated" / "Science" / "Biology"
     biology.mkdir(parents=True)
     shutil.copy(FIXTURES / "photosynthesis.md", biology / "photosynthesis.md")
-    shutil.copy(FIXTURES / "cellular_respiration.md", biology / "cellular_respiration.md")
+    shutil.copy(
+        FIXTURES / "cellular_respiration.md", biology / "cellular_respiration.md"
+    )
 
     settings = Settings(
         KNOWLEDGE_DIR=knowledge_dir,
@@ -53,7 +57,9 @@ def populated_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Se
 
 
 @pytest.mark.integration
-def test_status_lists_confidence_histogram(populated_index: tuple[Settings, Store]) -> None:
+def test_status_lists_confidence_histogram(
+    populated_index: tuple[Settings, Store],
+) -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["status"])
     assert result.exit_code == 0, result.output

@@ -58,7 +58,9 @@ def _build_pydantic_model(vertical: VerticalConfig) -> type[BaseModel]:
     return model
 
 
-def load_vertical_config(settings: Settings, vertical_key: str) -> VerticalConfig | None:
+def load_vertical_config(
+    settings: Settings, vertical_key: str
+) -> VerticalConfig | None:
     """Load a single vertical config by key."""
     verticals = _load_verticals(settings)
     return verticals.get(vertical_key)
@@ -81,8 +83,7 @@ def _select_vertical(
         return "education"
 
     descriptions = "\n".join(
-        f"- {key}: {v.description.strip()}"
-        for key, v in verticals.items()
+        f"- {key}: {v.description.strip()}" for key, v in verticals.items()
     )
 
     agent = Agent(
@@ -108,7 +109,9 @@ def _select_vertical(
         if key in result:
             return key
 
-    logger.warning("contexts: LLM returned unknown vertical %r — defaulting to education", result)
+    logger.warning(
+        "contexts: LLM returned unknown vertical %r — defaulting to education", result
+    )
     return "education"
 
 
@@ -207,7 +210,11 @@ def run(
     updated: list[Path] = []
     skipped: list[tuple[Path, str]] = []
 
-    paths = article_paths if article_paths is not None else _iter_articles(Path(settings.CURATED_DIR))
+    paths = (
+        article_paths
+        if article_paths is not None
+        else _iter_articles(Path(settings.CURATED_DIR))
+    )
     for path in paths:
         try:
             fm, body, _ = read_article(path)
@@ -232,10 +239,14 @@ def run(
                 skipped.append((path, f"proposer failed: {exc}"))
                 continue
             vertical_key = "education"
-            context_dict = context if isinstance(context, dict) else context.model_dump()
+            context_dict = (
+                context if isinstance(context, dict) else context.model_dump()
+            )
         else:
             try:
-                vertical_key = _select_vertical(settings, fm.name, body_excerpt, source_meta)
+                vertical_key = _select_vertical(
+                    settings, fm.name, body_excerpt, source_meta
+                )
             except Exception as exc:  # noqa: BLE001
                 skipped.append((path, f"vertical selection failed: {exc}"))
                 continue
@@ -247,7 +258,11 @@ def run(
 
             try:
                 context_dict = _classify_fields(
-                    settings, vertical, fm.name, body_excerpt, source_meta,
+                    settings,
+                    vertical,
+                    fm.name,
+                    body_excerpt,
+                    source_meta,
                 )
             except Exception as exc:  # noqa: BLE001
                 skipped.append((path, f"classification failed: {exc}"))
@@ -262,8 +277,11 @@ def run(
         logger.info("contexts: %s → %s", fm.id, vertical_key)
 
         from app.core.audit import log_event
+
         log_event(
-            path, stage="contexts", action="context_classified",
+            path,
+            stage="contexts",
+            action="context_classified",
             article_id=fm.id,
             vertical=vertical_key,
             fields=str(context_dict),

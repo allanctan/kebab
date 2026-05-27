@@ -66,7 +66,9 @@ def _no_describer(*_args: object, **_kwargs: object) -> str:
 
 
 @pytest.mark.integration
-def test_pdf_ingest_writes_raw_and_processed(tmp_path: Path, settings: Settings) -> None:
+def test_pdf_ingest_writes_raw_and_processed(
+    tmp_path: Path, settings: Settings
+) -> None:
     src = tmp_path / "input.pdf"
     _make_pdf(src, "Hello KEBAB")
     result = pdf_ingest.ingest(settings, src, describer=_no_describer)
@@ -83,7 +85,9 @@ def test_pdf_ingest_writes_raw_and_processed(tmp_path: Path, settings: Settings)
 
 
 @pytest.mark.integration
-def test_pdf_ingest_is_idempotent_by_default(tmp_path: Path, settings: Settings) -> None:
+def test_pdf_ingest_is_idempotent_by_default(
+    tmp_path: Path, settings: Settings
+) -> None:
     calls: list[int] = []
 
     def _counting_describer(*_args: object, **_kwargs: object) -> str:
@@ -299,7 +303,9 @@ def test_pdf_ingest_filters_repeated_header_seal(
     assert result.figure_count == 5
     # Filter must have dropped all 4 seal instances (content hash on 4 pages ≥ 3).
     # Only the unique diagram should reach the describer.
-    assert describer_calls == ["unique"], f"expected only ['unique'], got {describer_calls}"
+    assert describer_calls == ["unique"], (
+        f"expected only ['unique'], got {describer_calls}"
+    )
     assert result.described_count == 1
 
     # figures.json should carry skip_reason on the filtered entries.
@@ -373,7 +379,6 @@ def test_pdf_ingest_rejects_non_pdf(tmp_path: Path, settings: Settings) -> None:
     bad.write_text("not a pdf", encoding="utf-8")
     with pytest.raises(IngestError):
         pdf_ingest.ingest(settings, bad, describer=_no_describer)
-
 
 
 @pytest.mark.integration

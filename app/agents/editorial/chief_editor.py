@@ -53,7 +53,8 @@ class Verdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision: Literal["loop", "accept"] = Field(
-        ..., description="Whether to run another enrichment cycle or accept the article."
+        ...,
+        description="Whether to run another enrichment cycle or accept the article.",
     )
     rewrites: list[ClaimRewrite] = Field(
         default_factory=list,
@@ -67,9 +68,7 @@ class Verdict(BaseModel):
         default_factory=list,
         description="Claims still without external confirmation.",
     )
-    reasoning: str = Field(
-        ..., description="Why the editor chose to loop or accept."
-    )
+    reasoning: str = Field(..., description="Why the editor chose to loop or accept.")
 
     @field_validator("decision", mode="before")
     @classmethod

@@ -36,9 +36,9 @@ def test_aggregate_detection_rate() -> None:
     batch = _judge().judge(
         [
             ("a", True, False),  # correct
-            ("b", True, True),   # missed
+            ("b", True, True),  # missed
             ("c", False, True),  # correct
-            ("d", False, False), # wrong
+            ("d", False, False),  # wrong
         ]
     )
     agg = InjectionDetectionJudge.aggregate(batch)

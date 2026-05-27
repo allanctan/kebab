@@ -72,7 +72,9 @@ class GroundingJudge:
         agent = build_judge_agent(GroundingBatch, _SYSTEM_PROMPT, self.settings)
         sources_str = "\n\n".join(f"### {name}\n{snippet}" for name, snippet in sources)
         claims_str = "\n".join(f"{i}: {claim}" for i, claim in enumerate(claims))
-        return agent.run_sync(f"sources:\n{sources_str}\n\nclaims:\n{claims_str}").output
+        return agent.run_sync(
+            f"sources:\n{sources_str}\n\nclaims:\n{claims_str}"
+        ).output
 
     @staticmethod
     def aggregate(batch: GroundingBatch, expected: int) -> dict[str, float]:

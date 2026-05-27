@@ -47,7 +47,9 @@ class Candidate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    adapter: str = Field(..., description="Name of the adapter that produced this candidate.")
+    adapter: str = Field(
+        ..., description="Name of the adapter that produced this candidate."
+    )
     locator: str = Field(
         ...,
         description="Adapter-specific identifier — URL, file path, DOI, Wikipedia title, "
@@ -77,8 +79,12 @@ class FetchedArtifact(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    raw_path: Path = Field(..., description="Filesystem path of the stored raw artifact.")
-    source: Source = Field(..., description="Populated provenance envelope for this artifact.")
+    raw_path: Path = Field(
+        ..., description="Filesystem path of the stored raw artifact."
+    )
+    source: Source = Field(
+        ..., description="Populated provenance envelope for this artifact."
+    )
     content_hash: str = Field(..., description="SHA256 hex digest of the raw bytes.")
     license: str | None = Field(
         default=None,

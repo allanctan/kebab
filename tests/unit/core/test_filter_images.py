@@ -190,8 +190,6 @@ def test_repeated_takes_precedence_over_ribbon() -> None:
     assert result.reason == "repeated"
 
 
-
-
 def test_figures_without_rect_skip_size_filters() -> None:
     """Figures PyMuPDF couldn't locate on the page (no rects) are passed through."""
     fig = FigureBytes(

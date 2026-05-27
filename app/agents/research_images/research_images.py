@@ -41,9 +41,13 @@ class ImagesResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     article_id: str = Field(..., description="ID of the article processed.")
-    targets_found: int = Field(default=0, description="Wikipedia targets discovered in body.")
+    targets_found: int = Field(
+        default=0, description="Wikipedia targets discovered in body."
+    )
     images_added: int = Field(default=0, description="Images approved and appended.")
-    decoratives_dropped: int = Field(default=0, description="Images dropped as decorative.")
+    decoratives_dropped: int = Field(
+        default=0, description="Images dropped as decorative."
+    )
 
 
 def run(
@@ -90,7 +94,9 @@ def run(
         for img in images[:2]:
             if is_decorative_by_keyword(img, skip_keywords):
                 log_event(
-                    path, stage="research-images", action="image_dropped",
+                    path,
+                    stage="research-images",
+                    action="image_dropped",
                     article_id=article_id,
                     reason="keyword_prefilter",
                     source_title=target.title,
@@ -116,7 +122,9 @@ def run(
             c.local_path.unlink(missing_ok=True)
             dropped += 1
             log_event(
-                path, stage="research-images", action="image_dropped",
+                path,
+                stage="research-images",
+                action="image_dropped",
                 article_id=article_id,
                 reason="decorative",
                 source_title=c.source_title,
@@ -133,7 +141,9 @@ def run(
             )
         )
         log_event(
-            path, stage="research-images", action="image_added",
+            path,
+            stage="research-images",
+            action="image_added",
             article_id=article_id,
             description=desc,
             source_title=c.source_title,

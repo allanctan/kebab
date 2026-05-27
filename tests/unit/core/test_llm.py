@@ -10,7 +10,9 @@ from app.core.errors import ConfigError
 
 
 def test_expand_env_passthrough_when_no_dollar() -> None:
-    assert llm._expand_env("google-gla:gemini-2.5-flash") == "google-gla:gemini-2.5-flash"
+    assert (
+        llm._expand_env("google-gla:gemini-2.5-flash") == "google-gla:gemini-2.5-flash"
+    )
 
 
 def test_expand_env_returns_none_for_none() -> None:
@@ -39,7 +41,10 @@ def test_expand_env_empty_setting_raises(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_resolve_model_native_prefix_passthrough() -> None:
-    assert llm.resolve_model("google-gla:gemini-2.5-flash") == "google-gla:gemini-2.5-flash"
+    assert (
+        llm.resolve_model("google-gla:gemini-2.5-flash")
+        == "google-gla:gemini-2.5-flash"
+    )
     assert llm.resolve_model("openai:gpt-4o") == "openai:gpt-4o"
     assert llm.resolve_model("anthropic:claude-sonnet") == "anthropic:claude-sonnet"
 

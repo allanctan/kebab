@@ -32,9 +32,7 @@ def apply_rewrites(body: str, rewrites: list[ClaimRewrite]) -> str:
     return body
 
 
-def annotate_unresolvable(
-    body: str, disputes: list[UnresolvableDispute]
-) -> str:
+def annotate_unresolvable(body: str, disputes: list[UnresolvableDispute]) -> str:
     """Add <!-- unresolvable --> markers before dispute entries that can't be resolved."""
     for dispute in disputes:
         # Find the dispute entry line containing this claim
@@ -43,7 +41,11 @@ def annotate_unresolvable(
         match = re.search(pattern, body, re.DOTALL)
         if match:
             # Insert the marker before the dispute entry
-            body = body[: match.start()] + "<!-- unresolvable -->\n" + body[match.start() :]
+            body = (
+                body[: match.start()]
+                + "<!-- unresolvable -->\n"
+                + body[match.start() :]
+            )
     return body
 
 

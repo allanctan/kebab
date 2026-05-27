@@ -16,20 +16,38 @@ class TestFetchArticleImages:
         client = _mock_client()
         images_response = MagicMock()
         images_response.json.return_value = {
-            "query": {"pages": {"12345": {"images": [
-                {"title": "File:Plate boundaries.svg"},
-                {"title": "File:Wiki-logo.png"},  # should be skipped
-            ]}}}
+            "query": {
+                "pages": {
+                    "12345": {
+                        "images": [
+                            {"title": "File:Plate boundaries.svg"},
+                            {"title": "File:Wiki-logo.png"},  # should be skipped
+                        ]
+                    }
+                }
+            }
         }
         images_response.raise_for_status = MagicMock()
 
         info_response = MagicMock()
         info_response.json.return_value = {
-            "query": {"pages": {"-1": {
-                "title": "File:Plate boundaries.svg",
-                "imageinfo": [{"url": "https://upload.wikimedia.org/Plate_boundaries.svg",
-                               "extmetadata": {"ImageDescription": {"value": "Map of plate boundaries"}}}],
-            }}}
+            "query": {
+                "pages": {
+                    "-1": {
+                        "title": "File:Plate boundaries.svg",
+                        "imageinfo": [
+                            {
+                                "url": "https://upload.wikimedia.org/Plate_boundaries.svg",
+                                "extmetadata": {
+                                    "ImageDescription": {
+                                        "value": "Map of plate boundaries"
+                                    }
+                                },
+                            }
+                        ],
+                    }
+                }
+            }
         }
         info_response.raise_for_status = MagicMock()
         client.get.side_effect = [images_response, info_response]
@@ -51,11 +69,17 @@ class TestFetchArticleImages:
         client = _mock_client()
         response = MagicMock()
         response.json.return_value = {
-            "query": {"pages": {"123": {"images": [
-                {"title": "File:Wiki-logo.png"},
-                {"title": "File:Commons-logo.svg"},
-                {"title": "File:Symbol support vote.svg"},
-            ]}}}
+            "query": {
+                "pages": {
+                    "123": {
+                        "images": [
+                            {"title": "File:Wiki-logo.png"},
+                            {"title": "File:Commons-logo.svg"},
+                            {"title": "File:Symbol support vote.svg"},
+                        ]
+                    }
+                }
+            }
         }
         response.raise_for_status = MagicMock()
         client.get.return_value = response
@@ -71,11 +95,23 @@ class TestFetchArticleImages:
 
         info_response = MagicMock()
         info_response.json.return_value = {
-            "query": {"pages": {"-1": {
-                "title": "File:Test.png",
-                "imageinfo": [{"url": "https://example.com/test.png",
-                               "extmetadata": {"ImageDescription": {"value": "<b>Bold</b> description"}}}],
-            }}}
+            "query": {
+                "pages": {
+                    "-1": {
+                        "title": "File:Test.png",
+                        "imageinfo": [
+                            {
+                                "url": "https://example.com/test.png",
+                                "extmetadata": {
+                                    "ImageDescription": {
+                                        "value": "<b>Bold</b> description"
+                                    }
+                                },
+                            }
+                        ],
+                    }
+                }
+            }
         }
         info_response.raise_for_status = MagicMock()
         client.get.side_effect = [images_response, info_response]

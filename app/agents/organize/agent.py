@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _SYSTEM_PROMPT = (_PROMPTS_DIR / "organize.md").read_text(encoding="utf-8")
-_INCREMENTAL_SYSTEM_PROMPT = (_PROMPTS_DIR / "incremental.md").read_text(encoding="utf-8")
+_INCREMENTAL_SYSTEM_PROMPT = (_PROMPTS_DIR / "incremental.md").read_text(
+    encoding="utf-8"
+)
 
 
 HierarchyLevel = Literal["domain", "subdomain", "topic", "article"]
@@ -171,9 +173,7 @@ def propose_incremental_hierarchy(
         existing_plan=existing_plan,
         new_manifest=new_manifest,
     )
-    result = agent.run_sync(
-        "Extend the plan with these new sources.", deps=deps
-    )
+    result = agent.run_sync("Extend the plan with these new sources.", deps=deps)
     return result.output
 
 

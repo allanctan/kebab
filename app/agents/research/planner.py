@@ -29,7 +29,9 @@ class ClaimEntry(BaseModel):
 
     text: str = Field(..., description="The claim statement.")
     section: str = Field(..., description="Markdown section heading.")
-    paragraph: int = Field(..., ge=1, description="1-based paragraph number within the section.")
+    paragraph: int = Field(
+        ..., ge=1, description="1-based paragraph number within the section."
+    )
 
 
 class SearchQuery(BaseModel):
@@ -39,7 +41,9 @@ class SearchQuery(BaseModel):
 
     query: str = Field(..., description="The search string.")
     adapter: str = Field(..., description="Adapter name: wikipedia or tavily.")
-    target_claims: list[int] = Field(..., description="Indices of claims this query aims to verify.")
+    target_claims: list[int] = Field(
+        ..., description="Indices of claims this query aims to verify."
+    )
 
 
 class ResearchPlan(BaseModel):

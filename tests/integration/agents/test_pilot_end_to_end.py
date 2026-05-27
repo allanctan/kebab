@@ -40,9 +40,11 @@ def _make_pdf(path: Path, body: str) -> None:
 
 # ----- stub LLM helpers ------------------------------------------------------
 
+
 def _extract_id(label: str) -> int | None:
     """Extract the source ID from a manifest label like ``[3] Title``."""
     import re
+
     m = re.match(r"^\[(\d+)\]", label)
     return int(m.group(1)) if m else None
 
@@ -53,7 +55,9 @@ def _stub_organize_proposer(
     source_ids = [sid for name, _ in manifest if (sid := _extract_id(name)) is not None]
     return HierarchyPlan(
         nodes=[
-            HierarchyNode(id="SCI", name="Science", level_type="domain", description="x"),
+            HierarchyNode(
+                id="SCI", name="Science", level_type="domain", description="x"
+            ),
             HierarchyNode(
                 id="SCI-BIO",
                 name="Biology",
@@ -95,7 +99,8 @@ def _stub_generate(
         body=body,
         description="Light into glucose.",
         keywords=["chloroplast", "calvin"],
-        summary="Test scope.", source_ids=local_nums,
+        summary="Test scope.",
+        source_ids=local_nums,
     )
 
 
@@ -107,6 +112,7 @@ def _stub_contexts_proposer(
 
 def _stub_research_planner(_settings, _deps):
     from app.agents.research.planner import ClaimEntry, ResearchPlan, SearchQuery
+
     # Claim text must exactly match a substring of the generated body
     # (see _stub_generate). The writer only inserts inline footnote refs
     # for claims it can locate in a paragraph — orphan footnotes are
@@ -119,12 +125,15 @@ def _stub_research_planner(_settings, _deps):
                 paragraph=1,
             )
         ],
-        queries=[SearchQuery(query="photosynthesis", adapter="wikipedia", target_claims=[0])],
+        queries=[
+            SearchQuery(query="photosynthesis", adapter="wikipedia", target_claims=[0])
+        ],
     )
 
 
 def _stub_batch_verify_confirm(_settings: object, _deps: object) -> list[object]:
     from app.agents.research.batch_verifier import BatchFinding
+
     return [
         BatchFinding(
             claim_idx=0,
@@ -175,7 +184,10 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         QDRANT_PATH=None,
         QDRANT_URL=None,
         GOOGLE_API_KEY="test-key",
-        LLM_VERIFICATION_MODELS=["google-gla:gemini-2.5-flash", "google-gla:gemini-2.5-flash-lite"],
+        LLM_VERIFICATION_MODELS=[
+            "google-gla:gemini-2.5-flash",
+            "google-gla:gemini-2.5-flash-lite",
+        ],
     )
     store = Store(settings, client=QdrantClient(":memory:"))
 
@@ -187,7 +199,9 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     pdf_ingest.ingest(settings, pdf_b, describer=_fake_describer)
 
     # Stage 1 — organize creates the canonical plan + empty stubs.
-    organize_stage.run(settings, domain_hint="Science", proposer=_stub_organize_proposer)
+    organize_stage.run(
+        settings, domain_hint="Science", proposer=_stub_organize_proposer
+    )
 
     # Stage 2 — gaps diffs the plan against the (empty) index.
     gaps_result = gaps_stage.run(settings, domain="Science", store=store)
@@ -195,7 +209,9 @@ def test_pilot_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert gaps_result.report.gaps[0].target_path is not None
 
     # Stage 3 — generate writes directly to the plan-reserved path.
-    generate_result = generate_stage.write_articles(settings, domain="Science", gaps=gaps_result.report, proposer=_stub_generate)
+    generate_result = generate_stage.write_articles(
+        settings, domain="Science", gaps=gaps_result.report, proposer=_stub_generate
+    )
     assert len(generate_result.written) == 1
     # The path matches exactly what organize reserved — no parallel trees.
     assert str(generate_result.written[0]) == gaps_result.report.gaps[0].target_path

@@ -49,24 +49,30 @@ def pdf_path(request: pytest.FixtureRequest) -> Path:
 def test_filter_kept_count(pdf_path: Path, tmp_path: Path) -> None:
     """Verify pre-LLM filter keeps the expected number of figures."""
     settings = Settings(
-        KNOWLEDGE_DIR=tmp_path, RAW_DIR=tmp_path / "raw",
-        QDRANT_PATH=None, QDRANT_URL=None, GOOGLE_API_KEY="x",
+        KNOWLEDGE_DIR=tmp_path,
+        RAW_DIR=tmp_path / "raw",
+        QDRANT_PATH=None,
+        QDRANT_URL=None,
+        GOOGLE_API_KEY="x",
     )
     extraction = extract(pdf_path, extract_figures=True)
     hash_counts = build_hash_page_counts(extraction.figures)
-    kept = sum(1 for fig in extraction.figures if decide(fig, hash_counts, settings).keep)
-    expected = _EXPECTED_KEPT[pdf_path.name]
-    assert kept == expected, (
-        f"{pdf_path.name}: expected {expected} kept, got {kept}"
+    kept = sum(
+        1 for fig in extraction.figures if decide(fig, hash_counts, settings).keep
     )
+    expected = _EXPECTED_KEPT[pdf_path.name]
+    assert kept == expected, f"{pdf_path.name}: expected {expected} kept, got {kept}"
 
 
 @pytest.mark.integration
 def test_filter_report(pdf_path: Path, tmp_path: Path) -> None:
     """Print per-figure filter decisions for manual review. Run with -s."""
     settings = Settings(
-        KNOWLEDGE_DIR=tmp_path, RAW_DIR=tmp_path / "raw",
-        QDRANT_PATH=None, QDRANT_URL=None, GOOGLE_API_KEY="x",
+        KNOWLEDGE_DIR=tmp_path,
+        RAW_DIR=tmp_path / "raw",
+        QDRANT_PATH=None,
+        QDRANT_URL=None,
+        GOOGLE_API_KEY="x",
     )
     extraction = extract(pdf_path, extract_figures=True)
     hash_counts = build_hash_page_counts(extraction.figures)
@@ -75,9 +81,9 @@ def test_filter_report(pdf_path: Path, tmp_path: Path) -> None:
     dropped = 0
     reasons: dict[str, int] = {}
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"{pdf_path.name}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     for fig in extraction.figures:
         decision = decide(fig, hash_counts, settings)
@@ -101,6 +107,8 @@ def test_filter_report(pdf_path: Path, tmp_path: Path) -> None:
         )
 
     total = kept + dropped
-    print(f"\n  {total} total, {kept} kept ({kept/total*100:.0f}%), "
-          f"{dropped} dropped ({dropped/total*100:.0f}%)")
+    print(
+        f"\n  {total} total, {kept} kept ({kept / total * 100:.0f}%), "
+        f"{dropped} dropped ({dropped / total * 100:.0f}%)"
+    )
     print(f"  reasons: {reasons}")

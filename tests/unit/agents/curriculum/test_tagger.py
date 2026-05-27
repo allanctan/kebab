@@ -121,9 +121,7 @@ class TestFrontmatterWrite:
                 reasoning="both covered",
             )
 
-        outcomes = tag_articles(
-            settings, name="test-spine", proposer=fake_proposer
-        )
+        outcomes = tag_articles(settings, name="test-spine", proposer=fake_proposer)
         assert len(outcomes) == 1
         assert outcomes[0].new_codes == ["SCI10-PT-I-1", "SCI10-PT-I-2"]
 
@@ -132,9 +130,7 @@ class TestFrontmatterWrite:
         assert data["competency_codes"] == ["SCI10-PT-I-1", "SCI10-PT-I-2"]
         assert data["curriculum"] == "test-spine"
 
-    def test_rejects_invented_codes(
-        self, sample_xlsx: Path, tmp_path: Path
-    ) -> None:
+    def test_rejects_invented_codes(self, sample_xlsx: Path, tmp_path: Path) -> None:
         """If the LLM hallucinates a code, it must be dropped."""
         settings = _mk_settings(tmp_path)
         ingest_xlsx(
@@ -149,9 +145,7 @@ class TestFrontmatterWrite:
                 reasoning="one real, one made up",
             )
 
-        outcomes = tag_articles(
-            settings, name="test-spine", proposer=fake_proposer
-        )
+        outcomes = tag_articles(settings, name="test-spine", proposer=fake_proposer)
         # FAKE-CODE-99 dropped; only real candidate code remains
         assert outcomes[0].new_codes == ["SCI10-PT-I-1"]
 

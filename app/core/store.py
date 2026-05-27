@@ -45,7 +45,9 @@ EMBEDDING_DIM = 768
 #: Qdrant requires point IDs to be UUIDs or unsigned ints; KEBAB article IDs
 #: ("SCI-BIO-001") are neither, so we hash them through ``uuid5``. The
 #: original ID is preserved in the payload's ``id`` field.
-_POINT_ID_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")  # uuid.NAMESPACE_DNS
+_POINT_ID_NAMESPACE = uuid.UUID(
+    "6ba7b810-9dad-11d1-80b4-00c04fd430c8"
+)  # uuid.NAMESPACE_DNS
 
 
 def _point_id(article_id: str) -> str:
@@ -80,7 +82,9 @@ def _in(field: str, values: list[Any]) -> FieldCondition:
 class Store:
     """KEBAB's Qdrant wrapper. All stages go through this class."""
 
-    def __init__(self, settings: Settings, *, client: QdrantClient | None = None) -> None:
+    def __init__(
+        self, settings: Settings, *, client: QdrantClient | None = None
+    ) -> None:
         self.settings = settings
         if client is not None:
             self._client = client
@@ -105,7 +109,9 @@ class Store:
                 collection_name=self._collection,
                 vectors_config=VectorParams(size=self._dim, distance=Distance.COSINE),
             )
-            logger.info("created Qdrant collection %s (dim=%d)", self._collection, self._dim)
+            logger.info(
+                "created Qdrant collection %s (dim=%d)", self._collection, self._dim
+            )
         for field, schema in (
             ("id", PayloadSchemaType.KEYWORD),
             ("level_type", PayloadSchemaType.KEYWORD),
@@ -171,11 +177,15 @@ class Store:
             if point.payload is None:
                 continue
             hits.append(
-                ScoredArticle(article=_payload_to_article(point.payload), score=point.score)
+                ScoredArticle(
+                    article=_payload_to_article(point.payload), score=point.score
+                )
             )
         return hits
 
-    def scroll(self, filters: Filter | None = None, *, batch: int = 256) -> Iterator[Article]:
+    def scroll(
+        self, filters: Filter | None = None, *, batch: int = 256
+    ) -> Iterator[Article]:
         """Yield every payload matching ``filters``."""
         offset: Any = None
         while True:

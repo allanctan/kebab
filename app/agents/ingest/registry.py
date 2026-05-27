@@ -37,7 +37,11 @@ class AdapterRegistry:
     def register(self, adapter: SourceAdapter) -> None:
         """Register ``adapter`` under its ``name``. Overwrites silently."""
         self._adapters[adapter.name] = adapter
-        logger.debug("registry: registered adapter %r (tier=%d)", adapter.name, adapter.default_tier)
+        logger.debug(
+            "registry: registered adapter %r (tier=%d)",
+            adapter.name,
+            adapter.default_tier,
+        )
 
     def get(self, name: str) -> SourceAdapter:
         """Return the registered adapter, or raise :class:`KebabError`."""

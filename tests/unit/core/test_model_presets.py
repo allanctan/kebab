@@ -36,8 +36,13 @@ def test_get_entry_unknown_returns_none() -> None:
 
 
 def test_resolve_alias_native_returns_model_string() -> None:
-    assert model_presets.resolve_alias("gemini-flash") == "google-gla:gemini-3-flash-preview"
-    assert model_presets.resolve_alias("gemini-pro") == "google-gla:gemini-3.1-pro-preview"
+    assert (
+        model_presets.resolve_alias("gemini-flash")
+        == "google-gla:gemini-3-flash-preview"
+    )
+    assert (
+        model_presets.resolve_alias("gemini-pro") == "google-gla:gemini-3.1-pro-preview"
+    )
 
 
 def test_resolve_alias_unknown_raises_with_known_list() -> None:

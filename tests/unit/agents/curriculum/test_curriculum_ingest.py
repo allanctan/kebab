@@ -42,9 +42,7 @@ class TestIngestXlsx:
         assert loaded["grade_filter"] == "10"
         assert len(loaded["competencies"]) == 3
 
-    def test_load_spine_round_trips(
-        self, sample_xlsx: Path, tmp_path: Path
-    ) -> None:
+    def test_load_spine_round_trips(self, sample_xlsx: Path, tmp_path: Path) -> None:
         settings = _mk_settings(tmp_path)
         ingest_xlsx(
             settings, xlsx_path=sample_xlsx, name="test-spine", grade_filter="10"

@@ -27,15 +27,12 @@ class TestExtractResearchGaps:
         assert extract_research_gaps(parse_body("# Article\n\nContent.")) == []
 
     def test_empty_when_section_empty(self) -> None:
-        assert extract_research_gaps(parse_body("# Article\n\n## Research Gaps\n\n")) == []
+        assert (
+            extract_research_gaps(parse_body("# Article\n\n## Research Gaps\n\n")) == []
+        )
 
     def test_ignores_non_list_lines(self) -> None:
-        body = (
-            "## Research Gaps\n\n"
-            "Some intro text.\n"
-            "- Actual question?\n"
-            "More text.\n"
-        )
+        body = "## Research Gaps\n\nSome intro text.\n- Actual question?\nMore text.\n"
         gaps = extract_research_gaps(parse_body(body))
         assert len(gaps) == 1
 

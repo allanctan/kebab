@@ -40,8 +40,8 @@ class ImageCandidate:
     """An image considered for inclusion in the article."""
 
     local_path: Path
-    source_title: str       # Wikipedia article title this came from
-    raw_description: str    # Description from the Wikipedia API
+    source_title: str  # Wikipedia article title this came from
+    raw_description: str  # Description from the Wikipedia API
     llm_description: str = ""  # Filled in by the describer step
 
 
@@ -119,7 +119,10 @@ def download(image: dict[str, str], *, dest: Path) -> Path | None:
 
     description = image.get("description", "")
     ext = Path(image_url.split("?")[0]).suffix or ".png"
-    slug = re.sub(r"[^a-z0-9]+", "-", description.lower().strip())[:40].strip("-") or "image"
+    slug = (
+        re.sub(r"[^a-z0-9]+", "-", description.lower().strip())[:40].strip("-")
+        or "image"
+    )
     filename = f"wiki-{slug}{ext}"
 
     dest.mkdir(parents=True, exist_ok=True)

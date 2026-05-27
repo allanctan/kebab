@@ -63,9 +63,7 @@ class UsefulnessJudge:
 
     def judge(self, pairs: list[tuple[str, str]]) -> QaUsefulnessBatch:
         agent = build_judge_agent(QaUsefulnessBatch, _SYSTEM_PROMPT, self.settings)
-        prompt = "\n\n".join(
-            f"{i}: Q={q!r}, A={a!r}" for i, (q, a) in enumerate(pairs)
-        )
+        prompt = "\n\n".join(f"{i}: Q={q!r}, A={a!r}" for i, (q, a) in enumerate(pairs))
         return agent.run_sync(prompt).output
 
     @staticmethod

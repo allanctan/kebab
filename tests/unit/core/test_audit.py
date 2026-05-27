@@ -23,7 +23,9 @@ class TestAuditLog:
         article = tmp_path / "article.md"
         article.write_text("body")
 
-        log_event(article, stage="research", action="confirm", detail="Test claim confirmed")
+        log_event(
+            article, stage="research", action="confirm", detail="Test claim confirmed"
+        )
 
         entries = read_log(article)
         assert len(entries) == 1
@@ -48,7 +50,13 @@ class TestAuditLog:
         article = tmp_path / "article.md"
         article.write_text("body")
 
-        log_event(article, stage="research", action="confirm", detail="x", article_id="SCI-001")
+        log_event(
+            article,
+            stage="research",
+            action="confirm",
+            detail="x",
+            article_id="SCI-001",
+        )
 
         entries = read_log(article)
         assert entries[0]["article_id"] == "SCI-001"

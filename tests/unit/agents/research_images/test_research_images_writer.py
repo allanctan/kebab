@@ -25,8 +25,14 @@ class TestAppendFigureRefs:
             _candidate("wiki-map.svg", llm_desc="World map of plate boundaries."),
         ]
         result = append_figure_refs(body, candidates, article_slug="article-slug")
-        assert "![Side-view diagram of a fault.](figures/article-slug/wiki-diagram.png)" in result
-        assert "![World map of plate boundaries.](figures/article-slug/wiki-map.svg)" in result
+        assert (
+            "![Side-view diagram of a fault.](figures/article-slug/wiki-diagram.png)"
+            in result
+        )
+        assert (
+            "![World map of plate boundaries.](figures/article-slug/wiki-map.svg)"
+            in result
+        )
 
     def test_empty_candidates_returns_body_unchanged(self) -> None:
         body = "# Article\n\nContent.\n"

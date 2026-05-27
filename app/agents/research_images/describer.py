@@ -36,9 +36,7 @@ def describe(settings: Settings, candidate: ImageCandidate) -> str:
             context_hint=f"From Wikipedia article: {candidate.source_title}",
         )
     except Exception as exc:
-        logger.debug(
-            "research-images: describe failed for %s: %s", abs_path, exc
-        )
+        logger.debug("research-images: describe failed for %s: %s", abs_path, exc)
         return candidate.raw_description[:200] or candidate.source_title
 
 

@@ -9,7 +9,10 @@ from app.agents.ingest.inbox import inbox_path, list_inbox, stage_to_inbox
 
 class TestInbox:
     def test_inbox_path(self, tmp_path: Path) -> None:
-        assert inbox_path(tmp_path / "knowledge") == tmp_path / "knowledge" / "raw" / "inbox"
+        assert (
+            inbox_path(tmp_path / "knowledge")
+            == tmp_path / "knowledge" / "raw" / "inbox"
+        )
 
     def test_stage_to_inbox_creates_file(self, tmp_path: Path) -> None:
         knowledge = tmp_path / "knowledge"

@@ -86,8 +86,8 @@ class TestSelectNewManifest:
         plan = _base_plan()
         manifest = [
             ("[1] Openstax Chapter 8", "snippet a"),  # already covered (id=1)
-            ("[2] New Source", "snippet b"),           # net new
-            ("no_id_label", "snippet c"),              # no [N] prefix — always included
+            ("[2] New Source", "snippet b"),  # net new
+            ("no_id_label", "snippet c"),  # no [N] prefix — always included
         ]
         result = _select_new_manifest(plan, manifest)
         assert [name for name, _ in result] == ["[2] New Source", "no_id_label"]

@@ -48,9 +48,14 @@ def run(
     # Load the plan first — bail early if the domain doesn't exist,
     # before spending LLM calls on contexts classification.
     from app.agents.organize import load_plan
+
     plan = load_plan(settings, domain)
     if plan is None:
-        logger.warning("generate: no plan for domain %r — run `kebab organize --domain %s` first", domain, domain)
+        logger.warning(
+            "generate: no plan for domain %r — run `kebab organize --domain %s` first",
+            domain,
+            domain,
+        )
         return result
 
     domain_paths: list[Path] = []
@@ -61,31 +66,45 @@ def run(
                 domain_paths.append(p)
 
     if not domain_paths:
-        logger.warning("generate: plan for %r has no existing article stubs — run `kebab organize --domain %s` first", domain, domain)
+        logger.warning(
+            "generate: plan for %r has no existing article stubs — run `kebab organize --domain %s` first",
+            domain,
+            domain,
+        )
         return result
 
     # Step 1: Find gaps
     if force:
         from app.agents.generate.gaps import Gap, GapReport
+
         target_nodes = [
-            n for n in plan.nodes
-            if n.level_type == "article"
-            and (article_id is None or n.id == article_id)
+            n
+            for n in plan.nodes
+            if n.level_type == "article" and (article_id is None or n.id == article_id)
         ]
         if article_id and not target_nodes:
-            logger.warning("generate: article %r not found in plan for domain %r", article_id, domain)
+            logger.warning(
+                "generate: article %r not found in plan for domain %r",
+                article_id,
+                domain,
+            )
             return result
         forced_gaps = [
             Gap(
-                id=n.id, name=n.name, description=n.description,
+                id=n.id,
+                name=n.name,
+                description=n.description,
                 source_files=list(n.source_files),
-                target_path=n.md_path, reason="new",
+                target_path=n.md_path,
+                reason="new",
             )
             for n in target_nodes
         ]
         gap_report = GapReport(gaps=forced_gaps, existing=[])
         result.gaps_found = len(forced_gaps)
-        logger.info("generate: force mode — %d article(s) to regenerate", result.gaps_found)
+        logger.info(
+            "generate: force mode — %d article(s) to regenerate", result.gaps_found
+        )
     else:
         gap_result = run_gaps(settings, domain=domain)
         gap_report = gap_result.report
@@ -98,12 +117,15 @@ def run(
     # the writer falls back to a generic instruction — that's fine; the
     # body still gets written and contexts classifies it in step 3.
     if gap_report.gaps:
-        write_result = write_articles(settings, domain=domain, gaps=gap_report, **kwargs)
+        write_result = write_articles(
+            settings, domain=domain, gaps=gap_report, **kwargs
+        )
         result.articles_written = len(write_result.written)
         result.articles_skipped = len(write_result.skipped)
         logger.info(
             "generate: %d written, %d skipped",
-            result.articles_written, result.articles_skipped,
+            result.articles_written,
+            result.articles_skipped,
         )
 
     # Step 3: Classify contexts AFTER writing — the classifier reads the
@@ -126,6 +148,7 @@ def run(
 
     # Step 4: Auto-sync to Qdrant
     from app.agents.sync import auto_sync
+
     auto_sync(settings, "generate")
 
     return result

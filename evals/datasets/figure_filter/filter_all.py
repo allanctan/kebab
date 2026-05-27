@@ -47,6 +47,7 @@ class FilterAllResult:
     stats: Counter[str] = field(default_factory=Counter)
     per_doc: dict[str, Counter[str]] = field(default_factory=dict)
 
+
 BASE = Path(__file__).resolve().parent
 USEFUL = BASE / "useful"
 DECORATIVE = BASE / "decorative"
@@ -125,11 +126,11 @@ def _main() -> int:
     total = stats["total"]
     useful = stats["useful"]
     decorative_total = total - useful
-    print(
-        f"\nProcessed {total} figures across {len(per_doc)} documents:"
-    )
+    print(f"\nProcessed {total} figures across {len(per_doc)} documents:")
     print(f"  useful (kept):     {useful}  ({useful / total * 100:.1f}%)")
-    print(f"  decorative (drop): {decorative_total}  ({decorative_total / total * 100:.1f}%)")
+    print(
+        f"  decorative (drop): {decorative_total}  ({decorative_total / total * 100:.1f}%)"
+    )
     print()
     print("  By dropping rule:")
     for key, count in sorted(stats.items()):

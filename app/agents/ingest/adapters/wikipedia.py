@@ -105,6 +105,7 @@ class WikipediaAdapter:
         """
         if self._client is None:
             from app.core.sources.fetcher import user_agent
+
             self._client = httpx.Client(
                 timeout=30.0,
                 follow_redirects=True,
@@ -215,9 +216,7 @@ class WikipediaAdapter:
 
         content_bytes = extract.encode("utf-8")
         raw_path.write_bytes(content_bytes)
-        logger.info(
-            "wikipedia: wrote %d bytes to %s", len(content_bytes), raw_path
-        )
+        logger.info("wikipedia: wrote %d bytes to %s", len(content_bytes), raw_path)
 
         content_hash = sha256_bytes(content_bytes)
         source = Source(
@@ -253,6 +252,7 @@ def fetch_article_images(
     """
     if client is None:
         from app.core.sources.fetcher import user_agent
+
         client = httpx.Client(
             timeout=30.0,
             headers={"User-Agent": user_agent()},

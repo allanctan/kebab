@@ -192,9 +192,11 @@ def apply_findings_to_article(
             appends.setdefault(claim.section, []).append(sentence)
 
         elif finding.outcome == "dispute" and finding.contradiction:
-            category_label = (finding.dispute_category or "dispute").replace("_", " ").title()
+            category_label = (
+                (finding.dispute_category or "dispute").replace("_", " ").title()
+            )
             disputes.append(
-                f"**Claim**: \"{claim.text}\"\n\n"
+                f'**Claim**: "{claim.text}"\n\n'
                 f"**Category**: {category_label}\n\n"
                 f"**Section**: {claim.section}, paragraph {claim.paragraph}\n\n"
                 f"**External source**: [{source_title}]({source_url})\n\n"
@@ -234,8 +236,7 @@ def apply_findings_to_article(
     if disputes:
         existing_disputes = extract_section(tree, "Disputes")
         fresh_disputes = [
-            d for d in disputes
-            if d.split("\n")[0] not in (existing_disputes or "")
+            d for d in disputes if d.split("\n")[0] not in (existing_disputes or "")
         ]
         if fresh_disputes:
             disputes_md = "\n\n---\n\n".join(fresh_disputes) + "\n"

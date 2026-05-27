@@ -33,7 +33,8 @@ def _good_proposer(
         body=f"# {gap.name}\n\nGrounded in sources.[^1]\n",
         description="Light into glucose.",
         keywords=["chloroplast", "calvin"],
-        summary="Test scope summary.", source_ids=[1],
+        summary="Test scope summary.",
+        source_ids=[1],
     )
 
 
@@ -45,7 +46,8 @@ def _huge_body_proposer(
         body="huge " * 80_000,
         description="x",
         keywords=[],
-        summary="Test scope summary.", source_ids=[1],
+        summary="Test scope summary.",
+        source_ids=[1],
     )
 
 
@@ -104,7 +106,9 @@ def settings(tmp_path: Path) -> Settings:
 def test_generate_writes_article_with_grounded_sources(settings: Settings) -> None:
     target = settings.CURATED_DIR / "Science" / "Biology" / "photosynthesis.md"
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(
+        settings, gaps=report, proposer=_good_proposer
+    )
     assert result.written == [target]
     assert result.skipped == []
     fm, body, _ = read_article(target)
@@ -126,7 +130,9 @@ def test_generate_skips_when_no_source_files_present(settings: Settings) -> None
         target_path=str(settings.CURATED_DIR / "X" / "x.md"),
     )
     report = GapReport(gaps=[gap])
-    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(
+        settings, gaps=report, proposer=_good_proposer
+    )
     assert result.written == []
     assert result.skipped[0][0] == "X-1"
     assert "no source" in result.skipped[0][1]
@@ -136,7 +142,9 @@ def test_generate_skips_when_no_source_files_present(settings: Settings) -> None
 def test_generate_skips_oversized_body(settings: Settings) -> None:
     target = settings.CURATED_DIR / "Science" / "Biology" / "photosynthesis.md"
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.write_articles(settings, gaps=report, proposer=_huge_body_proposer)
+    result = generate_stage.write_articles(
+        settings, gaps=report, proposer=_huge_body_proposer
+    )
     assert result.written == []
     assert "tokens" in result.skipped[0][1]
 
@@ -164,7 +172,9 @@ def test_generate_overwrites_stub_at_plan_path(settings: Settings) -> None:
         encoding="utf-8",
     )
     report = GapReport(gaps=[_gap(target_path=str(stub))])
-    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(
+        settings, gaps=report, proposer=_good_proposer
+    )
     assert result.written == [stub]
     assert "Grounded in" in stub.read_text()
 
@@ -208,7 +218,10 @@ def test_generate_stamps_parent_ids_and_sources_from_index(settings: Settings) -
     plan = HierarchyPlan(
         nodes=[
             HierarchyNode(
-                id="SCI", name="Science", level_type="domain", description="natural sciences"
+                id="SCI",
+                name="Science",
+                level_type="domain",
+                description="natural sciences",
             ),
             HierarchyNode(
                 id="SCI-BIO",
@@ -287,7 +300,9 @@ def test_generate_preserves_verifications_on_regen(settings: Settings) -> None:
         encoding="utf-8",
     )
     report = GapReport(gaps=[_gap(target_path=str(target))])
-    result = generate_stage.write_articles(settings, gaps=report, proposer=_good_proposer)
+    result = generate_stage.write_articles(
+        settings, gaps=report, proposer=_good_proposer
+    )
     assert result.written == [target]
     fm, _, _ = read_article(target)
     dump = fm.model_dump()

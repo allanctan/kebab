@@ -209,7 +209,11 @@ def run(
         target = find_article_by_id(settings.CURATED_DIR, article_id)
         all_paths = [target] if target else []
     else:
-        root = Path(settings.CURATED_DIR) / domain if domain else Path(settings.CURATED_DIR)
+        root = (
+            Path(settings.CURATED_DIR) / domain
+            if domain
+            else Path(settings.CURATED_DIR)
+        )
         all_paths = _iter_articles(root)
 
     updated: list[Path] = []

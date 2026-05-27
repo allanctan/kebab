@@ -48,7 +48,9 @@ def _reset_client_cache() -> None:
     embeddings._client.cache_clear()
 
 
-def _patch_client(monkeypatch: pytest.MonkeyPatch, vectors: list[list[float]]) -> _FakeClient:
+def _patch_client(
+    monkeypatch: pytest.MonkeyPatch, vectors: list[list[float]]
+) -> _FakeClient:
     client = _FakeClient(vectors)
 
     def _factory(api_key: str) -> Any:
@@ -87,7 +89,9 @@ def test_embed_batch_empty_input_returns_empty(
 def test_embed_strips_provider_prefix(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = Settings(GOOGLE_API_KEY="test-key", EMBEDDING_MODEL="google-gla:text-embedding-004")
+    settings = Settings(
+        GOOGLE_API_KEY="test-key", EMBEDDING_MODEL="google-gla:text-embedding-004"
+    )
     client = _patch_client(monkeypatch, [[0.1]])
     embeddings.embed("hello", settings)
     assert client.models.calls[0][0] == "text-embedding-004"

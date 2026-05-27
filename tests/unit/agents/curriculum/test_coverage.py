@@ -120,9 +120,7 @@ class TestBuildCoverage:
         # Foreign code does NOT appear as a key
         assert "SCI7-ESS-I-2" not in coverage.competencies
 
-    def test_load_coverage_round_trips(
-        self, sample_xlsx: Path, tmp_path: Path
-    ) -> None:
+    def test_load_coverage_round_trips(self, sample_xlsx: Path, tmp_path: Path) -> None:
         settings = _mk_settings(tmp_path)
         ingest_xlsx(
             settings, xlsx_path=sample_xlsx, name="test-spine", grade_filter="10"

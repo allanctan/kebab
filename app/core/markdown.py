@@ -83,7 +83,9 @@ def _parse_frontmatter(path: Path) -> tuple[FrontmatterSchema, str]:
         post = frontmatter.loads(raw)
         meta, body = post.metadata, post.content
     except Exception as exc:  # noqa: BLE001 — fallback path
-        logger.debug("frontmatter.loads failed for %s (%s); using regex fallback", path, exc)
+        logger.debug(
+            "frontmatter.loads failed for %s (%s); using regex fallback", path, exc
+        )
         meta, body = _parse_yaml_frontmatter(raw)
     try:
         fm = FrontmatterSchema.model_validate(meta)
@@ -174,7 +176,7 @@ def insert_section_ordered(body: str, heading: str, content: str) -> str:
         order_idx = -1
 
     # Sections that should come AFTER this one
-    after_sections = _TAIL_SECTION_ORDER[order_idx + 1:] if order_idx >= 0 else []
+    after_sections = _TAIL_SECTION_ORDER[order_idx + 1 :] if order_idx >= 0 else []
 
     existing = extract_section(tree, heading)
     if existing:
@@ -328,11 +330,7 @@ def next_footnote_number(tree: marko.block.Document) -> int:
     """Return the next available footnote number (max FootnoteDef.number + 1)."""
     from app.core.markdown_ext import FootnoteDef
 
-    numbers = [
-        node.number
-        for node in tree.children
-        if isinstance(node, FootnoteDef)
-    ]
+    numbers = [node.number for node in tree.children if isinstance(node, FootnoteDef)]
     return max(numbers, default=0) + 1
 
 
@@ -364,12 +362,15 @@ def remove_research_gap(body: str, question: str) -> str:
     tree = parse_body(result)
     remaining_gaps = extract_research_gaps(tree)
     if not remaining_gaps:
-        result = re.sub(
-            r"\n*^##\s+Research Gaps\s*\n*",
-            "\n",
-            result,
-            flags=re.MULTILINE,
-        ).rstrip() + "\n"
+        result = (
+            re.sub(
+                r"\n*^##\s+Research Gaps\s*\n*",
+                "\n",
+                result,
+                flags=re.MULTILINE,
+            ).rstrip()
+            + "\n"
+        )
     return result
 
 

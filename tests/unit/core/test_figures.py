@@ -21,14 +21,32 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p001_f02.jpeg").write_bytes(b"fake image")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 2, "path": "figures/p001_f02.jpeg",
-             "description": "Diagram of plates", "skip_reason": "",
-             "width": 500, "height": 400, "mime_type": "image/jpeg"},
-            {"page": 1, "index": 3, "path": "",
-             "description": "DECORATIVE", "skip_reason": "tiny",
-             "width": 10, "height": 10, "mime_type": "image/png"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 2,
+                        "path": "figures/p001_f02.jpeg",
+                        "description": "Diagram of plates",
+                        "skip_reason": "",
+                        "width": 500,
+                        "height": 400,
+                        "mime_type": "image/jpeg",
+                    },
+                    {
+                        "page": 1,
+                        "index": 3,
+                        "path": "",
+                        "description": "DECORATIVE",
+                        "skip_reason": "tiny",
+                        "width": 10,
+                        "height": 10,
+                        "mime_type": "image/png",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert len(manifest.entries) == 1
         assert manifest.entries[0].figure_id == "p001_f02"
@@ -40,11 +58,22 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p001_f01.jpeg").write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 1, "path": "figures/p001_f01.jpeg",
-             "description": "ERROR: API failed", "skip_reason": "describer_error",
-             "width": 500, "height": 400, "mime_type": "image/jpeg"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 1,
+                        "path": "figures/p001_f01.jpeg",
+                        "description": "ERROR: API failed",
+                        "skip_reason": "describer_error",
+                        "width": 500,
+                        "height": 400,
+                        "mime_type": "image/jpeg",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert len(manifest.entries) == 0
 
@@ -60,11 +89,22 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p001_f02.jpeg").write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 2, "path": "figures/p001_f02.jpeg",
-             "description": "Plate diagram", "skip_reason": "",
-             "width": 500, "height": 400, "mime_type": "image/jpeg"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 2,
+                        "path": "figures/p001_f02.jpeg",
+                        "description": "Plate diagram",
+                        "skip_reason": "",
+                        "width": 500,
+                        "height": 400,
+                        "mime_type": "image/jpeg",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         text = manifest.prompt_text()
         assert "[1] p001_f02" in text
@@ -80,11 +120,22 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p002_f01.jpeg").write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 2, "index": 1, "path": "figures/p002_f01.jpeg",
-             "description": "A real figure", "skip_reason": "repeated",
-             "width": 500, "height": 400, "mime_type": "image/jpeg"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 2,
+                        "index": 1,
+                        "path": "figures/p002_f01.jpeg",
+                        "description": "A real figure",
+                        "skip_reason": "repeated",
+                        "width": 500,
+                        "height": 400,
+                        "mime_type": "image/jpeg",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert len(manifest.entries) == 0
 
@@ -92,11 +143,22 @@ class TestLoadFigureManifest:
         processed = tmp_path / "processed" / "documents" / "test_doc"
         processed.mkdir(parents=True)
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 1, "path": "figures/ghost.jpeg",
-             "description": "A figure", "skip_reason": "",
-             "width": 500, "height": 400, "mime_type": "image/jpeg"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 1,
+                        "path": "figures/ghost.jpeg",
+                        "description": "A figure",
+                        "skip_reason": "",
+                        "width": 500,
+                        "height": 400,
+                        "mime_type": "image/jpeg",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert len(manifest.entries) == 0
 
@@ -107,14 +169,36 @@ class TestLoadFigureManifest:
         for name in ("p001_f01.jpeg", "p002_f01.jpeg", "p003_f01.jpeg"):
             (figures_dir / name).write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 1, "path": "figures/p001_f01.jpeg",
-             "description": "First", "skip_reason": "", "mime_type": "image/jpeg"},
-            {"page": 2, "index": 1, "path": "figures/p002_f01.jpeg",
-             "description": "Second", "skip_reason": "", "mime_type": "image/jpeg"},
-            {"page": 3, "index": 1, "path": "figures/p003_f01.jpeg",
-             "description": "Third", "skip_reason": "", "mime_type": "image/jpeg"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 1,
+                        "path": "figures/p001_f01.jpeg",
+                        "description": "First",
+                        "skip_reason": "",
+                        "mime_type": "image/jpeg",
+                    },
+                    {
+                        "page": 2,
+                        "index": 1,
+                        "path": "figures/p002_f01.jpeg",
+                        "description": "Second",
+                        "skip_reason": "",
+                        "mime_type": "image/jpeg",
+                    },
+                    {
+                        "page": 3,
+                        "index": 1,
+                        "path": "figures/p003_f01.jpeg",
+                        "description": "Third",
+                        "skip_reason": "",
+                        "mime_type": "image/jpeg",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert [e.local_num for e in manifest.entries] == [1, 2, 3]
 
@@ -124,10 +208,20 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p001_f01.png").write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 1, "path": "figures/p001_f01.png",
-             "description": "PNG figure", "skip_reason": "", "mime_type": "image/png"},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 1,
+                        "path": "figures/p001_f01.png",
+                        "description": "PNG figure",
+                        "skip_reason": "",
+                        "mime_type": "image/png",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert manifest.entries[0].mime_type == "image/png"
 
@@ -137,22 +231,43 @@ class TestLoadFigureManifest:
         figures_dir.mkdir(parents=True)
         (figures_dir / "p001_f01.jpeg").write_bytes(b"fake")
         figures_json = processed / "figures.json"
-        figures_json.write_text(json.dumps([
-            {"page": 1, "index": 1, "path": "figures/p001_f01.jpeg",
-             "description": "JPEG figure", "skip_reason": ""},
-        ]))
+        figures_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "page": 1,
+                        "index": 1,
+                        "path": "figures/p001_f01.jpeg",
+                        "description": "JPEG figure",
+                        "skip_reason": "",
+                    },
+                ]
+            )
+        )
         manifest = load_figure_manifest(processed)
         assert manifest.entries[0].mime_type == "image/jpeg"
 
 
 class TestFigureManifestGet:
     def _manifest(self) -> FigureManifest:
-        return FigureManifest(entries=[
-            FigureEntry(local_num=1, figure_id="p001_f01", description="First",
-                        source_path=Path("/tmp/p001_f01.jpeg"), mime_type="image/jpeg"),
-            FigureEntry(local_num=2, figure_id="p002_f01", description="Second",
-                        source_path=Path("/tmp/p002_f01.jpeg"), mime_type="image/jpeg"),
-        ])
+        return FigureManifest(
+            entries=[
+                FigureEntry(
+                    local_num=1,
+                    figure_id="p001_f01",
+                    description="First",
+                    source_path=Path("/tmp/p001_f01.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+                FigureEntry(
+                    local_num=2,
+                    figure_id="p002_f01",
+                    description="Second",
+                    source_path=Path("/tmp/p002_f01.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+            ]
+        )
 
     def test_get_returns_correct_entry(self) -> None:
         manifest = self._manifest()
@@ -173,12 +288,24 @@ class TestFigureManifestGet:
 
 class TestResolveFigureMarkers:
     def test_resolves_valid_markers(self) -> None:
-        manifest = FigureManifest(entries=[
-            FigureEntry(local_num=1, figure_id="p001_f02", description="Plates diagram",
-                        source_path=Path("/tmp/figures/p001_f02.jpeg"), mime_type="image/jpeg"),
-            FigureEntry(local_num=2, figure_id="p003_f01", description="Map",
-                        source_path=Path("/tmp/figures/p003_f01.jpeg"), mime_type="image/jpeg"),
-        ])
+        manifest = FigureManifest(
+            entries=[
+                FigureEntry(
+                    local_num=1,
+                    figure_id="p001_f02",
+                    description="Plates diagram",
+                    source_path=Path("/tmp/figures/p001_f02.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+                FigureEntry(
+                    local_num=2,
+                    figure_id="p003_f01",
+                    description="Map",
+                    source_path=Path("/tmp/figures/p003_f01.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+            ]
+        )
         body = "Intro text.\n\n[FIGURE:1]\n\nMore text.\n\n[FIGURE:2]\n"
         result, used = resolve_figure_markers(body, manifest, "my-article")
         assert "[FIGURE:1]" not in result
@@ -188,10 +315,17 @@ class TestResolveFigureMarkers:
         assert len(used) == 2
 
     def test_strips_invalid_markers(self) -> None:
-        manifest = FigureManifest(entries=[
-            FigureEntry(local_num=1, figure_id="p001_f02", description="Plates",
-                        source_path=Path("/tmp/figures/p001_f02.jpeg"), mime_type="image/jpeg"),
-        ])
+        manifest = FigureManifest(
+            entries=[
+                FigureEntry(
+                    local_num=1,
+                    figure_id="p001_f02",
+                    description="Plates",
+                    source_path=Path("/tmp/figures/p001_f02.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+            ]
+        )
         body = "Text.\n\n[FIGURE:1]\n\n[FIGURE:99]\n"
         result, used = resolve_figure_markers(body, manifest, "slug")
         assert "[FIGURE:99]" not in result
@@ -205,20 +339,34 @@ class TestResolveFigureMarkers:
         assert len(used) == 0
 
     def test_image_markdown_uses_correct_extension(self) -> None:
-        manifest = FigureManifest(entries=[
-            FigureEntry(local_num=1, figure_id="p001_f01", description="PNG img",
-                        source_path=Path("/tmp/figures/p001_f01.png"), mime_type="image/png"),
-        ])
+        manifest = FigureManifest(
+            entries=[
+                FigureEntry(
+                    local_num=1,
+                    figure_id="p001_f01",
+                    description="PNG img",
+                    source_path=Path("/tmp/figures/p001_f01.png"),
+                    mime_type="image/png",
+                ),
+            ]
+        )
         body = "[FIGURE:1]"
         result, used = resolve_figure_markers(body, manifest, "my-slug")
         assert "p001_f01.png" in result
         assert len(used) == 1
 
     def test_duplicate_markers_include_entry_twice(self) -> None:
-        manifest = FigureManifest(entries=[
-            FigureEntry(local_num=1, figure_id="p001_f01", description="Chart",
-                        source_path=Path("/tmp/p001_f01.jpeg"), mime_type="image/jpeg"),
-        ])
+        manifest = FigureManifest(
+            entries=[
+                FigureEntry(
+                    local_num=1,
+                    figure_id="p001_f01",
+                    description="Chart",
+                    source_path=Path("/tmp/p001_f01.jpeg"),
+                    mime_type="image/jpeg",
+                ),
+            ]
+        )
         body = "[FIGURE:1] and again [FIGURE:1]"
         result, used = resolve_figure_markers(body, manifest, "slug")
         assert result.count("![Chart]") == 2
@@ -240,8 +388,13 @@ class TestCopyFigures:
         dest = tmp_path / "curated" / "figures" / "my-article"
 
         entries = [
-            FigureEntry(local_num=1, figure_id="p001_f02", description="test",
-                        source_path=src / "p001_f02.jpeg", mime_type="image/jpeg"),
+            FigureEntry(
+                local_num=1,
+                figure_id="p001_f02",
+                description="test",
+                source_path=src / "p001_f02.jpeg",
+                mime_type="image/jpeg",
+            ),
         ]
         copy_figures(entries, dest)
         assert (dest / "p001_f02.jpeg").exists()
@@ -253,8 +406,15 @@ class TestCopyFigures:
         (src / "img.jpeg").write_bytes(b"data")
         dest = tmp_path / "new" / "dir"
         copy_figures(
-            [FigureEntry(local_num=1, figure_id="img", description="x",
-                         source_path=src / "img.jpeg", mime_type="image/jpeg")],
+            [
+                FigureEntry(
+                    local_num=1,
+                    figure_id="img",
+                    description="x",
+                    source_path=src / "img.jpeg",
+                    mime_type="image/jpeg",
+                )
+            ],
             dest,
         )
         assert dest.is_dir()
@@ -272,10 +432,20 @@ class TestCopyFigures:
         dest = tmp_path / "dest"
         copy_figures(
             [
-                FigureEntry(local_num=1, figure_id="a", description="A",
-                            source_path=src / "a.jpeg", mime_type="image/jpeg"),
-                FigureEntry(local_num=2, figure_id="b", description="B",
-                            source_path=src / "b.jpeg", mime_type="image/jpeg"),
+                FigureEntry(
+                    local_num=1,
+                    figure_id="a",
+                    description="A",
+                    source_path=src / "a.jpeg",
+                    mime_type="image/jpeg",
+                ),
+                FigureEntry(
+                    local_num=2,
+                    figure_id="b",
+                    description="B",
+                    source_path=src / "b.jpeg",
+                    mime_type="image/jpeg",
+                ),
             ],
             dest,
         )
@@ -286,8 +456,13 @@ class TestCopyFigures:
         dest = tmp_path / "dest"
         dest.mkdir()
         entries = [
-            FigureEntry(local_num=1, figure_id="ghost", description="missing",
-                        source_path=tmp_path / "nonexistent.jpeg", mime_type="image/jpeg"),
+            FigureEntry(
+                local_num=1,
+                figure_id="ghost",
+                description="missing",
+                source_path=tmp_path / "nonexistent.jpeg",
+                mime_type="image/jpeg",
+            ),
         ]
         # Should not raise, just log a warning
         copy_figures(entries, dest)

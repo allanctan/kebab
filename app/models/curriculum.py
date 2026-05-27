@@ -130,9 +130,7 @@ class CompetencyCoverage(BaseModel):
     generated_at: date_type = Field(
         ..., description="Date the coverage index was built."
     )
-    total_competencies: int = Field(
-        ..., description="Total LCs across all subjects."
-    )
+    total_competencies: int = Field(..., description="Total LCs across all subjects.")
     covered: int = Field(..., description="LCs with at least one article.")
     uncovered: int = Field(..., description="LCs with no articles.")
     by_subject: dict[str, SubjectCoverage] = Field(

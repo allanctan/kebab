@@ -233,7 +233,13 @@ def build(
     seen = {_entry_key(e) for e in existing}
 
     judge = PedagogicalJudge(settings=settings)
-    stats = {"pdfs": 0, "figures_total": 0, "skipped_existing": 0, "labeled_new": 0, "errors": 0}
+    stats = {
+        "pdfs": 0,
+        "figures_total": 0,
+        "skipped_existing": 0,
+        "labeled_new": 0,
+        "errors": 0,
+    }
 
     allowed: set[str] | None = set(docs) if docs else None
 
@@ -250,7 +256,9 @@ def build(
             if key in seen:
                 stats["skipped_existing"] += 1
                 continue
-            rel_img_path = f"images/{stem}/p{fig.page:03d}_f{fig.index:02d}.{fig.extension}"
+            rel_img_path = (
+                f"images/{stem}/p{fig.page:03d}_f{fig.index:02d}.{fig.extension}"
+            )
 
             if dry_run:
                 logger.info("[dry-run] would label %s", rel_img_path)
@@ -258,14 +266,16 @@ def build(
 
             # Persist the image bytes first so even a failed label leaves the image for review.
             doc_img_dir.mkdir(parents=True, exist_ok=True)
-            (images_dir / stem / f"p{fig.page:03d}_f{fig.index:02d}.{fig.extension}").write_bytes(
-                fig.bytes
-            )
+            (
+                images_dir / stem / f"p{fig.page:03d}_f{fig.index:02d}.{fig.extension}"
+            ).write_bytes(fig.bytes)
 
             try:
                 verdict = judge.classify(fig.bytes, fig.mime_type)
             except Exception as exc:  # noqa: BLE001
-                logger.warning("label failed for %s p%d.%d: %s", stem, fig.page, fig.index, exc)
+                logger.warning(
+                    "label failed for %s p%d.%d: %s", stem, fig.page, fig.index, exc
+                )
                 stats["errors"] += 1
                 verdict = PedagogicalVerdict(
                     reasoning=f"labeler error: {exc}",

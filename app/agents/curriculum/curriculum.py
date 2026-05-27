@@ -30,7 +30,9 @@ class IngestResult(BaseModel):
     name: str = Field(..., description="Spine name written.")
     spine_path: Path = Field(..., description="Path of the written spine YAML.")
     total_competencies: int = Field(..., description="Competencies in the spine.")
-    grade_filter: str | None = Field(default=None, description="Grade filter used, if any.")
+    grade_filter: str | None = Field(
+        default=None, description="Grade filter used, if any."
+    )
 
 
 @dataclass

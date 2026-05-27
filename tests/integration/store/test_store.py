@@ -66,9 +66,7 @@ def test_retrieve_by_id(store: Store) -> None:
 @pytest.mark.integration
 def test_scroll_yields_all_payloads(store: Store) -> None:
     store.ensure_collection()
-    store.upsert(
-        [(_article(f"SCI-{i:03d}"), _vec(float(i) / 100)) for i in range(5)]
-    )
+    store.upsert([(_article(f"SCI-{i:03d}"), _vec(float(i) / 100)) for i in range(5)])
     seen = sorted(article.id for article in store.scroll())
     assert seen == [f"SCI-{i:03d}" for i in range(5)]
 

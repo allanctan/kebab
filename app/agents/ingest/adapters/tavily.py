@@ -90,7 +90,9 @@ class TavilyAdapter:
         logger.info("tavily: searching %r (limit=%d)", query, limit)
 
         if include_domains:
-            response = client.search(query, max_results=limit, include_domains=include_domains)
+            response = client.search(
+                query, max_results=limit, include_domains=include_domains
+            )
         else:
             response = client.search(query, max_results=limit)
         results: list[dict[str, object]] = response.get("results", [])

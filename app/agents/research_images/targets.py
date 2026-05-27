@@ -30,7 +30,7 @@ class WikiTarget:
     """One Wikipedia article candidate to fetch images from."""
 
     title: str  # Decoded from the URL path; matches what the wiki adapter expects.
-    url: str    # The canonical Wikipedia URL as it appears in the body.
+    url: str  # The canonical Wikipedia URL as it appears in the body.
 
 
 def extract_wikipedia_targets(body: str) -> list[WikiTarget]:

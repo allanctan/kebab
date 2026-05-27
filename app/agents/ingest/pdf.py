@@ -203,13 +203,28 @@ def _describe_figures(
             )
         )
     # Summary logging
-    filter_dropped = sum(1 for r in records if r.skip_reason and r.skip_reason != "describer_error")
-    llm_decorative = sum(1 for r in records if r.description == "DECORATIVE" and not r.skip_reason)
+    filter_dropped = sum(
+        1 for r in records if r.skip_reason and r.skip_reason != "describer_error"
+    )
+    llm_decorative = sum(
+        1 for r in records if r.description == "DECORATIVE" and not r.skip_reason
+    )
     llm_errors = sum(1 for r in records if r.skip_reason == "describer_error")
-    useful = sum(1 for r in records if r.description and r.description != "DECORATIVE" and not r.skip_reason and not r.description.startswith("ERROR:"))
+    useful = sum(
+        1
+        for r in records
+        if r.description
+        and r.description != "DECORATIVE"
+        and not r.skip_reason
+        and not r.description.startswith("ERROR:")
+    )
     logger.info(
         "figures: %d total → %d filter-dropped, %d LLM-decorative, %d errors, %d useful",
-        len(records), filter_dropped, llm_decorative, llm_errors, useful,
+        len(records),
+        filter_dropped,
+        llm_decorative,
+        llm_errors,
+        useful,
     )
     by_reason: dict[str, int] = {}
     for r in records:
@@ -278,14 +293,18 @@ def ingest(
         if figures_path.exists():
             raw = json.loads(figures_path.read_text(encoding="utf-8"))
             figure_records = [FigureRecord(**item) for item in raw]
-        logger.info("ingest: %s already processed — skipping (use force=True to redo)", stem)
+        logger.info(
+            "ingest: %s already processed — skipping (use force=True to redo)", stem
+        )
         from app.core.sources.index import load_index, register_source, save_index
 
         index_path = Path(settings.KNOWLEDGE_DIR) / ".kebab" / "sources.json"
         index = load_index(index_path)
         knowledge_root = Path(settings.KNOWLEDGE_DIR)
         try:
-            source_raw_path = str(input_path.resolve().relative_to(knowledge_root.resolve()))
+            source_raw_path = str(
+                input_path.resolve().relative_to(knowledge_root.resolve())
+            )
         except ValueError:
             source_raw_path = str(target_pdf.relative_to(knowledge_root))
         register_source(
@@ -309,9 +328,7 @@ def ingest(
             described_count=sum(
                 1
                 for r in figure_records
-                if r.description
-                and r.description != "DECORATIVE"
-                and not r.skip_reason
+                if r.description and r.description != "DECORATIVE" and not r.skip_reason
             ),
             labeler_errors=sum(
                 1 for r in figure_records if r.skip_reason == "describer_error"
@@ -325,7 +342,9 @@ def ingest(
     descriptions: dict[tuple[int, int], str] = {}
     records: list[FigureRecord] = []
     if describe_figures and extraction.figures:
-        descriptions, records = _describe_figures(extraction.figures, settings, describer)
+        descriptions, records = _describe_figures(
+            extraction.figures, settings, describer
+        )
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     if records:
@@ -340,7 +359,11 @@ def ingest(
     markdown = _render_markdown(extraction, descriptions)
     text_path.write_text(markdown, encoding="utf-8")
 
-    described = sum(1 for r in records if r.description and r.description != "DECORATIVE" and not r.skip_reason)
+    described = sum(
+        1
+        for r in records
+        if r.description and r.description != "DECORATIVE" and not r.skip_reason
+    )
     labeler_errors = sum(1 for r in records if r.skip_reason == "describer_error")
     logger.info(
         "ingested %s → %s (%d chars, %d figures, %d described, %d labeler errors)",
@@ -367,7 +390,9 @@ def ingest(
     # knowledge/ — this preserves folder structure for metadata extraction
     # (e.g. grade_10/science/). Fall back to the flat copy otherwise.
     try:
-        source_raw_path = str(input_path.resolve().relative_to(knowledge_root.resolve()))
+        source_raw_path = str(
+            input_path.resolve().relative_to(knowledge_root.resolve())
+        )
     except ValueError:
         source_raw_path = str(target_pdf.relative_to(knowledge_root))
     register_source(
@@ -427,11 +452,15 @@ def retry_errors(
 
     raw = json.loads(figures_path.read_text(encoding="utf-8"))
     records: list[FigureRecord] = [FigureRecord(**item) for item in raw]
-    error_indices = [i for i, r in enumerate(records) if r.skip_reason == "describer_error"]
+    error_indices = [
+        i for i, r in enumerate(records) if r.skip_reason == "describer_error"
+    ]
     if not error_indices:
         return RetryResult(stem=stem, retried=0, recovered=0, still_failing=0)
 
-    logger.info("retry_errors: %s — retrying %d error records", stem, len(error_indices))
+    logger.info(
+        "retry_errors: %s — retrying %d error records", stem, len(error_indices)
+    )
 
     recovered = 0
     still_failing = 0
@@ -460,7 +489,11 @@ def retry_errors(
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "retry_errors: %s p%d.%d still failing: %s", stem, rec.page, rec.index, exc
+                "retry_errors: %s p%d.%d still failing: %s",
+                stem,
+                rec.page,
+                rec.index,
+                exc,
             )
             rec.description = f"ERROR: {str(exc)[:200]}"
             still_failing += 1
@@ -481,11 +514,7 @@ def retry_errors(
     # The slug is lossy — try the exact stem first, then fall back to a search.
     if not raw_pdf.exists():
         raw_dir = Path(settings.RAW_DIR) / "documents"
-        matches = [
-            p
-            for p in raw_dir.rglob("*.pdf")
-            if _slug(p.stem) == stem
-        ]
+        matches = [p for p in raw_dir.rglob("*.pdf") if _slug(p.stem) == stem]
         if not matches:
             raise IngestError(f"retry_errors: source PDF for stem {stem!r} not found")
         raw_pdf = matches[0]
@@ -503,7 +532,10 @@ def retry_errors(
         still_failing,
     )
     return RetryResult(
-        stem=stem, retried=len(error_indices), recovered=recovered, still_failing=still_failing
+        stem=stem,
+        retried=len(error_indices),
+        recovered=recovered,
+        still_failing=still_failing,
     )
 
 
@@ -526,7 +558,9 @@ def _render_markdown_from_records(
         if page.text.strip():
             chunks.append(page.text.strip())
             chunks.append("")
-        for rec in sorted(records_by_page.get(page.page_number, []), key=lambda r: r.index):
+        for rec in sorted(
+            records_by_page.get(page.page_number, []), key=lambda r: r.index
+        ):
             if rec.skip_reason or rec.description == "DECORATIVE":
                 continue
             if rec.description.startswith("ERROR:"):

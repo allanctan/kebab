@@ -128,4 +128,6 @@ def run(
     }
     out_path = RESULTS_DIR / f"{timestamp}.json"
     out_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
-    return GenerationSuiteResult(cases=results, aggregate=aggregate, output_path=out_path)
+    return GenerationSuiteResult(
+        cases=results, aggregate=aggregate, output_path=out_path
+    )

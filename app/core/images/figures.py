@@ -51,7 +51,7 @@ class FigureManifest:
             return ""
         lines = ["Available figures:"]
         for e in self.entries:
-            lines.append(f"[{e.local_num}] {e.figure_id} — \"{e.description}\"")
+            lines.append(f'[{e.local_num}] {e.figure_id} — "{e.description}"')
         return "\n".join(lines)
 
 
@@ -86,13 +86,15 @@ def load_figure_manifest(processed_dir: Path) -> FigureManifest:
             continue
 
         figure_id = Path(path).stem
-        entries.append(FigureEntry(
-            local_num=num,
-            figure_id=figure_id,
-            description=description,
-            source_path=source_path,
-            mime_type=record.get("mime_type", "image/jpeg"),
-        ))
+        entries.append(
+            FigureEntry(
+                local_num=num,
+                figure_id=figure_id,
+                description=description,
+                source_path=source_path,
+                mime_type=record.get("mime_type", "image/jpeg"),
+            )
+        )
         num += 1
 
     return FigureManifest(entries=entries)
@@ -134,6 +136,8 @@ def copy_figures(entries: list[FigureEntry], dest_dir: Path) -> None:
         ext = entry.source_path.suffix
         target = dest_dir / f"{entry.figure_id}{ext}"
         if not entry.source_path.exists():
-            logger.warning("figures: source %s not found — skipping copy", entry.source_path)
+            logger.warning(
+                "figures: source %s not found — skipping copy", entry.source_path
+            )
             continue
         shutil.copy2(entry.source_path, target)

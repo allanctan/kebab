@@ -191,9 +191,7 @@ class TestBatchFindingModel:
 
 class TestBatchVerifyResult:
     def test_wraps_findings_list(self) -> None:
-        result = BatchVerifyResult(
-            findings=[_confirm_finding(0), _confirm_finding(1)]
-        )
+        result = BatchVerifyResult(findings=[_confirm_finding(0), _confirm_finding(1)])
         assert len(result.findings) == 2
         assert result.findings[0].claim_idx == 0
         assert result.findings[1].claim_idx == 1

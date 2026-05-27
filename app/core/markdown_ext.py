@@ -44,9 +44,9 @@ _DEF_RE = re.compile(r" {0,3}\[\^(\d+)\]:\s*([^\n]+)")
 
 # Extracts optional [source_id] prefix, then [title](url)
 _CONTENT_RE = re.compile(
-    r"(?:\[(\d+)\]\s*)?"       # optional [source_id] prefix
-    r"\[([^\]]*)\]"            # [title]
-    r"\(([^)]+)\)"             # (url)
+    r"(?:\[(\d+)\]\s*)?"  # optional [source_id] prefix
+    r"\[([^\]]*)\]"  # [title]
+    r"\(([^)]+)\)"  # (url)
 )
 
 

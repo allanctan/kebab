@@ -94,7 +94,3 @@ def decide(
         return FilterDecision(keep=False, reason="ribbon")
 
     return FilterDecision(keep=True, reason="")
-
-
-
-

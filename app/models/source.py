@@ -22,7 +22,9 @@ class Source(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    id: int = Field(default=0, description="Source index ID. Default 0 for LLM-generated citations.")
+    id: int = Field(
+        default=0, description="Source index ID. Default 0 for LLM-generated citations."
+    )
     title: str = Field(..., description="Human-readable title of the source.")
     url: str | None = Field(default=None, description="Canonical URL if available.")
     tier: SourceTier = Field(..., description="Publisher authority tier (1–5).")

@@ -22,13 +22,17 @@ class DetectionVerdict(BaseModel):
 
     article_id: str = Field(..., description="The article being judged.")
     reasoning: str = Field(..., description="Brief analysis.")
-    detected: bool = Field(..., description="True if the verifier flagged the injection.")
+    detected: bool = Field(
+        ..., description="True if the verifier flagged the injection."
+    )
 
 
 class DetectionBatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    verdicts: list[DetectionVerdict] = Field(..., description="One verdict per article.")
+    verdicts: list[DetectionVerdict] = Field(
+        ..., description="One verdict per article."
+    )
 
 
 @dataclass

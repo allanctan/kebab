@@ -94,7 +94,9 @@ def _fetch_results(
     try:
         if include_domains and adapter_name == "tavily":
             candidates = adapter.discover(
-                query, limit=max(limit + 1, 3), include_domains=include_domains  # type: ignore[call-arg] — TavilyAdapter accepts include_domains, not part of SourceAdapter Protocol
+                query,
+                limit=max(limit + 1, 3),
+                include_domains=include_domains,  # type: ignore[call-arg] — TavilyAdapter accepts include_domains, not part of SourceAdapter Protocol
             )
         else:
             candidates = adapter.discover(query, limit=max(limit + 1, 3))
@@ -133,7 +135,9 @@ def _fetch_results(
                 filename = f"research_{artifact.raw_path.name}"
                 stage_to_inbox(settings.KNOWLEDGE_DIR, filename, content_bytes)
             except Exception as exc:
-                logger.warning("searcher: fetch failed for %r (%s) — %s", title, url, exc)
+                logger.warning(
+                    "searcher: fetch failed for %r (%s) — %s", title, url, exc
+                )
                 continue
 
         results.append(SourceContent(title=title, url=url, content=content))

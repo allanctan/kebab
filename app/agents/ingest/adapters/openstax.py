@@ -62,7 +62,9 @@ def _slug_to_filename_slug(slug: str, *, max_len: int = 60) -> str:
     return clean[:max_len]
 
 
-def _build_markdown(title: str, slug: str, description: str, book_content: list[dict[str, object]]) -> str:
+def _build_markdown(
+    title: str, slug: str, description: str, book_content: list[dict[str, object]]
+) -> str:
     """Render a book overview as markdown from the API response data."""
     lines: list[str] = [
         f"# {title}",

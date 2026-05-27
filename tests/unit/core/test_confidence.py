@@ -29,7 +29,9 @@ def _source(title: str = "src") -> Source:
     return Source(id=0, title=title, tier=2)
 
 
-def _verif(passed: bool, model: str = "google-gla:gemini-2.5-flash") -> VerificationRecord:
+def _verif(
+    passed: bool, model: str = "google-gla:gemini-2.5-flash"
+) -> VerificationRecord:
     return VerificationRecord(model=model, passed=passed, date=TODAY)
 
 

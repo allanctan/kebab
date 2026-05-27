@@ -99,7 +99,9 @@ def sort_by_label(entries: list[dict[str, Any]]) -> dict[str, int]:
 # from the eval suite to keep the sort view exactly in sync with the scorer.
 
 
-def sort_disputed(entries: list[dict[str, Any]], settings: Any = default_env) -> dict[str, int]:
+def sort_disputed(
+    entries: list[dict[str, Any]], settings: Any = default_env
+) -> dict[str, int]:
     review_fp = BASE / "review_fp"
     review_fn = BASE / "review_fn"
     _wipe(review_fp)
@@ -161,14 +163,18 @@ def sort_disputed(entries: list[dict[str, Any]], settings: Any = default_env) ->
             "These are RISK cases: the filter may be losing real pedagogical content.\n"
             "Filename prefix shows which rule fired (tiny / repeated / ribbon).\n\n"
         )
-        (review_fp / "info.txt").write_text(header + "\n\n".join(fp_info), encoding="utf-8")
+        (review_fp / "info.txt").write_text(
+            header + "\n\n".join(fp_info), encoding="utf-8"
+        )
     if fn_info:
         header = (
             "False negatives — filter kept these but LLM label says they're decorative.\n"
             "These are WASTE cases: the describer is still being called on decoration.\n"
             "No rule fired, which is why they slipped through.\n\n"
         )
-        (review_fn / "info.txt").write_text(header + "\n\n".join(fn_info), encoding="utf-8")
+        (review_fn / "info.txt").write_text(
+            header + "\n\n".join(fn_info), encoding="utf-8"
+        )
 
     return dict(stats)
 
@@ -201,8 +207,12 @@ def _main() -> int:
         stats = sort_disputed(entries)
         print("\nSorted disputes into review_fp/ and review_fn/:")
         print(f"  agreements:      {stats.get('agree', 0)}")
-        print(f"  false positives: {stats.get('false_positives', 0)}  (useful wrongly dropped)")
-        print(f"  false negatives: {stats.get('false_negatives', 0)}  (decorative wrongly kept)")
+        print(
+            f"  false positives: {stats.get('false_positives', 0)}  (useful wrongly dropped)"
+        )
+        print(
+            f"  false negatives: {stats.get('false_negatives', 0)}  (decorative wrongly kept)"
+        )
         if stats.get("missing"):
             print(f"  missing src:     {stats['missing']}")
     return 0

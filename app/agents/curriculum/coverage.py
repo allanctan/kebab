@@ -105,10 +105,7 @@ def build_coverage(
     )
 
     out_path = (
-        Path(settings.KNOWLEDGE_DIR)
-        / ".kebab"
-        / "curriculum"
-        / f"{name}.coverage.json"
+        Path(settings.KNOWLEDGE_DIR) / ".kebab" / "curriculum" / f"{name}.coverage.json"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
@@ -128,10 +125,7 @@ def build_coverage(
 def load_coverage(settings: Settings, name: str) -> CompetencyCoverage:
     """Read a coverage JSON by name."""
     path = (
-        Path(settings.KNOWLEDGE_DIR)
-        / ".kebab"
-        / "curriculum"
-        / f"{name}.coverage.json"
+        Path(settings.KNOWLEDGE_DIR) / ".kebab" / "curriculum" / f"{name}.coverage.json"
     )
     if not path.exists():
         raise FileNotFoundError(f"coverage not found: {path}")

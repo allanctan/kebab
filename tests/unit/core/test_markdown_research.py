@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from app.core.markdown import count_external_footnotes, extract_disputes, next_footnote_number, parse_body
+from app.core.markdown import (
+    count_external_footnotes,
+    extract_disputes,
+    next_footnote_number,
+    parse_body,
+)
 
 
 class TestCountExternalFootnotes:
@@ -28,11 +33,11 @@ class TestExtractDisputes:
         body = (
             "# Article\n\nContent.\n\n"
             "## Disputes\n\n"
-            "- **Claim**: \"Convection is the sole driver\"\n"
+            '- **Claim**: "Convection is the sole driver"\n'
             "  **Section**: Causes, paragraph 2\n"
             "  **External source**: [Wikipedia](https://...)\n"
             "  **Contradiction**: Slab pull is dominant.\n\n"
-            "- **Claim**: \"All plates move at the same speed\"\n"
+            '- **Claim**: "All plates move at the same speed"\n'
             "  **Section**: Movement, paragraph 1\n"
             "  **External source**: [OpenStax](https://...)\n"
             "  **Contradiction**: Speeds vary.\n"
@@ -47,16 +52,18 @@ class TestExtractDisputes:
         assert unresolvable == 0
 
     def test_zero_when_empty_disputes_section(self) -> None:
-        resolvable, unresolvable = extract_disputes(parse_body("# Article\n\n## Disputes\n\n"))
+        resolvable, unresolvable = extract_disputes(
+            parse_body("# Article\n\n## Disputes\n\n")
+        )
         assert resolvable == 0
         assert unresolvable == 0
 
     def test_counts_resolvable_disputes_only(self) -> None:
         body = (
             "## Disputes\n\n"
-            "- **Claim**: \"Plates move slowly.\"\n"
+            '- **Claim**: "Plates move slowly."\n'
             "  **Section**: Intro\n\n"
-            "- **Claim**: \"Convection is the main driver.\"\n"
+            '- **Claim**: "Convection is the main driver."\n'
             "  **Section**: Forces\n"
         )
         resolvable, unresolvable = extract_disputes(parse_body(body))
@@ -66,10 +73,10 @@ class TestExtractDisputes:
     def test_separates_unresolvable_disputes(self) -> None:
         body = (
             "## Disputes\n\n"
-            "- **Claim**: \"Plates move slowly.\"\n"
+            '- **Claim**: "Plates move slowly."\n'
             "  **Section**: Intro\n\n"
             "<!-- unresolvable -->\n"
-            "- **Claim**: \"Convection is the main driver.\"\n"
+            '- **Claim**: "Convection is the main driver."\n'
             "  **Section**: Forces\n"
         )
         resolvable, unresolvable = extract_disputes(parse_body(body))

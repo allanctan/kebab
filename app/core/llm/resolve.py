@@ -126,7 +126,9 @@ def resolve_model(model_string: str) -> Any:
             return factory(expanded)
         if prefix in _NATIVE_PREFIXES:
             return expanded
-        logger.debug("unknown prefix %r — passing model string through verbatim", prefix)
+        logger.debug(
+            "unknown prefix %r — passing model string through verbatim", prefix
+        )
         return expanded
     # No colon → treat as alias.
     from app.core.llm.model_registry import resolve_alias

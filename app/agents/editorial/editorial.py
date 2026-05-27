@@ -31,12 +31,15 @@ from app.core.verticals import resolve_vertical
 # Supervisor exception: editorial orchestrates qa in the enrich loop.
 # Long-term fix: promote agent entry points to a core registry.
 from app.agents.qa import qa as qa_module
+
 # Supervisor exception: editorial orchestrates research in the enrich loop.
 # Long-term fix: promote agent entry points to a core registry.
 from app.agents.research import research as research_module
+
 # Supervisor exception: editorial orchestrates research-gaps in the enrich loop.
 # Long-term fix: promote agent entry points to a core registry.
 from app.agents.research_gaps import research_gaps as gaps_module
+
 # Supervisor exception: editorial syncs to Qdrant after each cycle.
 # Long-term fix: promote agent entry points to a core registry.
 from app.agents.sync import auto_sync
@@ -83,7 +86,9 @@ def _run_research_gaps(settings: Settings, article_id: str) -> gaps_module.GapsR
     return gaps_module.run(settings, article_id=article_id, budget=None)
 
 
-def _run_research(settings: Settings, article_id: str) -> research_module.ResearchResult:
+def _run_research(
+    settings: Settings, article_id: str
+) -> research_module.ResearchResult:
     """Run the claim verification agent for a single article."""
     return research_module.run(settings, article_id=article_id)
 
@@ -186,7 +191,10 @@ def _completed_stages_in_current_cycle(article_path: object) -> set[str]:
     # Walk backwards to find the last editorial cycle_start
     last_cycle_idx = -1
     for i in range(len(entries) - 1, -1, -1):
-        if entries[i].get("stage") == "editorial" and entries[i].get("action") == "cycle_start":
+        if (
+            entries[i].get("stage") == "editorial"
+            and entries[i].get("action") == "cycle_start"
+        ):
             last_cycle_idx = i
             break
 
@@ -274,7 +282,9 @@ def run(
             gaps_result = _run_research_gaps(settings, article_id)
             result.gaps_answered += gaps_result.answered
         else:
-            logger.info("editorial: [%s] skipping research-gaps (already ran)", article_id)
+            logger.info(
+                "editorial: [%s] skipping research-gaps (already ran)", article_id
+            )
 
         if "research" not in already_done:
             research_result = _run_research(settings, article_id)
@@ -287,8 +297,8 @@ def run(
         already_done = set()
 
         # --- re-read article after sub-agents may have modified it ---
-        body, fm_dict, disputes_section, gaps_section, audit_entries = _load_article_state(
-            article_path
+        body, fm_dict, disputes_section, gaps_section, audit_entries = (
+            _load_article_state(article_path)
         )
 
         # --- chief editor ---

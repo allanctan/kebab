@@ -17,7 +17,10 @@ FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "articles"
 
 def _stub_embed(texts: list[str], _settings: Settings) -> list[list[float]]:
     # Deterministic 768-dim vectors so re-runs give the same result.
-    return [[(i % 7) * 0.1 + 0.01 * j for j in range(EMBEDDING_DIM)] for i in range(len(texts))]
+    return [
+        [(i % 7) * 0.1 + 0.01 * j for j in range(EMBEDDING_DIM)]
+        for i in range(len(texts))
+    ]
 
 
 @pytest.fixture
@@ -26,7 +29,9 @@ def populated_knowledge(knowledge_dir: Path) -> Path:
     science = knowledge_dir / "curated" / "Science" / "Biology"
     science.mkdir(parents=True)
     shutil.copy(FIXTURES / "photosynthesis.md", science / "photosynthesis.md")
-    shutil.copy(FIXTURES / "cellular_respiration.md", science / "cellular_respiration.md")
+    shutil.copy(
+        FIXTURES / "cellular_respiration.md", science / "cellular_respiration.md"
+    )
     return knowledge_dir
 
 

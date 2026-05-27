@@ -11,7 +11,9 @@ from app.config.config import Settings
 from app.core.markdown import extract_research_gaps, read_article
 
 
-def _gap_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+def _gap_proposer(
+    _settings: Settings, deps: qa_agent.QaDeps
+) -> qa_agent.GapDiscoveryResult:
     return qa_agent.GapDiscoveryResult(
         gap_questions=[
             qa_agent.GapQuestion(
@@ -26,7 +28,9 @@ def _gap_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDis
     )
 
 
-def _empty_proposer(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+def _empty_proposer(
+    _settings: Settings, deps: qa_agent.QaDeps
+) -> qa_agent.GapDiscoveryResult:
     return qa_agent.GapDiscoveryResult(gap_questions=[])
 
 
@@ -99,7 +103,9 @@ def test_qa_watch_mode_runs_n_iterations(settings: Settings) -> None:
     sleeps: list[float] = []
     counter = {"n": 0}
 
-    def _fresh_gaps(_settings: Settings, deps: qa_agent.QaDeps) -> qa_agent.GapDiscoveryResult:
+    def _fresh_gaps(
+        _settings: Settings, deps: qa_agent.QaDeps
+    ) -> qa_agent.GapDiscoveryResult:
         counter["n"] += 1
         return qa_agent.GapDiscoveryResult(
             gap_questions=[

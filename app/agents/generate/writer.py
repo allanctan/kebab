@@ -69,7 +69,8 @@ class GenerationResult(BaseModel):
         "description — those are indexed separately.",
     )
     summary: str = Field(
-        ..., description="2-3 sentence scope statement: what the article covers and its boundaries."
+        ...,
+        description="2-3 sentence scope statement: what the article covers and its boundaries.",
     )
     source_ids: list[int] = Field(
         ..., min_length=1, description="Local footnote numbers cited in the body."
@@ -127,13 +128,15 @@ def _load_figures(
         doc_dir = processed_docs / entry.stem
         manifest = load_figure_manifest(doc_dir)
         for fig in manifest.entries:
-            all_entries.append(FigureEntry(
-                local_num=num,
-                figure_id=fig.figure_id,
-                description=fig.description,
-                source_path=fig.source_path,
-                mime_type=fig.mime_type,
-            ))
+            all_entries.append(
+                FigureEntry(
+                    local_num=num,
+                    figure_id=fig.figure_id,
+                    description=fig.description,
+                    source_path=fig.source_path,
+                    mime_type=fig.mime_type,
+                )
+            )
             num += 1
     return FigureManifest(entries=all_entries)
 
@@ -273,7 +276,12 @@ def _preserve_existing_fields(target_path: Path) -> dict[str, object]:
         return {}
     preserved: dict[str, object] = {}
     dump = fm.model_dump()
-    for key in ("verifications", "human_verified", "human_verified_by", "human_verified_at"):
+    for key in (
+        "verifications",
+        "human_verified",
+        "human_verified_by",
+        "human_verified_at",
+    ):
         if dump.get(key):
             preserved[key] = dump[key]
     return preserved
@@ -333,6 +341,7 @@ def write_articles(
                 fm_extras = _fm.model_dump()
                 article_contexts = fm_extras.get("contexts", {})
                 from app.agents.generate.contexts import load_vertical_config
+
                 for vkey in article_contexts:
                     vc = load_vertical_config(settings, vkey)
                     if vc and vc.generate_instruction:
@@ -344,7 +353,11 @@ def write_articles(
         # Fallback: select vertical from source text (fresh generation case)
         if generate_instruction is None:
             try:
-                from app.agents.generate.contexts import _select_vertical, load_vertical_config as _lvc
+                from app.agents.generate.contexts import (
+                    _select_vertical,
+                    load_vertical_config as _lvc,
+                )
+
                 source_excerpt = "\n".join(text[:500] for _, text in sources_for_llm)
                 vkey = _select_vertical(settings, gap.name, source_excerpt)
                 vc = _lvc(settings, vkey)
@@ -353,7 +366,8 @@ def write_articles(
             except Exception as exc:  # noqa: BLE001
                 logger.debug(
                     "generate: vertical selection from sources failed for %s: %s",
-                    gap.id, exc,
+                    gap.id,
+                    exc,
                 )
 
         # Collect source metadata (grade, subject, etc.) from source entries.
@@ -367,8 +381,12 @@ def write_articles(
         try:
             if proposer is _default_proposer:
                 result = _default_proposer(
-                    settings, gap, sources_for_llm, figure_manifest,
-                    generate_instruction, merged_meta or None,
+                    settings,
+                    gap,
+                    sources_for_llm,
+                    figure_manifest,
+                    generate_instruction,
+                    merged_meta or None,
                 )
             else:
                 result = proposer(settings, gap, sources_for_llm)
@@ -376,7 +394,9 @@ def write_articles(
             skipped.append((gap.id, f"schema violation: {exc}"))
             continue
         if count_tokens(result.body) > settings.MAX_TOKENS_PER_ARTICLE:
-            skipped.append((gap.id, f"body exceeds {settings.MAX_TOKENS_PER_ARTICLE} tokens"))
+            skipped.append(
+                (gap.id, f"body exceeds {settings.MAX_TOKENS_PER_ARTICLE} tokens")
+            )
             continue
 
         path = _output_path(settings, gap)
@@ -422,7 +442,9 @@ def write_articles(
 
         article_slug = path.stem
         body_with_figures, used_figures = resolve_figure_markers(
-            body, figure_manifest, article_slug,
+            body,
+            figure_manifest,
+            article_slug,
         )
         if used_figures:
             figures_dest = path.parent / "figures" / article_slug
@@ -433,8 +455,11 @@ def write_articles(
         written.append(path)
 
         from app.core.audit import log_event
+
         log_event(
-            path, stage="generate", action="article_written",
+            path,
+            stage="generate",
+            action="article_written",
             article_id=gap.id,
             detail=f"Generated from {len(source_triples)} source(s), {len(used_figures)} figure(s)",
         )

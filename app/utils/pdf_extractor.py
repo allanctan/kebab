@@ -66,7 +66,9 @@ class FigureBytes:
             or not self.page_height
         ):
             return 0.0
-        return (self.rect_width * self.rect_height) / (self.page_width * self.page_height)
+        return (self.rect_width * self.rect_height) / (
+            self.page_width * self.page_height
+        )
 
     @property
     def aspect(self) -> float:
@@ -154,7 +156,12 @@ def extract(path: Path, *, extract_figures: bool = True) -> PdfExtraction:
                     try:
                         extracted = doc.extract_image(xref)
                     except Exception as exc:  # noqa: BLE001 — PyMuPDF raises generic
-                        logger.debug("skip image xref=%d on page %d: %s", xref, page_index + 1, exc)
+                        logger.debug(
+                            "skip image xref=%d on page %d: %s",
+                            xref,
+                            page_index + 1,
+                            exc,
+                        )
                         continue
                     img_bytes = extracted["image"]
                     rects = page.get_image_rects(xref)
@@ -178,5 +185,7 @@ def extract(path: Path, *, extract_figures: bool = True) -> PdfExtraction:
                             dominant_color_usage=dominant_usage,
                         )
                     )
-            pages.append(PageExtraction(page_number=page_index + 1, text=text, figures=figures))
+            pages.append(
+                PageExtraction(page_number=page_index + 1, text=text, figures=figures)
+            )
     return PdfExtraction(pages=pages)

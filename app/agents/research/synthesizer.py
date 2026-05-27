@@ -48,7 +48,9 @@ class SynthesizerDeps:
     source_markers: list[str]
 
 
-def _build_synthesizer_agent(settings: Settings) -> Agent[SynthesizerDeps, SynthesizedAppend]:
+def _build_synthesizer_agent(
+    settings: Settings,
+) -> Agent[SynthesizerDeps, SynthesizedAppend]:
     return Agent(
         model=resolve_model(settings.RESEARCH_EXECUTOR_MODEL),
         deps_type=SynthesizerDeps,
@@ -91,7 +93,9 @@ def _synthesize_one_section(
     parts.append(f"Source markers to preserve: {', '.join(markers)}")
 
     user = "\n".join(parts)
-    logger.debug("synthesizer input for section %r: %d statements", section, len(appends))
+    logger.debug(
+        "synthesizer input for section %r: %d statements", section, len(appends)
+    )
     result = agent.run_sync(user, deps=deps).output
     logger.info(
         "synthesizer: merged %d appends for section %r into one statement",
@@ -122,7 +126,11 @@ def merge_appends(
 
     for finding_tuple in findings:
         claim, finding, _title, _url = finding_tuple
-        if finding.outcome == "append" and finding.new_sentence and claim.section != "Research Gaps":
+        if (
+            finding.outcome == "append"
+            and finding.new_sentence
+            and claim.section != "Research Gaps"
+        ):
             appends_by_section[claim.section].append(finding_tuple)
         else:
             non_appends.append(finding_tuple)

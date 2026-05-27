@@ -19,9 +19,7 @@ class TestExtractWikipediaTargets:
         )
 
     def test_decodes_url_encoded_titles(self) -> None:
-        body = (
-            "[^1]: [Convergent boundary](https://en.wikipedia.org/wiki/Convergent%20boundary)\n"
-        )
+        body = "[^1]: [Convergent boundary](https://en.wikipedia.org/wiki/Convergent%20boundary)\n"
         targets = extract_wikipedia_targets(body)
         assert len(targets) == 1
         assert targets[0].title == "Convergent boundary"
@@ -54,4 +52,6 @@ class TestExtractWikipediaTargets:
         assert targets[0].title == "Plate tectonics"
 
     def test_no_footnotes_returns_empty(self) -> None:
-        assert extract_wikipedia_targets("# Plain markdown\n\nNo footnotes here.\n") == []
+        assert (
+            extract_wikipedia_targets("# Plain markdown\n\nNo footnotes here.\n") == []
+        )

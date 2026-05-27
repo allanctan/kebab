@@ -94,12 +94,16 @@ class TestMergeAppends:
             (_claim("Methods"), _append_finding("D."), "Src D", "https://d.com"),
         ]
         refs = {
-            "https://a.com": "[^2]", "https://b.com": "[^3]",
-            "https://c.com": "[^4]", "https://d.com": "[^5]",
+            "https://a.com": "[^2]",
+            "https://b.com": "[^3]",
+            "https://c.com": "[^4]",
+            "https://d.com": "[^5]",
         }
         result = merge_appends(None, findings, refs)  # type: ignore[arg-type]
 
-        appends = [(f.new_sentence, s) for _, f, _, s in result if f.outcome == "append"]
+        appends = [
+            (f.new_sentence, s) for _, f, _, s in result if f.outcome == "append"
+        ]
         sections_merged = {s for _, s in appends}
         # Two merged findings, one per section (anchored to first source URL)
         assert len(appends) == 2

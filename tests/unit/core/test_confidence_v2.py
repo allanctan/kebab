@@ -37,29 +37,69 @@ class TestConfidenceV2:
         assert compute_confidence(_fm(sources=2)) == 1
 
     def test_level_2_researched_below_threshold(self) -> None:
-        assert compute_confidence(_fm(
-            sources=2, research_claims_total=10, external_confirms=5, dispute_count=0
-        )) == 2
+        assert (
+            compute_confidence(
+                _fm(
+                    sources=2,
+                    research_claims_total=10,
+                    external_confirms=5,
+                    dispute_count=0,
+                )
+            )
+            == 2
+        )
 
     def test_level_2_researched_has_disputes(self) -> None:
-        assert compute_confidence(_fm(
-            sources=2, research_claims_total=10, external_confirms=8, dispute_count=1
-        )) == 2
+        assert (
+            compute_confidence(
+                _fm(
+                    sources=2,
+                    research_claims_total=10,
+                    external_confirms=8,
+                    dispute_count=1,
+                )
+            )
+            == 2
+        )
 
     def test_level_3_researched_above_threshold_no_disputes(self) -> None:
-        assert compute_confidence(_fm(
-            sources=2, research_claims_total=10, external_confirms=8, dispute_count=0
-        )) == 3
+        assert (
+            compute_confidence(
+                _fm(
+                    sources=2,
+                    research_claims_total=10,
+                    external_confirms=8,
+                    dispute_count=0,
+                )
+            )
+            == 3
+        )
 
     def test_level_3_exact_threshold(self) -> None:
-        assert compute_confidence(_fm(
-            sources=2, research_claims_total=10, external_confirms=7, dispute_count=0
-        )) == 3
+        assert (
+            compute_confidence(
+                _fm(
+                    sources=2,
+                    research_claims_total=10,
+                    external_confirms=7,
+                    dispute_count=0,
+                )
+            )
+            == 3
+        )
 
     def test_level_4_human_verified(self) -> None:
         assert compute_confidence(_fm(human_verified=True)) == 4
 
     def test_human_verified_overrides_disputes(self) -> None:
-        assert compute_confidence(_fm(
-            human_verified=True, research_claims_total=10, external_confirms=5, dispute_count=3
-        )) == 4
+        assert (
+            compute_confidence(
+                _fm(
+                    human_verified=True,
+                    research_claims_total=10,
+                    external_confirms=5,
+                    dispute_count=3,
+                )
+            )
+            == 4
+        )

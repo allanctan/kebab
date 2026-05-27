@@ -42,10 +42,7 @@ def list_domains(settings: Settings) -> list[str]:
     kebab_dir = Path(settings.KNOWLEDGE_DIR) / ".kebab"
     if not kebab_dir.exists():
         return []
-    return sorted(
-        p.stem.removeprefix("plan-")
-        for p in kebab_dir.glob("plan-*.json")
-    )
+    return sorted(p.stem.removeprefix("plan-") for p in kebab_dir.glob("plan-*.json"))
 
 
 def _persist_plan(plan: HierarchyPlan, target: Path) -> None:

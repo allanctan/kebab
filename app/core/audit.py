@@ -34,6 +34,7 @@ def _get_logs_dir() -> Path:
     global _logs_dir  # noqa: PLW0603
     if _logs_dir is None:
         from app.config.logging import LOGS_DIR
+
         _logs_dir = LOGS_DIR
     return _logs_dir
 

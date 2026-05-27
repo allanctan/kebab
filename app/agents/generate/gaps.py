@@ -84,7 +84,9 @@ class GapResult:
     output_path: Path
 
 
-def _node_to_gap(node: HierarchyNode, *, reason: Literal["new", "stale"] = "new") -> Gap:
+def _node_to_gap(
+    node: HierarchyNode, *, reason: Literal["new", "stale"] = "new"
+) -> Gap:
     return Gap(
         id=node.id,
         name=node.name,
@@ -131,7 +133,9 @@ def run(
     """Execute the gaps stage against the plan for ``domain``."""
     plan = plan if plan is not None else load_plan(settings, domain)
     if plan is None:
-        raise KebabError(f"gaps: no plan found for domain '{domain}' — run `kebab organize --domain {domain}` first")
+        raise KebabError(
+            f"gaps: no plan found for domain '{domain}' — run `kebab organize --domain {domain}` first"
+        )
 
     store = store or Store(settings)
     store.ensure_collection()

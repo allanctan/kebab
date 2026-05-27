@@ -26,7 +26,15 @@ _MAX_ATTEMPTS = 4
 #: Base backoff in seconds. Doubles each retry: 1s, 2s, 4s, 8s.
 _BACKOFF_BASE = 1.0
 #: HTTP-ish status substrings that indicate a transient error worth retrying.
-_TRANSIENT_MARKERS = ("503", "500", "502", "504", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED")
+_TRANSIENT_MARKERS = (
+    "503",
+    "500",
+    "502",
+    "504",
+    "429",
+    "UNAVAILABLE",
+    "RESOURCE_EXHAUSTED",
+)
 
 
 _DESCRIBE_PROMPT = (
@@ -82,6 +90,7 @@ def describe_image(
     # Resolve alias (e.g. "gemini-flash-lite") to actual model name.
     raw = settings.FIGURE_MODEL
     from app.core.llm.model_registry import get_entry
+
     entry = get_entry(raw)
     if entry is not None:
         model = entry.model
@@ -93,6 +102,7 @@ def describe_image(
     # Gemini doesn't support SVG — convert to PNG via pymupdf.
     if mime_type == "image/svg+xml":
         import pymupdf
+
         doc = pymupdf.open(stream=image_bytes, filetype="svg")
         pix = doc[0].get_pixmap(dpi=150)
         image_bytes = pix.tobytes("png")
@@ -122,7 +132,7 @@ def describe_image(
             is_transient = any(marker in msg for marker in _TRANSIENT_MARKERS)
             if not is_transient or attempt == _MAX_ATTEMPTS - 1:
                 raise KebabError(f"Gemini multimodal call failed: {exc}") from exc
-            backoff = _BACKOFF_BASE * (2 ** attempt)
+            backoff = _BACKOFF_BASE * (2**attempt)
             logger.info(
                 "describe_image transient failure (attempt %d/%d), retrying in %.1fs: %s",
                 attempt + 1,

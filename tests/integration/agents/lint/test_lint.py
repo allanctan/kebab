@@ -147,9 +147,9 @@ def test_lint_surfaces_uncovered_competencies(
         "uncovered": 2,
         "by_subject": {},
         "competencies": {
-            "LC-1": ["SCI-BIO-001"],   # covered
-            "LC-2": [],                # uncovered
-            "LC-3": [],                # uncovered
+            "LC-1": ["SCI-BIO-001"],  # covered
+            "LC-2": [],  # uncovered
+            "LC-3": [],  # uncovered
         },
     }
     (curriculum_dir / "test-spine.coverage.json").write_text(

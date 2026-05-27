@@ -90,8 +90,16 @@ def run(
             )
             useful_inputs.append((case["question"], case["answer"]))
 
-    grounded_batch = grounded_fn(grounded_inputs) if grounded_inputs else QaGroundedBatch(verdicts=[])
-    useful_batch = usefulness_fn(useful_inputs) if useful_inputs else QaUsefulnessBatch(verdicts=[])
+    grounded_batch = (
+        grounded_fn(grounded_inputs)
+        if grounded_inputs
+        else QaGroundedBatch(verdicts=[])
+    )
+    useful_batch = (
+        usefulness_fn(useful_inputs)
+        if useful_inputs
+        else QaUsefulnessBatch(verdicts=[])
+    )
 
     for verdict, idx in zip(grounded_batch.verdicts, structural_passes, strict=True):
         results[idx].is_grounded = verdict.is_grounded

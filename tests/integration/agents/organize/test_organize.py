@@ -127,10 +127,18 @@ def _stub_proposer(
 
 @pytest.mark.integration
 def test_organize_creates_article_stubs(settings: Settings) -> None:
-    result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
+    result = organize_stage.run(
+        settings, domain_hint="Science", proposer=_stub_proposer
+    )
     assert len(result.created) == 2
     assert all(path.exists() for path in result.created)
-    light = settings.CURATED_DIR / "Science" / "Biology" / "Photosynthesis" / "light-reactions.md"
+    light = (
+        settings.CURATED_DIR
+        / "Science"
+        / "Biology"
+        / "Photosynthesis"
+        / "light-reactions.md"
+    )
     assert light.exists()
     body = light.read_text(encoding="utf-8")
     assert "SCI-BIO-001" in body
@@ -139,7 +147,9 @@ def test_organize_creates_article_stubs(settings: Settings) -> None:
 
 @pytest.mark.integration
 def test_organize_skips_non_article_nodes(settings: Settings) -> None:
-    result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
+    result = organize_stage.run(
+        settings, domain_hint="Science", proposer=_stub_proposer
+    )
     # Only the 2 article-level nodes should produce files.
     assert len(result.created) == 2
 
@@ -147,16 +157,29 @@ def test_organize_skips_non_article_nodes(settings: Settings) -> None:
 @pytest.mark.integration
 def test_organize_does_not_overwrite_existing(settings: Settings) -> None:
     organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
-    light = settings.CURATED_DIR / "Science" / "Biology" / "Photosynthesis" / "light-reactions.md"
-    light.write_text("---\nid: X\nname: Custom\ntype: article\nsources: []\n---\nedited\n", encoding="utf-8")
-    result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
+    light = (
+        settings.CURATED_DIR
+        / "Science"
+        / "Biology"
+        / "Photosynthesis"
+        / "light-reactions.md"
+    )
+    light.write_text(
+        "---\nid: X\nname: Custom\ntype: article\nsources: []\n---\nedited\n",
+        encoding="utf-8",
+    )
+    result = organize_stage.run(
+        settings, domain_hint="Science", proposer=_stub_proposer
+    )
     assert light in result.existing
     assert "edited" in light.read_text()
 
 
 @pytest.mark.integration
 def test_organize_persists_plan_with_paths(settings: Settings) -> None:
-    result = organize_stage.run(settings, domain_hint="Science", proposer=_stub_proposer)
+    result = organize_stage.run(
+        settings, domain_hint="Science", proposer=_stub_proposer
+    )
     assert result.plan_path.exists()
     reloaded = organize_stage.load_plan(settings, "Science")
     assert reloaded is not None
@@ -164,7 +187,9 @@ def test_organize_persists_plan_with_paths(settings: Settings) -> None:
     assert all(n.md_path is not None for n in article_nodes)
     light_node = next(n for n in article_nodes if n.id == "SCI-BIO-001")
     assert light_node.md_path is not None
-    assert light_node.md_path.endswith("Science/Biology/Photosynthesis/light-reactions.md")
+    assert light_node.md_path.endswith(
+        "Science/Biology/Photosynthesis/light-reactions.md"
+    )
 
 
 @pytest.mark.integration
@@ -296,9 +321,7 @@ def test_organize_runs_incremental_when_new_source_appears(settings: Settings) -
     assert 1 in light.source_files
     respiration = next(n for n in reloaded.nodes if n.id == "SCI-BIO-003")
     assert respiration.md_path is not None
-    assert respiration.md_path.endswith(
-        "Science/Biology/cellular-respiration.md"
-    )
+    assert respiration.md_path.endswith("Science/Biology/cellular-respiration.md")
     # Stub for the new article is on disk.
     assert Path(respiration.md_path).exists()
 

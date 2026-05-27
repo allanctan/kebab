@@ -15,7 +15,9 @@ def _md() -> Markdown:
 class TestFootnoteDefParsing:
     def test_parses_basic_footnote(self) -> None:
         md = _md()
-        tree = md.parse("[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)\n")
+        tree = md.parse(
+            "[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)\n"
+        )
         defs = [n for n in tree.children if isinstance(n, FootnoteDef)]
         assert len(defs) == 1
         assert defs[0].number == 1
@@ -83,10 +85,15 @@ class TestFootnoteRefParsing:
 class TestRoundtrip:
     def test_basic_footnote_roundtrips(self) -> None:
         md = _md()
-        original = "[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)\n"
+        original = (
+            "[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)\n"
+        )
         tree = md.parse(original)
         rendered = md.render(tree)
-        assert "[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)" in rendered
+        assert (
+            "[^1]: [Plate tectonics](https://en.wikipedia.org/wiki/Plate_tectonics)"
+            in rendered
+        )
 
     def test_footnote_with_source_id_roundtrips(self) -> None:
         md = _md()
@@ -124,11 +131,7 @@ class TestRoundtrip:
 
     def test_gfm_table_roundtrips(self) -> None:
         md = _md()
-        original = (
-            "| A | B |\n"
-            "|---|---|\n"
-            "| 1 | 2 |\n"
-        )
+        original = "| A | B |\n|---|---|\n| 1 | 2 |\n"
         tree = md.parse(original)
         rendered = md.render(tree)
         assert "| A | B |" in rendered
